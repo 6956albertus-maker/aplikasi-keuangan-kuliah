@@ -154,24 +154,53 @@ export default function App() {
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
   const unpaidAlerts = payments.filter(p => !p.sudah_dibayar && p.tenggat_waktu);
 
-  // Agenda terdekat (diurutkan berdasarkan tanggal hari ini ke depan)
+  // Agenda terdekat
   const todayStr = new Date().toISOString().split('T')[0];
   const upcomingEvents = events.filter(e => e.tanggal >= todayStr).slice(0, 3);
 
-  // Data Grafik Tren Keuangan
+  // --- KODE LENGKAP GRAFIK REALTIME ---
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+  
+  // Menghasilkan 6 bulan terakhir secara berurutan
+  const getLast6Months = () => {
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = monthNames[d.getMonth()];
+      months.push({ key: monthKey, label: monthName });
+    }
+    return months;
+  };
+
+  const last6Months = getLast6Months();
+
+  const incomeDataByMonth = last6Months.map(m => {
+    return transactions
+      .filter(t => t.tanggal.startsWith(m.key) && t.tipe === 'pemasukan')
+      .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
+  });
+
+  const expenseDataByMonth = last6Months.map(m => {
+    return transactions
+      .filter(t => t.tanggal.startsWith(m.key) && t.tipe === 'pengeluaran')
+      .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
+  });
+
   const chartData = {
-    labels: ['Mei', 'Jun', 'Jul', 'Agt', 'Sep'],
+    labels: last6Months.map(m => m.label),
     datasets: [
       {
         label: 'Pemasukan (¥)',
-        data: [6000, 7000, 6400, 8500, monthIncomeYuan || 8000],
+        data: incomeDataByMonth,
         borderColor: '#10b981',
         backgroundColor: '#10b981',
         tension: 0.3,
       },
       {
         label: 'Pengeluaran (¥)',
-        data: [2500, 3100, 2800, 4200, monthExpenseYuan || 800],
+        data: expenseDataByMonth,
         borderColor: '#f43f5e',
         backgroundColor: '#f43f5e',
         tension: 0.3,
@@ -347,10 +376,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* KOMPONEN GRAFIK KEUANGAN */}
+            {/* KOMPONEN GRAFIK KEUANGAN (REALTIME) */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
-                <h2 className="font-bold text-xs text-slate-800">Tren Pemasukan vs Pengeluaran</h2>
+                <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan</h2>
                 <span className="text-[10px] text-slate-400 font-medium">Bulanan (Yuan)</span>
               </div>
               <div className="h-48 flex items-center justify-center">
