@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
-  TrendingUp, TrendingDown, Clock, AlertCircle, Plus, Edit2, ArrowUpRight, ArrowDownRight 
+  TrendingUp, TrendingDown, Clock, AlertCircle, Plus, Edit2, ArrowUpRight, ArrowDownRight, X, Info
 } from 'lucide-react';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -29,6 +29,7 @@ export default function App() {
   // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
+  const [selectedDateEvents, setSelectedDateEvents] = useState(null); // Pop-up state
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
     tanggal: new Date().toISOString().split('T')[0],
@@ -119,7 +120,7 @@ export default function App() {
     fetchPayments();
   }
 
-  // --- HELPERS & KALENDER ---
+  // --- HELPERS ---
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID')}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
@@ -134,6 +135,57 @@ export default function App() {
 
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+
+  const handleDateClick = (dateStr) => {
+    const dayEvents = events.filter((e) => e.tanggal === dateStr);
+    setSelectedDateEvents({ date: dateStr, list: dayEvents });
+  };
+
+  // Komponen Reusable Kalender
+  const renderCalendar = () => (
+    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <span>📅</span> Kalender Agenda Kuliah
+        </h2>
+        <span className="text-xs font-semibold text-slate-500">
+          {currentMonth.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400">
+        <div>MIN</div><div>SEN</div><div>SEL</div><div>RAB</div><div>KAM</div><div>JUM</div><div>SAB</div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {[...Array(firstDayOfMonth)].map((_, i) => (
+          <div key={`empty-${i}`} className="h-14 bg-slate-50 rounded-lg"></div>
+        ))}
+        {[...Array(daysInMonth)].map((_, i) => {
+          const day = i + 1;
+          const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayEvents = events.filter((e) => e.tanggal === dateStr);
+
+          return (
+            <div 
+              key={day} 
+              onClick={() => handleDateClick(dateStr)}
+              className="h-14 p-1 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg flex flex-col justify-between cursor-pointer transition"
+            >
+              <span className="text-[10px] font-bold text-slate-600">{day}</span>
+              <div className="space-y-0.5 overflow-hidden">
+                {dayEvents.map((ev) => (
+                  <div key={ev.id} className="text-[8px] bg-blue-100 text-blue-700 px-1 rounded truncate font-medium">
+                    {ev.judul}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans">
@@ -233,6 +285,9 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {/* Kalender di Dashboard Utama */}
+            {renderCalendar()}
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="w-4 h-4 text-emerald-600"/> Mutasi Terakhir</h2>
@@ -344,71 +399,43 @@ export default function App() {
         {/* TAB KULIAH & KALENDER */}
         {activeTab === 'kuliah' && (
           <div className="space-y-5">
-            <section className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-sm font-bold text-slate-900">📅 Kalender Agenda Kuliah</h2>
-                <span className="text-xs font-semibold text-slate-500">
-                  {currentMonth.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}
-                </span>
-              </div>
+            {renderCalendar()}
 
-              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400">
-                <div>MIN</div><div>SEN</div><div>SEL</div><div>RAB</div><div>KAM</div><div>JUM</div><div>SAB</div>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1">
-                {[...Array(firstDayOfMonth)].map((_, i) => (
-                  <div key={`empty-${i}`} className="h-14 bg-slate-50 rounded-lg"></div>
-                ))}
-                {[...Array(daysInMonth)].map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const dayEvents = events.filter((e) => e.tanggal === dateStr);
-
-                  return (
-                    <div key={day} className="h-14 p-1 bg-slate-50 border border-slate-100 rounded-lg flex flex-col justify-between">
-                      <span className="text-[10px] font-bold text-slate-600">{day}</span>
-                      <div className="space-y-0.5 overflow-hidden">
-                        {dayEvents.map((ev) => (
-                          <div key={ev.id} className="text-[8px] bg-blue-100 text-blue-700 px-1 rounded truncate font-medium">
-                            {ev.judul}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <form onSubmit={addAgenda} className="pt-3 border-t border-slate-100 space-y-2">
-                <h3 className="text-xs font-bold text-slate-700">Tambah Agenda Baru</h3>
+            <form onSubmit={addAgenda} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <h3 className="text-xs font-bold text-slate-700">Tambah Agenda Baru</h3>
+              <input
+                type="text"
+                placeholder="Judul agenda/tugas"
+                value={agendaForm.judul}
+                onChange={(e) => setAgendaForm({ ...agendaForm, judul: e.target.value })}
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                required
+              />
+              <div className="grid grid-cols-2 gap-2">
                 <input
-                  type="text"
-                  placeholder="Judul agenda/tugas"
-                  value={agendaForm.judul}
-                  onChange={(e) => setAgendaForm({ ...agendaForm, judul: e.target.value })}
-                  className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
-                  required
+                  type="date"
+                  value={agendaForm.tanggal}
+                  onChange={(e) => setAgendaForm({ ...agendaForm, tanggal: e.target.value })}
+                  className="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                 />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="date"
-                    value={agendaForm.tanggal}
-                    onChange={(e) => setAgendaForm({ ...agendaForm, tanggal: e.target.value })}
-                    className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
-                  />
-                  <input
-                    type="time"
-                    value={agendaForm.jam}
-                    onChange={(e) => setAgendaForm({ ...agendaForm, jam: e.target.value })}
-                    className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
-                  />
-                </div>
-                <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md">
-                  + Simpan Agenda
-                </button>
-              </form>
-            </section>
+                <input
+                  type="time"
+                  value={agendaForm.jam}
+                  onChange={(e) => setAgendaForm({ ...agendaForm, jam: e.target.value })}
+                  className="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Keterangan tambahan (opsional)"
+                value={agendaForm.keterangan}
+                onChange={(e) => setAgendaForm({ ...agendaForm, keterangan: e.target.value })}
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+              />
+              <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">
+                + Simpan Agenda
+              </button>
+            </form>
           </div>
         )}
 
@@ -484,6 +511,49 @@ export default function App() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL POP-UP DETAIL AGENDA SAAT TANGGAL DIKLIK */}
+        {selectedDateEvents && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-600" />
+                  <span>Agenda {selectedDateEvents.date}</span>
+                </h3>
+                <button 
+                  onClick={() => setSelectedDateEvents(null)} 
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {selectedDateEvents.list.length > 0 ? (
+                  selectedDateEvents.list.map((ev) => (
+                    <div key={ev.id} className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-1">
+                      <div className="flex justify-between items-start">
+                        <p className="text-xs font-bold text-blue-900">{ev.judul}</p>
+                        {ev.jam && <span className="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-semibold">{ev.jam}</span>}
+                      </div>
+                      {ev.keterangan && <p className="text-[11px] text-slate-600">{ev.keterangan}</p>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-400 text-center py-4">Tidak ada agenda pada tanggal ini.</p>
+                )}
+              </div>
+
+              <button
+                onClick={() => setSelectedDateEvents(null)}
+                className="w-full bg-slate-900 text-white py-2 rounded-xl text-xs font-bold"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         )}
