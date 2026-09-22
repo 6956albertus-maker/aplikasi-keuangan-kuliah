@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
-  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info 
+  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -46,6 +46,9 @@ export default function App() {
     tanggal: new Date().toISOString().split('T')[0],
     keterangan: ''
   });
+
+  // State Modal Edit Mutasi
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
   // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -109,6 +112,34 @@ export default function App() {
     fetchTransactions();
   }
 
+  // --- FITUR HAPUS TRANSAKSI ---
+  async function deleteTransaction(id) {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
+    await supabase.from('transaksi').delete().eq('id', id);
+    fetchTransactions();
+  }
+
+  // --- FITUR UPDATE/EDIT TRANSAKSI ---
+  async function updateTransaction(e) {
+    e.preventDefault();
+    if (!editingTransaction) return;
+
+    const yuan = Number(editingTransaction.nominal_yuan);
+    const idr = yuan * kursRate;
+
+    await supabase.from('transaksi').update({
+      tipe: editingTransaction.tipe,
+      kategori: editingTransaction.tipe === 'pemasukan' ? 'Pemasukan' : editingTransaction.kategori,
+      nominal_yuan: yuan,
+      nominal_idr: idr,
+      tanggal: editingTransaction.tanggal,
+      keterangan: editingTransaction.keterangan
+    }).eq('id', editingTransaction.id);
+
+    setEditingTransaction(null);
+    fetchTransactions();
+  }
+
   async function fetchEvents() {
     const { data } = await supabase.from('agenda_kuliah').select('*').order('tanggal', { ascending: true });
     if (data) setEvents(data);
@@ -158,10 +189,9 @@ export default function App() {
   const todayStr = new Date().toISOString().split('T')[0];
   const upcomingEvents = events.filter(e => e.tanggal >= todayStr).slice(0, 3);
 
-  // --- KODE LENGKAP GRAFIK REALTIME ---
+  // GRAFIK REALTIME
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
   
-  // Menghasilkan 6 bulan terakhir secara berurutan
   const getLast6Months = () => {
     const months = [];
     const now = new Date();
@@ -376,7 +406,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* KOMPONEN GRAFIK KEUANGAN (REALTIME) */}
+            {/* KOMPONEN GRAFIK KEUANGAN */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan</h2>
@@ -387,7 +417,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* KOMPONEN AGENDA KULIAH TERDEKAT */}
+            {/* AGENDA KULIAH TERDEKAT */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-800 flex items-center gap-2">
@@ -423,16 +453,16 @@ export default function App() {
               </div>
             </div>
 
-            {/* Kalender Utama */}
             {renderCalendar()}
 
+            {/* MUTASI TERAKHIR (DASHBOARD) */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="w-4 h-4 text-emerald-600"/> Mutasi Terakhir</h2>
               <div className="divide-y divide-slate-100">
                 {transactions.slice(0, 4).map(t => (
                   <div key={t.id} className="py-2.5 flex justify-between items-center text-xs">
                     <div>
-                      <p className="font-semibold">{t.keterangan || t.kategori}</p>
+                      <p className="font-semibold text-slate-800">{t.keterangan || t.kategori}</p>
                       <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
                     </div>
                     <div className="text-right">
@@ -511,20 +541,42 @@ export default function App() {
               <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">Simpan Transaksi</button>
             </form>
 
+            {/* KOMPONEN RIWAYAT MUTASI DENGAN FITUR EDIT & HAPUS */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700">Riwayat Mutasi</h2>
               <div className="divide-y divide-slate-100">
                 {transactions.map(t => (
-                  <div key={t.id} className="py-2.5 flex justify-between items-center text-xs">
+                  <div key={t.id} className="py-3 flex justify-between items-center text-xs group hover:bg-slate-50 p-2 rounded-xl transition">
                     <div>
-                      <p className="font-semibold text-slate-800">{t.keterangan || t.kategori}</p>
-                      <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
+                      <p className="font-bold text-slate-800">{t.keterangan || t.kategori}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{t.tanggal} • {t.kategori}</p>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
-                      </p>
-                      <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
+                        </p>
+                        <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
+                      </div>
+
+                      {/* Tombol Aksi Edit & Hapus */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditingTransaction(t)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Transaksi"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => deleteTransaction(t.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Hapus Transaksi"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -648,6 +700,103 @@ export default function App() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL POP-UP EDIT TRANSAKSI */}
+        {editingTransaction && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-sm text-slate-800">Edit Transaksi</h3>
+                <button 
+                  onClick={() => setEditingTransaction(null)} 
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={updateTransaction} className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pengeluaran' })}
+                    className={`py-2 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-600'}`}
+                  >
+                    Pengeluaran
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pemasukan' })}
+                    className={`py-2 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 text-slate-600'}`}
+                  >
+                    Pemasukan
+                  </button>
+                </div>
+
+                {editingTransaction.tipe === 'pengeluaran' && (
+                  <select
+                    value={editingTransaction.kategori}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                  >
+                    {['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Lain-lain'].map(k => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                )}
+
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold mb-1 block">Nominal Yuan (¥)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editingTransaction.nominal_yuan}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Estimasi IDR: {formatIDR(editingTransaction.nominal_yuan)}</p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold mb-1 block">Tanggal Transaksi</label>
+                  <input
+                    type="date"
+                    value={editingTransaction.tanggal}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold mb-1 block">Keterangan / Judul</label>
+                  <input
+                    type="text"
+                    value={editingTransaction.keterangan || ''}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction(null)}
+                    className="w-1/2 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-xs"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md"
+                  >
+                    Simpan
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
