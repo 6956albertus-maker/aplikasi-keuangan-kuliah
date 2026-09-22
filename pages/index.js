@@ -31,7 +31,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
-  // Set default tab ke 'dashboard' agar muncul pertama kali saat dibuka
   const [activeTab, setActiveTab] = useState('dashboard');
   const [kursRate, setKursRate] = useState(2200);
   const [editingKurs, setEditingKurs] = useState(false);
@@ -58,8 +57,9 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null); // State Modal Edit Agenda
   
-  // State Form Agenda
+  // State Form Agenda Baru
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
     tanggal: new Date().toISOString().split('T')[0],
@@ -160,7 +160,10 @@ export default function App() {
 
   async function addAgenda(e) {
     e.preventDefault();
-    if (!agendaForm.judul) return;
+    if (!agendaForm.judul.trim()) {
+      alert('Silakan isi Judul agenda terlebih dahulu!');
+      return;
+    }
 
     const payload = {
       judul: agendaForm.judul,
@@ -172,8 +175,13 @@ export default function App() {
       keterangan: agendaForm.keterangan
     };
 
-    await supabase.from('agenda_kuliah').insert([payload]);
-    
+    const { error } = await supabase.from('agenda_kuliah').insert([payload]);
+
+    if (error) {
+      alert('Gagal menyimpan agenda: ' + error.message);
+      return;
+    }
+
     setAgendaForm({ 
       judul: '', 
       tanggal: new Date().toISOString().split('T')[0], 
@@ -183,6 +191,36 @@ export default function App() {
       seharian: false,
       keterangan: '' 
     });
+
+    fetchEvents();
+  }
+
+  async function updateAgenda(e) {
+    e.preventDefault();
+    if (!editingEvent || !editingEvent.judul.trim()) {
+      alert('Judul agenda tidak boleh kosong!');
+      return;
+    }
+
+    const payload = {
+      judul: editingEvent.judul,
+      tanggal: editingEvent.tanggal,
+      tanggal_selesai: editingEvent.tanggal_selesai || editingEvent.tanggal,
+      jam: editingEvent.seharian ? null : editingEvent.jam,
+      jam_selesai: editingEvent.seharian ? null : editingEvent.jam_selesai,
+      seharian: editingEvent.seharian,
+      keterangan: editingEvent.keterangan
+    };
+
+    const { error } = await supabase.from('agenda_kuliah').update(payload).eq('id', editingEvent.id);
+
+    if (error) {
+      alert('Gagal memperbarui agenda: ' + error.message);
+      return;
+    }
+
+    setEditingEvent(null);
+    setSelectedDateEvents(null);
     fetchEvents();
   }
 
@@ -263,7 +301,6 @@ export default function App() {
   const monthIncomeYuan = currentMonthTransactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthExpenseYuan = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   
-  // Total Pengeluaran tanpa kategori Biaya Kuliah
   const monthNonCollegeExpenseYuan = currentMonthTransactions
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
@@ -289,7 +326,6 @@ export default function App() {
     return diffDays <= 30;
   });
 
-  // Helper Agenda Terdekat & Cek Selisih < 24 Jam
   const upcomingEvents = events
     .map(ev => {
       const timeStr = ev.jam ? `${ev.tanggal}T${ev.jam}` : `${ev.tanggal}T00:00:00`;
@@ -298,7 +334,7 @@ export default function App() {
       const diffHours = diffMs / (1000 * 60 * 60);
       return { ...ev, eventDate, diffHours };
     })
-    .filter(ev => ev.diffHours >= -24) // Tampilkan agenda mendatang atau yang baru saja terjadi hari ini
+    .filter(ev => ev.diffHours >= -24)
     .sort((a, b) => a.eventDate - b.eventDate);
 
   // Chart Data
@@ -975,12 +1011,24 @@ export default function App() {
                           <p className="text-[10px] text-slate-500">{ev.keterangan}</p>
                         )}
                       </div>
-                      <button 
-                        onClick={() => deleteAgenda(ev.id)}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {/* Tombol Edit Agenda */}
+                        <button 
+                          onClick={() => setEditingEvent(ev)}
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Agenda"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        {/* Tombol Hapus Agenda */}
+                        <button 
+                          onClick={() => deleteAgenda(ev.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Hapus Agenda"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -992,6 +1040,119 @@ export default function App() {
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL POP-UP EDIT AGENDA KULIAH */}
+        {editingEvent && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-sm text-slate-800">Edit Agenda Kuliah</h3>
+                <button 
+                  onClick={() => setEditingEvent(null)} 
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={updateAgenda} className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold mb-1 block">Judul Agenda/Tugas</label>
+                  <input
+                    type="text"
+                    value={editingEvent.judul}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, judul: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal Mulai</label>
+                    <input
+                      type="date"
+                      value={editingEvent.tanggal}
+                      onChange={(e) => setEditingEvent({ ...editingEvent, tanggal: e.target.value })}
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal Selesai</label>
+                    <input
+                      type="date"
+                      value={editingEvent.tanggal_selesai || editingEvent.tanggal}
+                      onChange={(e) => setEditingEvent({ ...editingEvent, tanggal_selesai: e.target.value })}
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="edit_seharian"
+                    checked={editingEvent.seharian || false}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, seharian: e.target.checked })}
+                    className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="edit_seharian" className="text-xs font-semibold text-slate-600 cursor-pointer select-none">
+                    Seharian (24 Jam)
+                  </label>
+                </div>
+
+                {!editingEvent.seharian && (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Jam Mulai</label>
+                      <input
+                        type="time"
+                        value={editingEvent.jam || '09:00'}
+                        onChange={(e) => setEditingEvent({ ...editingEvent, jam: e.target.value })}
+                        className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Jam Selesai</label>
+                      <input
+                        type="time"
+                        value={editingEvent.jam_selesai || '10:00'}
+                        onChange={(e) => setEditingEvent({ ...editingEvent, jam_selesai: e.target.value })}
+                        className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] text-slate-400 font-semibold mb-1 block">Keterangan</label>
+                  <input
+                    type="text"
+                    value={editingEvent.keterangan || ''}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, keterangan: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingEvent(null)}
+                    className="w-1/2 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-xs"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md"
+                  >
+                    Simpan Perubahan
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
