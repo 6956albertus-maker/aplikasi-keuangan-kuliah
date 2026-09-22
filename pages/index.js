@@ -31,7 +31,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('keuangan');
+  // Set default tab ke 'dashboard' agar muncul pertama kali saat dibuka
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [kursRate, setKursRate] = useState(2200);
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
@@ -56,7 +57,7 @@ export default function App() {
   // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
-  const [selectedDateEvents, setSelectedDateEvents] = useState(null); // State untuk Pop-up Kalender
+  const [selectedDateEvents, setSelectedDateEvents] = useState(null);
   
   // State Form Agenda
   const [agendaForm, setAgendaForm] = useState({
@@ -272,6 +273,7 @@ export default function App() {
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
 
   // Filter Tenggat Waktu
+  const now = new Date();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -287,14 +289,26 @@ export default function App() {
     return diffDays <= 30;
   });
 
+  // Helper Agenda Terdekat & Cek Selisih < 24 Jam
+  const upcomingEvents = events
+    .map(ev => {
+      const timeStr = ev.jam ? `${ev.tanggal}T${ev.jam}` : `${ev.tanggal}T00:00:00`;
+      const eventDate = new Date(timeStr);
+      const diffMs = eventDate - now;
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return { ...ev, eventDate, diffHours };
+    })
+    .filter(ev => ev.diffHours >= -24) // Tampilkan agenda mendatang atau yang baru saja terjadi hari ini
+    .sort((a, b) => a.eventDate - b.eventDate);
+
   // Chart Data
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
   
   const getLast6Months = () => {
     const months = [];
-    const now = new Date();
+    const n = new Date();
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d = new Date(n.getFullYear(), n.getMonth() - i, 1);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const monthName = monthNames[d.getMonth()];
       months.push({ key: monthKey, label: monthName });
@@ -480,7 +494,7 @@ export default function App() {
           })}
         </nav>
 
-        {/* TAB DASHBOARD */}
+        {/* TAB UTAMA / DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-5">
             {unpaidAlerts.length > 0 && (
@@ -498,6 +512,7 @@ export default function App() {
               </div>
             )}
 
+            {/* Rekapitulasi Keuangan */}
             <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-4">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <span className="text-xs text-slate-400 font-medium">Rekapitulasi Keuangan</span>
@@ -534,6 +549,54 @@ export default function App() {
               </div>
             </div>
 
+            {/* SEKSI AGENDA KULIAH TERDEKAT */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <span>Agenda Kuliah Terdekat</span>
+                </h2>
+                <span className="text-[10px] text-slate-400">Mendatang</span>
+              </div>
+
+              <div className="space-y-2">
+                {upcomingEvents.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
+                ) : (
+                  upcomingEvents.slice(0, 4).map(ev => {
+                    const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
+
+                    return (
+                      <div 
+                        key={ev.id} 
+                        className={`p-3 rounded-xl border flex justify-between items-center transition ${
+                          isWithin24Hours 
+                            ? 'bg-amber-100/70 border-amber-300 text-amber-900' 
+                            : 'bg-slate-50 border-slate-100 text-slate-800'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-xs">{ev.judul}</p>
+                            {isWithin24Hours && (
+                              <span className="text-[9px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-md">
+                                Segera (&lt; 24 jam)
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500">
+                            {ev.tanggal} {ev.tanggal_selesai && ev.tanggal_selesai !== ev.tanggal ? `s/d ${ev.tanggal_selesai}` : ''} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                          </p>
+                          {ev.keterangan && <p className="text-[10px] text-slate-400">{ev.keterangan}</p>}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Grafik Keuangan */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan</h2>
@@ -544,6 +607,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Kalender */}
             {renderCalendar()}
           </div>
         )}
