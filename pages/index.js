@@ -2,8 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
-  TrendingUp, TrendingDown, Clock, AlertCircle, Plus, Edit2, ArrowUpRight, ArrowDownRight, X, Info
+  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info 
 } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -29,7 +50,7 @@ export default function App() {
   // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
-  const [selectedDateEvents, setSelectedDateEvents] = useState(null); // Pop-up state
+  const [selectedDateEvents, setSelectedDateEvents] = useState(null);
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
     tanggal: new Date().toISOString().split('T')[0],
@@ -133,6 +154,46 @@ export default function App() {
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
   const unpaidAlerts = payments.filter(p => !p.sudah_dibayar && p.tenggat_waktu);
 
+  // Agenda terdekat (diurutkan berdasarkan tanggal hari ini ke depan)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const upcomingEvents = events.filter(e => e.tanggal >= todayStr).slice(0, 3);
+
+  // Data Grafik Tren Keuangan
+  const chartData = {
+    labels: ['Mei', 'Jun', 'Jul', 'Agt', 'Sep'],
+    datasets: [
+      {
+        label: 'Pemasukan (¥)',
+        data: [6000, 7000, 6400, 8500, monthIncomeYuan || 8000],
+        borderColor: '#10b981',
+        backgroundColor: '#10b981',
+        tension: 0.3,
+      },
+      {
+        label: 'Pengeluaran (¥)',
+        data: [2500, 3100, 2800, 4200, monthExpenseYuan || 800],
+        borderColor: '#f43f5e',
+        backgroundColor: '#f43f5e',
+        tension: 0.3,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { boxWidth: 12, font: { size: 10 } }
+      },
+    },
+    scales: {
+      y: { ticks: { font: { size: 10 } } },
+      x: { ticks: { font: { size: 10 } } }
+    }
+  };
+
+  // Kalender Helpers
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
 
@@ -141,7 +202,6 @@ export default function App() {
     setSelectedDateEvents({ date: dateStr, list: dayEvents });
   };
 
-  // Komponen Reusable Kalender
   const renderCalendar = () => (
     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
       <div className="flex justify-between items-center">
@@ -262,6 +322,7 @@ export default function App() {
               </div>
             )}
 
+            {/* Ringkasan Angka Keuangan */}
             <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-4">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <span className="text-xs text-slate-400 font-medium">Rekapitulasi Keuangan</span>
@@ -286,7 +347,54 @@ export default function App() {
               </div>
             </div>
 
-            {/* Kalender di Dashboard Utama */}
+            {/* KOMPONEN GRAFIK KEUANGAN */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-xs text-slate-800">Tren Pemasukan vs Pengeluaran</h2>
+                <span className="text-[10px] text-slate-400 font-medium">Bulanan (Yuan)</span>
+              </div>
+              <div className="h-48 flex items-center justify-center">
+                <Line data={chartData} options={chartOptions} />
+              </div>
+            </div>
+
+            {/* KOMPONEN AGENDA KULIAH TERDEKAT */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-xs text-slate-800 flex items-center gap-2">
+                  <span className="text-blue-600">📅</span> Agenda Kuliah Terdekat
+                </h2>
+                <button 
+                  onClick={() => setActiveTab('kuliah')}
+                  className="text-xs text-blue-600 font-semibold hover:underline"
+                >
+                  Buka Kalender
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {upcomingEvents.length > 0 ? (
+                  upcomingEvents.map(item => (
+                    <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-xs text-slate-800">{item.judul}</p>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <span>📅 {item.tanggal}</span>
+                          {item.jam && <span>• {item.jam}</span>}
+                        </p>
+                      </div>
+                      <span className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-[10px] font-bold">
+                        Agenda
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-400 text-center py-3">Belum ada agenda terdekat.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Kalender Utama */}
             {renderCalendar()}
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
