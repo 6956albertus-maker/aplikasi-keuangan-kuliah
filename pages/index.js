@@ -31,10 +31,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('keuangan');
   const [kursRate, setKursRate] = useState(2200);
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
+
+  // Daftar Kategori Pengeluaran
+  const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
 
   // States Keuangan
   const [transactions, setTransactions] = useState([]);
@@ -47,17 +50,22 @@ export default function App() {
     keterangan: ''
   });
 
-  // State Modal Edit Mutasi
+  // State Modal Edit Mutasi Keuangan
   const [editingTransaction, setEditingTransaction] = useState(null);
 
   // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
+  
+  // State Form Agenda
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
     tanggal: new Date().toISOString().split('T')[0],
+    tanggal_selesai: new Date().toISOString().split('T')[0],
     jam: '09:00',
+    jam_selesai: '10:00',
+    seharian: false,
     keterangan: ''
   });
 
@@ -66,9 +74,10 @@ export default function App() {
   const [selectedPaymentYear, setSelectedPaymentYear] = useState('Tahun Bahasa');
   const [editingDueDateId, setEditingDueDateId] = useState(null);
   const [tempDueDate, setTempDueDate] = useState('');
+  const [editingPayment, setEditingPayment] = useState(null);
   const [newPaymentForm, setNewPaymentForm] = useState({
-    nama_tagihan: 'Asuransi',
-    jumlah_yuan: '1000',
+    nama_tagihan: '',
+    jumlah_yuan: '',
     tenggat_waktu: ''
   });
 
@@ -151,11 +160,39 @@ export default function App() {
   async function addAgenda(e) {
     e.preventDefault();
     if (!agendaForm.judul) return;
-    await supabase.from('agenda_kuliah').insert([agendaForm]);
-    setAgendaForm({ judul: '', tanggal: new Date().toISOString().split('T')[0], jam: '09:00', keterangan: '' });
+
+    const payload = {
+      judul: agendaForm.judul,
+      tanggal: agendaForm.tanggal,
+      tanggal_selesai: agendaForm.tanggal_selesai || agendaForm.tanggal,
+      jam: agendaForm.seharian ? null : agendaForm.jam,
+      jam_selesai: agendaForm.seharian ? null : agendaForm.jam_selesai,
+      seharian: agendaForm.seharian,
+      keterangan: agendaForm.keterangan
+    };
+
+    await supabase.from('agenda_kuliah').insert([payload]);
+    
+    setAgendaForm({ 
+      judul: '', 
+      tanggal: new Date().toISOString().split('T')[0], 
+      tanggal_selesai: new Date().toISOString().split('T')[0],
+      jam: '09:00', 
+      jam_selesai: '10:00',
+      seharian: false,
+      keterangan: '' 
+    });
     fetchEvents();
   }
 
+  async function deleteAgenda(id) {
+    if (!window.confirm('Hapus agenda ini?')) return;
+    await supabase.from('agenda_kuliah').delete().eq('id', id);
+    fetchEvents();
+    if (selectedDateEvents) setSelectedDateEvents(null);
+  }
+
+  // API Pembayaran
   async function fetchPayments() {
     const { data } = await supabase.from('pembayaran_kuliah').select('*').order('id', { ascending: true });
     if (data) setPayments(data);
@@ -191,6 +228,27 @@ export default function App() {
     fetchPayments();
   }
 
+  async function deletePayment(id) {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus tagihan ini?')) return;
+    await supabase.from('pembayaran_kuliah').delete().eq('id', id);
+    fetchPayments();
+  }
+
+  async function updatePayment(e) {
+    e.preventDefault();
+    if (!editingPayment) return;
+
+    await supabase.from('pembayaran_kuliah').update({
+      nama_tagihan: editingPayment.nama_tagihan,
+      jumlah_yuan: Number(editingPayment.jumlah_yuan),
+      kategori_tahun: editingPayment.kategori_tahun,
+      tenggat_waktu: editingPayment.tenggat_waktu || null
+    }).eq('id', editingPayment.id);
+
+    setEditingPayment(null);
+    fetchPayments();
+  }
+
   // --- HELPERS ---
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID')}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
@@ -198,12 +256,17 @@ export default function App() {
   const currentMonthTransactions = transactions.filter(t => t.tanggal.startsWith(selectedMonth));
   const monthIncomeYuan = currentMonthTransactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthExpenseYuan = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  
+  // Total Pengeluaran tanpa kategori Biaya Kuliah
+  const monthNonCollegeExpenseYuan = currentMonthTransactions
+    .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
+    .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
 
-  // --- FILTER PERINGATAN TENGGAT WAKTU (H-30 HARI / 1 BULAN SEBELUMNYA) ---
+  // Filter Tenggat Waktu
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -219,11 +282,7 @@ export default function App() {
     return diffDays <= 30;
   });
 
-  // Agenda terdekat
-  const todayStr = new Date().toISOString().split('T')[0];
-  const upcomingEvents = events.filter(e => e.tanggal >= todayStr).slice(0, 3);
-
-  // GRAFIK BULANAN
+  // Chart Data
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
   
   const getLast6Months = () => {
@@ -275,10 +334,7 @@ export default function App() {
   const chartOptions = {
     responsive: true,
     plugins: {
-      legend: {
-        position: 'top',
-        labels: { boxWidth: 12, font: { size: 10 } }
-      },
+      legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
     },
     scales: {
       y: { ticks: { font: { size: 10 } } },
@@ -286,12 +342,20 @@ export default function App() {
     }
   };
 
-  // Kalender Helpers
+  // Kalender
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
 
+  const getEventsForDate = (dateStr) => {
+    return events.filter((ev) => {
+      const startDate = ev.tanggal;
+      const endDate = ev.tanggal_selesai || ev.tanggal;
+      return dateStr >= startDate && dateStr <= endDate;
+    });
+  };
+
   const handleDateClick = (dateStr) => {
-    const dayEvents = events.filter((e) => e.tanggal === dateStr);
+    const dayEvents = getEventsForDate(dateStr);
     setSelectedDateEvents({ date: dateStr, list: dayEvents });
   };
 
@@ -301,9 +365,23 @@ export default function App() {
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           <span>📅</span> Kalender Agenda Kuliah
         </h2>
-        <span className="text-xs font-semibold text-slate-500">
-          {currentMonth.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}
-        </span>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-xs font-bold"
+          >
+            &lt;
+          </button>
+          <span className="text-xs font-semibold text-slate-700 min-w-[100px] text-center">
+            {currentMonth.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}
+          </span>
+          <button 
+            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-xs font-bold"
+          >
+            &gt;
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400">
@@ -312,23 +390,23 @@ export default function App() {
 
       <div className="grid grid-cols-7 gap-1">
         {[...Array(firstDayOfMonth)].map((_, i) => (
-          <div key={`empty-${i}`} className="h-14 bg-slate-50 rounded-lg"></div>
+          <div key={`empty-${i}`} className="h-16 bg-slate-50/50 rounded-lg"></div>
         ))}
         {[...Array(daysInMonth)].map((_, i) => {
           const day = i + 1;
           const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const dayEvents = events.filter((e) => e.tanggal === dateStr);
+          const dayEvents = getEventsForDate(dateStr);
 
           return (
             <div 
               key={day} 
               onClick={() => handleDateClick(dateStr)}
-              className="h-14 p-1 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg flex flex-col justify-between cursor-pointer transition"
+              className="h-16 p-1 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg flex flex-col justify-between cursor-pointer transition overflow-hidden"
             >
               <span className="text-[10px] font-bold text-slate-600">{day}</span>
-              <div className="space-y-0.5 overflow-hidden">
+              <div className="space-y-0.5 overflow-y-auto max-h-10">
                 {dayEvents.map((ev) => (
-                  <div key={ev.id} className="text-[8px] bg-blue-100 text-blue-700 px-1 rounded truncate font-medium">
+                  <div key={ev.id} className="text-[8px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded truncate font-medium border border-blue-200">
                     {ev.judul}
                   </div>
                 ))}
@@ -397,10 +475,9 @@ export default function App() {
           })}
         </nav>
 
-        {/* TAB DASHBOARD UTAMA */}
+        {/* TAB DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-5">
-            {/* PERINGATAN HANYA MUNCUL JIKA TENGGAT KEUANGAN <= 30 HARI */}
             {unpaidAlerts.length > 0 && (
               <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-sm">
                 <div className="flex items-center gap-2 text-amber-800 font-bold text-xs mb-1">
@@ -416,7 +493,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Rekapitulasi Keuangan */}
             <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-4">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <span className="text-xs text-slate-400 font-medium">Rekapitulasi Keuangan</span>
@@ -434,14 +510,25 @@ export default function App() {
                   <p className="text-xs text-slate-400">{formatIDR(monthIncomeYuan)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-rose-400 flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5"/> Pengeluaran</p>
+                  <p className="text-xs text-rose-400 flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5"/> Pengeluaran (Total)</p>
                   <p className="text-base font-bold text-rose-300">{formatYuan(monthExpenseYuan)}</p>
                   <p className="text-xs text-slate-400">{formatIDR(monthExpenseYuan)}</p>
                 </div>
               </div>
+
+              {/* Rincian Tambahan: Pengeluaran Tanpa Biaya Kuliah */}
+              <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-amber-400 font-medium">Pengeluaran Non-Kuliah</p>
+                  <p className="text-[10px] text-slate-400">Excl. kategori Biaya Kuliah</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-amber-300">{formatYuan(monthNonCollegeExpenseYuan)}</p>
+                  <p className="text-[10px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
+                </div>
+              </div>
             </div>
 
-            {/* Grafik Bulanan */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan</h2>
@@ -452,64 +539,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Agenda Terdekat */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <h2 className="font-bold text-xs text-slate-800 flex items-center gap-2">
-                  <span className="text-blue-600">📅</span> Agenda Kuliah Terdekat
-                </h2>
-                <button 
-                  onClick={() => setActiveTab('kuliah')}
-                  className="text-xs text-blue-600 font-semibold hover:underline"
-                >
-                  Buka Kalender
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {upcomingEvents.length > 0 ? (
-                  upcomingEvents.map(item => (
-                    <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
-                      <div>
-                        <p className="font-bold text-xs text-slate-800">{item.judul}</p>
-                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                          <span>📅 {item.tanggal}</span>
-                          {item.jam && <span>• {item.jam}</span>}
-                        </p>
-                      </div>
-                      <span className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-[10px] font-bold">
-                        Agenda
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-3">Belum ada agenda terdekat.</p>
-                )}
-              </div>
-            </div>
-
             {renderCalendar()}
-
-            {/* Mutasi Terakhir */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <h2 className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="w-4 h-4 text-emerald-600"/> Mutasi Terakhir</h2>
-              <div className="divide-y divide-slate-100">
-                {transactions.slice(0, 4).map(t => (
-                  <div key={t.id} className="py-2.5 flex justify-between items-center text-xs">
-                    <div>
-                      <p className="font-semibold text-slate-800">{t.keterangan || t.kategori}</p>
-                      <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
-                      </p>
-                      <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
@@ -541,7 +571,7 @@ export default function App() {
                   onChange={(e) => setFinanceForm({ ...financeForm, kategori: e.target.value })}
                   className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                 >
-                  {['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Lain-lain'].map(k => (
+                  {expenseCategories.map(k => (
                     <option key={k} value={k}>{k}</option>
                   ))}
                 </select>
@@ -556,7 +586,6 @@ export default function App() {
                 className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                 required
               />
-              {financeForm.nominalYuan && <p className="text-[10px] text-slate-500 pl-1">Estimasi: {formatIDR(financeForm.nominalYuan)}</p>}
 
               <input
                 type="date"
@@ -573,7 +602,7 @@ export default function App() {
                 className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
               />
 
-              <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">Simpan Transaksi</button>
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">Simpan Transaksi</button>
             </form>
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
@@ -598,14 +627,12 @@ export default function App() {
                         <button
                           onClick={() => setEditingTransaction(t)}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit Transaksi"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => deleteTransaction(t.id)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                          title="Hapus Transaksi"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -623,30 +650,86 @@ export default function App() {
           <div className="space-y-5">
             {renderCalendar()}
 
-            <form onSubmit={addAgenda} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-              <h3 className="text-xs font-bold text-slate-700">Tambah Agenda Baru</h3>
+            <form onSubmit={addAgenda} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-blue-600" />
+                <span>Tambah Agenda Baru</span>
+              </h3>
+
               <input
                 type="text"
                 placeholder="Judul agenda/tugas"
                 value={agendaForm.judul}
                 onChange={(e) => setAgendaForm({ ...agendaForm, judul: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                 required
               />
+
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={agendaForm.tanggal}
-                  onChange={(e) => setAgendaForm({ ...agendaForm, tanggal: e.target.value })}
-                  className="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
-                />
-                <input
-                  type="time"
-                  value={agendaForm.jam}
-                  onChange={(e) => setAgendaForm({ ...agendaForm, jam: e.target.value })}
-                  className="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
-                />
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal Mulai</label>
+                  <input
+                    type="date"
+                    value={agendaForm.tanggal}
+                    onChange={(e) => {
+                      const startDate = e.target.value;
+                      setAgendaForm(prev => ({
+                        ...prev,
+                        tanggal: startDate,
+                        tanggal_selesai: prev.tanggal_selesai < startDate ? startDate : prev.tanggal_selesai
+                      }));
+                    }}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal Selesai</label>
+                  <input
+                    type="date"
+                    min={agendaForm.tanggal}
+                    value={agendaForm.tanggal_selesai}
+                    onChange={(e) => setAgendaForm({ ...agendaForm, tanggal_selesai: e.target.value })}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
               </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="seharian"
+                  checked={agendaForm.seharian}
+                  onChange={(e) => setAgendaForm({ ...agendaForm, seharian: e.target.checked })}
+                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="seharian" className="text-xs font-semibold text-slate-600 cursor-pointer select-none">
+                  Seharian (24 Jam)
+                </label>
+              </div>
+
+              {!agendaForm.seharian && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Jam Mulai</label>
+                    <input
+                      type="time"
+                      value={agendaForm.jam}
+                      onChange={(e) => setAgendaForm({ ...agendaForm, jam: e.target.value })}
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Jam Selesai</label>
+                    <input
+                      type="time"
+                      value={agendaForm.jam_selesai}
+                      onChange={(e) => setAgendaForm({ ...agendaForm, jam_selesai: e.target.value })}
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    />
+                  </div>
+                </div>
+              )}
+
               <input
                 type="text"
                 placeholder="Keterangan tambahan (opsional)"
@@ -654,7 +737,8 @@ export default function App() {
                 onChange={(e) => setAgendaForm({ ...agendaForm, keterangan: e.target.value })}
                 className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
               />
-              <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
                 + Simpan Agenda
               </button>
             </form>
@@ -664,7 +748,6 @@ export default function App() {
         {/* TAB PEMBAYARAN KULIAH */}
         {activeTab === 'pembayaran' && (
           <div className="space-y-5">
-            {/* Ringkasan Total */}
             <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-3">
               <span className="text-xs text-slate-400">Total Ringkasan Pembayaran Kuliah</span>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-800">
@@ -681,7 +764,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Filter Tahun */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {['Tahun Bahasa', 'Tahun 1', 'Tahun 2', 'Tahun 3', 'Tahun 4'].map(thn => (
                 <button
@@ -694,7 +776,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Form Tambah Tagihan Baru */}
             <form onSubmit={addPayment} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
               <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1">
                 <Plus className="w-3.5 h-3.5 text-blue-600" />
@@ -731,25 +812,41 @@ export default function App() {
               </div>
             </form>
 
-            {/* Daftar Tagihan */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
               <div className="p-3.5 bg-slate-50 font-bold text-xs text-slate-700">
                 Rincian Tagihan - {selectedPaymentYear}
               </div>
               {payments.filter(p => p.kategori_tahun === selectedPaymentYear).map(item => (
-                <div key={item.id} className="p-4 space-y-2">
+                <div key={item.id} className="p-4 space-y-2 group hover:bg-slate-50/50 transition">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-bold text-xs text-slate-800">{item.nama_tagihan}</p>
                       <p className="text-xs font-bold text-blue-600">{formatYuan(item.jumlah_yuan)}</p>
                       <p className="text-[10px] text-slate-400">Prakiraan: {formatIDR(item.jumlah_yuan)}</p>
                     </div>
-                    <button
-                      onClick={() => togglePaymentStatus(item.id, item.sudah_dibayar)}
-                      className={`px-3 py-1 rounded-xl text-[10px] font-bold ${item.sudah_dibayar ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}
-                    >
-                      {item.sudah_dibayar ? '✓ Lunas' : 'Belum Dibayar'}
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => togglePaymentStatus(item.id, item.sudah_dibayar)}
+                        className={`px-3 py-1 rounded-xl text-[10px] font-bold transition ${item.sudah_dibayar ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}
+                      >
+                        {item.sudah_dibayar ? '✓ Lunas' : 'Belum Dibayar'}
+                      </button>
+
+                      <button
+                        onClick={() => setEditingPayment(item)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        onClick={() => deletePayment(item.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl text-[10px] text-slate-500">
@@ -777,7 +874,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL POP-UP EDIT TRANSAKSI */}
+        {/* MODAL POP-UP EDIT TRANSAKSI KEUANGAN */}
         {editingTransaction && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
@@ -815,7 +912,7 @@ export default function App() {
                     onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
                     className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                   >
-                    {['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Lain-lain'].map(k => (
+                    {expenseCategories.map(k => (
                       <option key={k} value={k}>{k}</option>
                     ))}
                   </select>
@@ -831,7 +928,6 @@ export default function App() {
                     className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                     required
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">Estimasi IDR: {formatIDR(editingTransaction.nominal_yuan)}</p>
                 </div>
 
                 <div>
@@ -870,49 +966,6 @@ export default function App() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL AGENDA */}
-        {selectedDateEvents && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
-                  <Info className="w-4 h-4 text-blue-600" />
-                  <span>Agenda {selectedDateEvents.date}</span>
-                </h3>
-                <button 
-                  onClick={() => setSelectedDateEvents(null)} 
-                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {selectedDateEvents.list.length > 0 ? (
-                  selectedDateEvents.list.map((ev) => (
-                    <div key={ev.id} className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-1">
-                      <div className="flex justify-between items-start">
-                        <p className="text-xs font-bold text-blue-900">{ev.judul}</p>
-                        {ev.jam && <span className="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-semibold">{ev.jam}</span>}
-                      </div>
-                      {ev.keterangan && <p className="text-[11px] text-slate-600">{ev.keterangan}</p>}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-4">Tidak ada agenda pada tanggal ini.</p>
-                )}
-              </div>
-
-              <button
-                onClick={() => setSelectedDateEvents(null)}
-                className="w-full bg-slate-900 text-white py-2 rounded-xl text-xs font-bold"
-              >
-                Tutup
-              </button>
             </div>
           </div>
         )}
