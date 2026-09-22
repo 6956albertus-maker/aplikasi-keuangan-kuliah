@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
-  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2
+  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -66,6 +66,11 @@ export default function App() {
   const [selectedPaymentYear, setSelectedPaymentYear] = useState('Tahun Bahasa');
   const [editingDueDateId, setEditingDueDateId] = useState(null);
   const [tempDueDate, setTempDueDate] = useState('');
+  const [newPaymentForm, setNewPaymentForm] = useState({
+    nama_tagihan: 'Asuransi',
+    jumlah_yuan: '1000',
+    tenggat_waktu: ''
+  });
 
   useEffect(() => {
     fetchKurs();
@@ -112,14 +117,12 @@ export default function App() {
     fetchTransactions();
   }
 
-  // --- FITUR HAPUS TRANSAKSI ---
   async function deleteTransaction(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
     await supabase.from('transaksi').delete().eq('id', id);
     fetchTransactions();
   }
 
-  // --- FITUR UPDATE/EDIT TRANSAKSI ---
   async function updateTransaction(e) {
     e.preventDefault();
     if (!editingTransaction) return;
@@ -172,6 +175,22 @@ export default function App() {
     fetchPayments();
   }
 
+  async function addPayment(e) {
+    e.preventDefault();
+    if (!newPaymentForm.nama_tagihan || !newPaymentForm.jumlah_yuan) return;
+
+    await supabase.from('pembayaran_kuliah').insert([{
+      kategori_tahun: selectedPaymentYear,
+      nama_tagihan: newPaymentForm.nama_tagihan,
+      jumlah_yuan: Number(newPaymentForm.jumlah_yuan),
+      sudah_dibayar: false,
+      tenggat_waktu: newPaymentForm.tenggat_waktu || null
+    }]);
+
+    setNewPaymentForm({ nama_tagihan: '', jumlah_yuan: '', tenggat_waktu: '' });
+    fetchPayments();
+  }
+
   // --- HELPERS ---
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID')}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
@@ -183,13 +202,28 @@ export default function App() {
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
-  const unpaidAlerts = payments.filter(p => !p.sudah_dibayar && p.tenggat_waktu);
+
+  // --- FILTER PERINGATAN TENGGAT WAKTU (H-30 HARI / 1 BULAN SEBELUMNYA) ---
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const unpaidAlerts = payments.filter(p => {
+    if (p.sudah_dibayar || !p.tenggat_waktu) return false;
+    
+    const dueDate = new Date(p.tenggat_waktu);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = dueDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays <= 30;
+  });
 
   // Agenda terdekat
   const todayStr = new Date().toISOString().split('T')[0];
   const upcomingEvents = events.filter(e => e.tanggal >= todayStr).slice(0, 3);
 
-  // GRAFIK REALTIME
+  // GRAFIK BULANAN
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
   
   const getLast6Months = () => {
@@ -366,6 +400,7 @@ export default function App() {
         {/* TAB DASHBOARD UTAMA */}
         {activeTab === 'dashboard' && (
           <div className="space-y-5">
+            {/* PERINGATAN HANYA MUNCUL JIKA TENGGAT KEUANGAN <= 30 HARI */}
             {unpaidAlerts.length > 0 && (
               <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-sm">
                 <div className="flex items-center gap-2 text-amber-800 font-bold text-xs mb-1">
@@ -381,7 +416,7 @@ export default function App() {
               </div>
             )}
 
-            {/* Ringkasan Angka Keuangan */}
+            {/* Rekapitulasi Keuangan */}
             <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-4">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <span className="text-xs text-slate-400 font-medium">Rekapitulasi Keuangan</span>
@@ -406,7 +441,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* KOMPONEN GRAFIK KEUANGAN */}
+            {/* Grafik Bulanan */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan</h2>
@@ -417,7 +452,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* AGENDA KULIAH TERDEKAT */}
+            {/* Agenda Terdekat */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-800 flex items-center gap-2">
@@ -455,7 +490,7 @@ export default function App() {
 
             {renderCalendar()}
 
-            {/* MUTASI TERAKHIR (DASHBOARD) */}
+            {/* Mutasi Terakhir */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="w-4 h-4 text-emerald-600"/> Mutasi Terakhir</h2>
               <div className="divide-y divide-slate-100">
@@ -541,7 +576,6 @@ export default function App() {
               <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md">Simpan Transaksi</button>
             </form>
 
-            {/* KOMPONEN RIWAYAT MUTASI DENGAN FITUR EDIT & HAPUS */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700">Riwayat Mutasi</h2>
               <div className="divide-y divide-slate-100">
@@ -560,7 +594,6 @@ export default function App() {
                         <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
                       </div>
 
-                      {/* Tombol Aksi Edit & Hapus */}
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setEditingTransaction(t)}
@@ -585,7 +618,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB KULIAH & KALENDER */}
+        {/* TAB KULIAH */}
         {activeTab === 'kuliah' && (
           <div className="space-y-5">
             {renderCalendar()}
@@ -631,6 +664,7 @@ export default function App() {
         {/* TAB PEMBAYARAN KULIAH */}
         {activeTab === 'pembayaran' && (
           <div className="space-y-5">
+            {/* Ringkasan Total */}
             <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-3">
               <span className="text-xs text-slate-400">Total Ringkasan Pembayaran Kuliah</span>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-800">
@@ -647,6 +681,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Filter Tahun */}
             <div className="flex gap-2 overflow-x-auto pb-1">
               {['Tahun Bahasa', 'Tahun 1', 'Tahun 2', 'Tahun 3', 'Tahun 4'].map(thn => (
                 <button
@@ -659,6 +694,44 @@ export default function App() {
               ))}
             </div>
 
+            {/* Form Tambah Tagihan Baru */}
+            <form onSubmit={addPayment} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5 text-blue-600" />
+                <span>Tambah Tagihan ({selectedPaymentYear})</span>
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Nama Tagihan (ex: Asuransi)"
+                  value={newPaymentForm.nama_tagihan}
+                  onChange={(e) => setNewPaymentForm({ ...newPaymentForm, nama_tagihan: e.target.value })}
+                  className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Nominal (¥ Yuan)"
+                  value={newPaymentForm.jumlah_yuan}
+                  onChange={(e) => setNewPaymentForm({ ...newPaymentForm, jumlah_yuan: e.target.value })}
+                  className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  required
+                />
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={newPaymentForm.tenggat_waktu}
+                  onChange={(e) => setNewPaymentForm({ ...newPaymentForm, tenggat_waktu: e.target.value })}
+                  className="w-1/2 border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                />
+                <button type="submit" className="w-1/2 bg-blue-600 text-white p-2 rounded-xl text-xs font-bold shadow-md">
+                  Simpan Tagihan
+                </button>
+              </div>
+            </form>
+
+            {/* Daftar Tagihan */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
               <div className="p-3.5 bg-slate-50 font-bold text-xs text-slate-700">
                 Rincian Tagihan - {selectedPaymentYear}
@@ -801,7 +874,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL POP-UP DETAIL AGENDA SAAT TANGGAL DIKLIK */}
+        {/* MODAL AGENDA */}
         {selectedDateEvents && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
