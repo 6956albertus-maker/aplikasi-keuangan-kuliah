@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus,
-  CheckSquare, Square, AlertTriangle
+  CheckSquare, Square, AlertTriangle, ListTodo
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -83,8 +83,7 @@ export default function App() {
   const [todos, setTodos] = useState([]);
   const [todoForm, setTodoForm] = useState({
     judul: '',
-    tenggat_waktu: new Date().toISOString().split('T')[0],
-    prioritas: 'Sedang'
+    tenggat_waktu: new Date().toISOString().split('T')[0]
   });
 
   useEffect(() => {
@@ -294,15 +293,32 @@ export default function App() {
     e.preventDefault();
     if (!todoForm.judul.trim()) return;
 
-    await supabase.from('todo_tugas').insert([{
+    // 1. Simpan ke To Do List
+    const { data: newTodo, error: todoError } = await supabase.from('todo_tugas').insert([{
       judul: todoForm.judul,
       tenggat_waktu: todoForm.tenggat_waktu,
-      prioritas: todoForm.prioritas,
       selesai: false
+    }]).select().single();
+
+    if (todoError) {
+      alert('Gagal menambah tugas: ' + todoError.message);
+      return;
+    }
+
+    // 2. Otomatis Tambahkan Tugas ke Kalender Agenda Kuliah
+    await supabase.from('agenda_kuliah').insert([{
+      judul: `[Tugas] ${todoForm.judul}`,
+      tanggal: todoForm.tenggat_waktu,
+      tanggal_selesai: todoForm.tenggat_waktu,
+      jam: '23:59',
+      jam_selesai: '23:59',
+      seharian: true,
+      keterangan: 'Tugas dari To-Do List'
     }]);
 
-    setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0], prioritas: 'Sedang' });
+    setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
     fetchTodos();
+    fetchEvents();
   }
 
   async function toggleTodoStatus(id, currentStatus) {
@@ -316,7 +332,28 @@ export default function App() {
     fetchTodos();
   }
 
-  // --- HELPERS ---
+  // --- HELPER OTOMATIS HITUNG PRIORITAS TUGAS ---
+  const getAutoPriority = (dueDateStr) => {
+    if (!dueDateStr) return { label: 'Sedang', color: 'bg-amber-100 text-amber-700' };
+    
+    const todayObj = new Date();
+    todayObj.setHours(0, 0, 0, 0);
+    
+    const dueObj = new Date(dueDateStr);
+    dueObj.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 3) {
+      return { label: 'Tinggi', color: 'bg-rose-100 text-rose-700 font-bold' };
+    } else if (diffDays <= 7) {
+      return { label: 'Sedang', color: 'bg-amber-100 text-amber-700 font-semibold' };
+    } else {
+      return { label: 'Rendah', color: 'bg-slate-100 text-slate-600' };
+    }
+  };
+
+  // --- HELPERS UMUM ---
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID')}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
@@ -435,7 +472,7 @@ export default function App() {
     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-          <span>📅</span> Kalender Agenda Kuliah
+          <span>📅</span> Kalender Agenda Kuliah & Tugas
         </h2>
         <div className="flex items-center gap-2">
           <button 
@@ -478,7 +515,14 @@ export default function App() {
               <span className="text-[10px] font-bold text-slate-600 group-hover:text-blue-600">{day}</span>
               <div className="space-y-0.5 overflow-y-auto max-h-10">
                 {dayEvents.map((ev) => (
-                  <div key={ev.id} className="text-[8px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded truncate font-medium border border-blue-200">
+                  <div 
+                    key={ev.id} 
+                    className={`text-[8px] px-1 py-0.5 rounded truncate font-medium border ${
+                      ev.judul.startsWith('[Tugas]') 
+                        ? 'bg-amber-100 text-amber-900 border-amber-300' 
+                        : 'bg-blue-100 text-blue-800 border-blue-200'
+                    }`}
+                  >
                     {ev.judul}
                   </div>
                 ))}
@@ -602,6 +646,53 @@ export default function App() {
               </div>
             </div>
 
+            {/* SEKSI TO DO TUGAS DI DASHBOARD */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                  <ListTodo className="w-4 h-4 text-amber-600" />
+                  <span>Daftar Tugas Mendatang</span>
+                </h2>
+                <button 
+                  onClick={() => setActiveTab('todo')} 
+                  className="text-[10px] font-bold text-blue-600 hover:underline"
+                >
+                  Lihat Semua ({todos.filter(t => !t.selesai).length})
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {todos.filter(t => !t.selesai).length === 0 ? (
+                  <p className="text-xs text-slate-400 py-3 text-center">Semua tugas telah selesai / belum ada tugas.</p>
+                ) : (
+                  todos.filter(t => !t.selesai).slice(0, 4).map(item => {
+                    const priority = getAutoPriority(item.tenggat_waktu);
+
+                    return (
+                      <div 
+                        key={item.id} 
+                        className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
+                            <Square className="w-4 h-4 text-slate-300 hover:text-emerald-600" />
+                          </button>
+                          <div>
+                            <p className="font-bold text-xs text-slate-800">{item.judul}</p>
+                            <p className="text-[10px] text-slate-400">Tenggat: {item.tenggat_waktu}</p>
+                          </div>
+                        </div>
+
+                        <span className={`text-[9px] px-2 py-0.5 rounded ${priority.color}`}>
+                          Prioritas {priority.label}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
             {/* SEKSI AGENDA KULIAH TERDEKAT */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
@@ -682,29 +773,14 @@ export default function App() {
                 required
               />
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tenggat Waktu</label>
-                  <input
-                    type="date"
-                    value={todoForm.tenggat_waktu}
-                    onChange={(e) => setTodoForm({ ...todoForm, tenggat_waktu: e.target.value })}
-                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Prioritas</label>
-                  <select
-                    value={todoForm.prioritas}
-                    onChange={(e) => setTodoForm({ ...todoForm, prioritas: e.target.value })}
-                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
-                  >
-                    <option value="Rendah">Rendah</option>
-                    <option value="Sedang">Sedang</option>
-                    <option value="Tinggi">Tinggi / Mendesak</option>
-                  </select>
-                </div>
+              <div>
+                <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tenggat Waktu</label>
+                <input
+                  type="date"
+                  value={todoForm.tenggat_waktu}
+                  onChange={(e) => setTodoForm({ ...todoForm, tenggat_waktu: e.target.value })}
+                  className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                />
               </div>
 
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
@@ -726,6 +802,7 @@ export default function App() {
                 ) : (
                   todos.map((item) => {
                     const isOverdue = new Date(item.tenggat_waktu) < today && !item.selesai;
+                    const priority = getAutoPriority(item.tenggat_waktu);
 
                     return (
                       <div key={item.id} className="py-3 flex justify-between items-center group">
@@ -746,11 +823,8 @@ export default function App() {
                               {item.judul}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                                item.prioritas === 'Tinggi' ? 'bg-rose-100 text-rose-700' :
-                                item.prioritas === 'Sedang' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                              }`}>
-                                {item.prioritas}
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded ${priority.color}`}>
+                                Prioritas {priority.label}
                               </span>
                               <span className={`text-[10px] ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
                                 Tenggat: {item.tenggat_waktu}
