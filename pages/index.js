@@ -653,8 +653,8 @@ export default function App() {
 
               <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-amber-400 font-medium">Pengeluaran Non-Kuliah</p>
-                  <p className="text-[10px] text-slate-400">Excl. kategori Biaya Kuliah</p>
+                  <p className="text-xs text-amber-400 font-medium">Pengeluaran Bulanan</p>
+                  <p className="text-[10px] text-slate-400">Diluar Biaya Kuliah</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-amber-300">{formatYuan(monthNonCollegeExpenseYuan)}</p>
