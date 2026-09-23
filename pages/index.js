@@ -293,19 +293,17 @@ export default function App() {
     e.preventDefault();
     if (!todoForm.judul.trim()) return;
 
-    // 1. Simpan ke To Do List
-    const { data: newTodo, error: todoError } = await supabase.from('todo_tugas').insert([{
+    const { error: todoError } = await supabase.from('todo_tugas').insert([{
       judul: todoForm.judul,
       tenggat_waktu: todoForm.tenggat_waktu,
       selesai: false
-    }]).select().single();
+    }]);
 
     if (todoError) {
       alert('Gagal menambah tugas: ' + todoError.message);
       return;
     }
 
-    // 2. Otomatis Tambahkan Tugas ke Kalender Agenda Kuliah
     await supabase.from('agenda_kuliah').insert([{
       judul: `[Tugas] ${todoForm.judul}`,
       tanggal: todoForm.tenggat_waktu,
@@ -332,9 +330,9 @@ export default function App() {
     fetchTodos();
   }
 
-  // --- HELPER OTOMATIS HITUNG PRIORITAS TUGAS ---
+  // --- HELPER PRIORITAS TUGAS (MENDETEKSI 1 HARI UNTUK TINGGI & 3 HARI UNTUK SEDANG) ---
   const getAutoPriority = (dueDateStr) => {
-    if (!dueDateStr) return { label: 'Sedang', color: 'bg-amber-100 text-amber-700' };
+    if (!dueDateStr) return { label: 'Rendah', badgeColor: 'bg-slate-100 text-slate-600', blockBg: 'bg-slate-50 border-slate-100' };
     
     const todayObj = new Date();
     todayObj.setHours(0, 0, 0, 0);
@@ -344,12 +342,24 @@ export default function App() {
 
     const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 3) {
-      return { label: 'Tinggi', color: 'bg-rose-100 text-rose-700 font-bold' };
-    } else if (diffDays <= 7) {
-      return { label: 'Sedang', color: 'bg-amber-100 text-amber-700 font-semibold' };
+    if (diffDays <= 1) {
+      return { 
+        label: 'Tinggi', 
+        badgeColor: 'bg-rose-500 text-white font-bold', 
+        blockBg: 'bg-rose-50/80 border-rose-200' 
+      };
+    } else if (diffDays <= 3) {
+      return { 
+        label: 'Sedang', 
+        badgeColor: 'bg-amber-500 text-white font-semibold', 
+        blockBg: 'bg-amber-50/80 border-amber-200' 
+      };
     } else {
-      return { label: 'Rendah', color: 'bg-slate-100 text-slate-600' };
+      return { 
+        label: 'Rendah', 
+        badgeColor: 'bg-slate-200 text-slate-700', 
+        blockBg: 'bg-slate-50/50 border-slate-100' 
+      };
     }
   };
 
@@ -382,16 +392,23 @@ export default function App() {
     return diffDays <= 30;
   });
 
+  // --- FILTER AGENDA: MENYEMBUNYIKAN AGENDA YANG JAM SELESAINYA SUDAH LEWAT ---
   const upcomingEvents = events
     .map(ev => {
-      const timeStr = ev.jam ? `${ev.tanggal}T${ev.jam}` : `${ev.tanggal}T00:00:00`;
-      const eventDate = new Date(timeStr);
-      const diffMs = eventDate - now;
+      const endDateStr = ev.tanggal_selesai || ev.tanggal;
+      const endTimeStr = ev.seharian ? '23:59:59' : (ev.jam_selesai || ev.jam || '23:59:59');
+      const eventEndDateTime = new Date(`${endDateStr}T${endTimeStr}`);
+      
+      const startTimeStr = ev.seharian ? '00:00:00' : (ev.jam || '00:00:00');
+      const eventStartDateTime = new Date(`${ev.tanggal}T${startTimeStr}`);
+      
+      const diffMs = eventStartDateTime - now;
       const diffHours = diffMs / (1000 * 60 * 60);
-      return { ...ev, eventDate, diffHours };
+
+      return { ...ev, eventEndDateTime, eventStartDateTime, diffHours };
     })
-    .filter(ev => ev.diffHours >= -24)
-    .sort((a, b) => a.eventDate - b.eventDate);
+    .filter(ev => ev.eventEndDateTime > now) // Hanya tampilkan jika WAKTU SELESAI belum terlewati
+    .sort((a, b) => a.eventStartDateTime - b.eventStartDateTime);
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
   
@@ -671,7 +688,7 @@ export default function App() {
                     return (
                       <div 
                         key={item.id} 
-                        className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center"
+                        className={`p-3 border rounded-xl flex justify-between items-center transition ${priority.blockBg}`}
                       >
                         <div className="flex items-center gap-2.5">
                           <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
@@ -679,11 +696,11 @@ export default function App() {
                           </button>
                           <div>
                             <p className="font-bold text-xs text-slate-800">{item.judul}</p>
-                            <p className="text-[10px] text-slate-400">Tenggat: {item.tenggat_waktu}</p>
+                            <p className="text-[10px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
                           </div>
                         </div>
 
-                        <span className={`text-[9px] px-2 py-0.5 rounded ${priority.color}`}>
+                        <span className={`text-[9px] px-2 py-0.5 rounded ${priority.badgeColor}`}>
                           Prioritas {priority.label}
                         </span>
                       </div>
@@ -705,7 +722,7 @@ export default function App() {
 
               <div className="space-y-2">
                 {upcomingEvents.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
+                  <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat / jam agenda telah lewat.</p>
                 ) : (
                   upcomingEvents.slice(0, 4).map(ev => {
                     const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
@@ -796,7 +813,7 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div className="space-y-2">
                 {todos.length === 0 ? (
                   <p className="text-xs text-slate-400 py-4 text-center">Belum ada tugas tercatat.</p>
                 ) : (
@@ -805,7 +822,10 @@ export default function App() {
                     const priority = getAutoPriority(item.tenggat_waktu);
 
                     return (
-                      <div key={item.id} className="py-3 flex justify-between items-center group">
+                      <div 
+                        key={item.id} 
+                        className={`p-3 border rounded-xl flex justify-between items-center transition ${item.selesai ? 'bg-slate-50 border-slate-100 opacity-60' : priority.blockBg}`}
+                      >
                         <div className="flex items-center gap-3">
                           <button 
                             onClick={() => toggleTodoStatus(item.id, item.selesai)}
@@ -823,10 +843,10 @@ export default function App() {
                               {item.judul}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className={`text-[9px] px-1.5 py-0.2 rounded ${priority.color}`}>
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded ${priority.badgeColor}`}>
                                 Prioritas {priority.label}
                               </span>
-                              <span className={`text-[10px] ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                              <span className={`text-[10px] ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
                                 Tenggat: {item.tenggat_waktu}
                               </span>
                             </div>
