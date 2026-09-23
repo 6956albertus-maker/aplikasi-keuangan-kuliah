@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
-  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus
+  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus,
+  CheckSquare, Square, AlertTriangle
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -36,7 +37,7 @@ export default function App() {
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
 
-  // Daftar Kategori Pengeluaran
+  // Kategori Pengeluaran
   const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
 
   // States Keuangan
@@ -49,17 +50,13 @@ export default function App() {
     tanggal: new Date().toISOString().split('T')[0],
     keterangan: ''
   });
-
-  // State Modal Edit Mutasi Keuangan
   const [editingTransaction, setEditingTransaction] = useState(null);
 
   // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
-  const [editingEvent, setEditingEvent] = useState(null); // State Modal Edit Agenda
-  
-  // State Form Agenda Baru
+  const [editingEvent, setEditingEvent] = useState(null);
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
     tanggal: new Date().toISOString().split('T')[0],
@@ -82,11 +79,20 @@ export default function App() {
     tenggat_waktu: ''
   });
 
+  // States To Do List Tugas
+  const [todos, setTodos] = useState([]);
+  const [todoForm, setTodoForm] = useState({
+    judul: '',
+    tenggat_waktu: new Date().toISOString().split('T')[0],
+    prioritas: 'Sedang'
+  });
+
   useEffect(() => {
     fetchKurs();
     fetchTransactions();
     fetchEvents();
     fetchPayments();
+    fetchTodos();
   }, []);
 
   // --- SUPABASE API CALLS ---
@@ -169,8 +175,8 @@ export default function App() {
       judul: agendaForm.judul,
       tanggal: agendaForm.tanggal,
       tanggal_selesai: agendaForm.tanggal_selesai || agendaForm.tanggal,
-      jam: agendaForm.seharian ? null : agendaForm.jam,
-      jam_selesai: agendaForm.seharian ? null : agendaForm.jam_selesai,
+      jam: agendaForm.seharian ? '00:00' : (agendaForm.jam || '09:00'),
+      jam_selesai: agendaForm.seharian ? '23:59' : (agendaForm.jam_selesai || '10:00'),
       seharian: agendaForm.seharian,
       keterangan: agendaForm.keterangan
     };
@@ -193,6 +199,7 @@ export default function App() {
     });
 
     fetchEvents();
+    alert('Agenda berhasil disimpan!');
   }
 
   async function updateAgenda(e) {
@@ -206,8 +213,8 @@ export default function App() {
       judul: editingEvent.judul,
       tanggal: editingEvent.tanggal,
       tanggal_selesai: editingEvent.tanggal_selesai || editingEvent.tanggal,
-      jam: editingEvent.seharian ? null : editingEvent.jam,
-      jam_selesai: editingEvent.seharian ? null : editingEvent.jam_selesai,
+      jam: editingEvent.seharian ? '00:00' : (editingEvent.jam || '09:00'),
+      jam_selesai: editingEvent.seharian ? '23:59' : (editingEvent.jam_selesai || '10:00'),
       seharian: editingEvent.seharian,
       keterangan: editingEvent.keterangan
     };
@@ -236,7 +243,6 @@ export default function App() {
     }
   }
 
-  // API Pembayaran
   async function fetchPayments() {
     const { data } = await supabase.from('pembayaran_kuliah').select('*').order('id', { ascending: true });
     if (data) setPayments(data);
@@ -278,19 +284,36 @@ export default function App() {
     fetchPayments();
   }
 
-  async function updatePayment(e) {
+  // --- API TO DO LIST TUGAS ---
+  async function fetchTodos() {
+    const { data } = await supabase.from('todo_tugas').select('*').order('selesai', { ascending: true }).order('tenggat_waktu', { ascending: true });
+    if (data) setTodos(data);
+  }
+
+  async function addTodo(e) {
     e.preventDefault();
-    if (!editingPayment) return;
+    if (!todoForm.judul.trim()) return;
 
-    await supabase.from('pembayaran_kuliah').update({
-      nama_tagihan: editingPayment.nama_tagihan,
-      jumlah_yuan: Number(editingPayment.jumlah_yuan),
-      kategori_tahun: editingPayment.kategori_tahun,
-      tenggat_waktu: editingPayment.tenggat_waktu || null
-    }).eq('id', editingPayment.id);
+    await supabase.from('todo_tugas').insert([{
+      judul: todoForm.judul,
+      tenggat_waktu: todoForm.tenggat_waktu,
+      prioritas: todoForm.prioritas,
+      selesai: false
+    }]);
 
-    setEditingPayment(null);
-    fetchPayments();
+    setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0], prioritas: 'Sedang' });
+    fetchTodos();
+  }
+
+  async function toggleTodoStatus(id, currentStatus) {
+    await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
+    fetchTodos();
+  }
+
+  async function deleteTodo(id) {
+    if (!window.confirm('Hapus tugas ini dari To-Do list?')) return;
+    await supabase.from('todo_tugas').delete().eq('id', id);
+    fetchTodos();
   }
 
   // --- HELPERS ---
@@ -309,20 +332,16 @@ export default function App() {
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
 
-  // Filter Tenggat Waktu
   const now = new Date();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const unpaidAlerts = payments.filter(p => {
     if (p.sudah_dibayar || !p.tenggat_waktu) return false;
-    
     const dueDate = new Date(p.tenggat_waktu);
     dueDate.setHours(0, 0, 0, 0);
-    
     const diffTime = dueDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
     return diffDays <= 30;
   });
 
@@ -337,7 +356,6 @@ export default function App() {
     .filter(ev => ev.diffHours >= -24)
     .sort((a, b) => a.eventDate - b.eventDate);
 
-  // Chart Data
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
   
   const getLast6Months = () => {
@@ -397,7 +415,6 @@ export default function App() {
     }
   };
 
-  // Kalender Helper
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
 
@@ -510,6 +527,7 @@ export default function App() {
         <nav className="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
           {[
             { id: 'dashboard', label: 'Utama', icon: LayoutDashboard },
+            { id: 'todo', label: 'To Do Tugas', icon: CheckSquare },
             { id: 'keuangan', label: 'Keuangan', icon: Wallet },
             { id: 'kuliah', label: 'Kuliah', icon: CalendarIcon },
             { id: 'pembayaran', label: 'Pembayaran', icon: GraduationCap }
@@ -572,7 +590,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Rincian Pengeluaran Tanpa Biaya Kuliah */}
               <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
                 <div>
                   <p className="text-xs text-amber-400 font-medium">Pengeluaran Non-Kuliah</p>
@@ -643,8 +660,117 @@ export default function App() {
               </div>
             </div>
 
-            {/* Kalender */}
             {renderCalendar()}
+          </div>
+        )}
+
+        {/* TAB TO DO LIST TUGAS */}
+        {activeTab === 'todo' && (
+          <div className="space-y-5">
+            <form onSubmit={addTodo} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-blue-600" />
+                <span>Tambah Tugas Baru</span>
+              </h3>
+
+              <input
+                type="text"
+                placeholder="Nama Tugas/Praktikum..."
+                value={todoForm.judul}
+                onChange={(e) => setTodoForm({ ...todoForm, judul: e.target.value })}
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                required
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tenggat Waktu</label>
+                  <input
+                    type="date"
+                    value={todoForm.tenggat_waktu}
+                    onChange={(e) => setTodoForm({ ...todoForm, tenggat_waktu: e.target.value })}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Prioritas</label>
+                  <select
+                    value={todoForm.prioritas}
+                    onChange={(e) => setTodoForm({ ...todoForm, prioritas: e.target.value })}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  >
+                    <option value="Rendah">Rendah</option>
+                    <option value="Sedang">Sedang</option>
+                    <option value="Tinggi">Tinggi / Mendesak</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
+                + Tambah Tugas
+              </button>
+            </form>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-xs text-slate-700">Daftar Tugas & PR</h2>
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  {todos.filter(t => t.selesai).length} / {todos.length} Selesai
+                </span>
+              </div>
+
+              <div className="divide-y divide-slate-100">
+                {todos.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 text-center">Belum ada tugas tercatat.</p>
+                ) : (
+                  todos.map((item) => {
+                    const isOverdue = new Date(item.tenggat_waktu) < today && !item.selesai;
+
+                    return (
+                      <div key={item.id} className="py-3 flex justify-between items-center group">
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => toggleTodoStatus(item.id, item.selesai)}
+                            className="text-blue-600 hover:scale-110 transition"
+                          >
+                            {item.selesai ? (
+                              <CheckSquare className="w-5 h-5 text-emerald-600" />
+                            ) : (
+                              <Square className="w-5 h-5 text-slate-300" />
+                            )}
+                          </button>
+
+                          <div>
+                            <p className={`text-xs font-bold ${item.selesai ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                              {item.judul}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                                item.prioritas === 'Tinggi' ? 'bg-rose-100 text-rose-700' :
+                                item.prioritas === 'Sedang' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {item.prioritas}
+                              </span>
+                              <span className={`text-[10px] ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                                Tenggat: {item.tenggat_waktu}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => deleteTodo(item.id)}
+                          className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1012,7 +1138,6 @@ export default function App() {
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        {/* Tombol Edit Agenda */}
                         <button 
                           onClick={() => setEditingEvent(ev)}
                           className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -1020,7 +1145,6 @@ export default function App() {
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
-                        {/* Tombol Hapus Agenda */}
                         <button 
                           onClick={() => deleteAgenda(ev.id)}
                           className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
