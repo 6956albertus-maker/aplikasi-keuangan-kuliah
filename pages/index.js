@@ -558,7 +558,7 @@ export default function App() {
         {/* Header App */}
         <header className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Student Manager</h1>
+            <h1 className="text-xl font-bold text-slate-900">Manager Aplication</h1>
             <p className="text-xs text-slate-500">Keuangan, Kuliah & Pembayaran</p>
           </div>
           <div className="bg-slate-100 p-2 rounded-xl text-right border border-slate-200">
