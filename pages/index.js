@@ -330,7 +330,7 @@ export default function App() {
     fetchTodos();
   }
 
-  // --- HELPER PRIORITAS TUGAS (MENDETEKSI 1 HARI UNTUK TINGGI & 3 HARI UNTUK SEDANG) ---
+  // --- HELPER PRIORITAS TUGAS ---
   const getAutoPriority = (dueDateStr) => {
     if (!dueDateStr) return { label: 'Rendah', badgeColor: 'bg-slate-100 text-slate-600', blockBg: 'bg-slate-50 border-slate-100' };
     
@@ -375,6 +375,14 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
+  // Perhitungan total pengeluaran per kategori untuk bulan yang dipilih
+  const categoryExpenses = expenseCategories.map(cat => {
+    const total = currentMonthTransactions
+      .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
+      .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
+    return { kategori: cat, total };
+  }).filter(item => item.total > 0);
+
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
@@ -392,7 +400,6 @@ export default function App() {
     return diffDays <= 30;
   });
 
-  // --- FILTER AGENDA: MENYEMBUNYIKAN AGENDA YANG JAM SELESAINYA SUDAH LEWAT ---
   const upcomingEvents = events
     .map(ev => {
       const endDateStr = ev.tanggal_selesai || ev.tanggal;
@@ -407,7 +414,7 @@ export default function App() {
 
       return { ...ev, eventEndDateTime, eventStartDateTime, diffHours };
     })
-    .filter(ev => ev.eventEndDateTime > now) // Hanya tampilkan jika WAKTU SELESAI belum terlewati
+    .filter(ev => ev.eventEndDateTime > now)
     .sort((a, b) => a.eventStartDateTime - b.eventStartDateTime);
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -558,7 +565,7 @@ export default function App() {
         {/* Header App */}
         <header className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Manager Aplication</h1>
+            <h1 className="text-xl font-bold text-slate-900">Student Manager</h1>
             <p className="text-xs text-slate-500">Keuangan, Kuliah & Pembayaran</p>
           </div>
           <div className="bg-slate-100 p-2 rounded-xl text-right border border-slate-200">
@@ -651,6 +658,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Pengeluaran Bulanan (Diluar Biaya Kuliah) */}
               <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
                 <div>
                   <p className="text-xs text-amber-400 font-medium">Pengeluaran Bulanan</p>
@@ -660,6 +668,26 @@ export default function App() {
                   <p className="text-sm font-bold text-amber-300">{formatYuan(monthNonCollegeExpenseYuan)}</p>
                   <p className="text-[10px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                 </div>
+              </div>
+
+              {/* Rincian Pengeluaran Per Kategori */}
+              <div className="pt-3 border-t border-slate-800 space-y-2">
+                <p className="text-[11px] text-slate-400 font-semibold">Total Pengeluaran Per Kategori:</p>
+                {categoryExpenses.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic">Belum ada pengeluaran pada bulan ini.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    {categoryExpenses.map(item => (
+                      <div key={item.kategori} className="flex justify-between items-center bg-slate-800/60 p-2 rounded-lg border border-slate-700/50">
+                        <span className="text-slate-300 font-medium">{item.kategori}</span>
+                        <div className="text-right">
+                          <span className="font-bold text-rose-300">{formatYuan(item.total)}</span>
+                          <span className="block text-[9px] text-slate-400">{formatIDR(item.total)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
