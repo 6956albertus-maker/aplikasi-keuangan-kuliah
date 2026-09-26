@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus,
-  CheckSquare, Square, AlertTriangle, ListTodo
+  CheckSquare, Square, AlertTriangle, ListTodo, Maximize, Minimize
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -36,6 +36,11 @@ export default function App() {
   const [kursRate, setKursRate] = useState(2200);
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
+
+  // State Jam Live & Fullscreen
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenRef = useRef(null);
 
   // Kategori Pengeluaran
   const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
@@ -86,49 +91,55 @@ export default function App() {
     tenggat_waktu: new Date().toISOString().split('T')[0]
   });
 
+  // Timer Jam Realtime & Listener Fullscreen Change
   useEffect(() => {
-    // 1. Fetch data awal saat aplikasi dimuat
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
     fetchKurs();
     fetchTransactions();
     fetchEvents();
     fetchPayments();
     fetchTodos();
 
-    // 2. LISTEN REALTIME CHANGES FROM SUPABASE
     const channel = supabase
       .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transaksi' },
-        () => fetchTransactions()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'agenda_kuliah' },
-        () => fetchEvents()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'pembayaran_kuliah' },
-        () => fetchPayments()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'todo_tugas' },
-        () => fetchTodos()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'pengaturan' },
-        () => fetchKurs()
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transaksi' }, () => fetchTransactions())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agenda_kuliah' }, () => fetchEvents())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pembayaran_kuliah' }, () => fetchPayments())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'todo_tugas' }, () => fetchTodos())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pengaturan' }, () => fetchKurs())
       .subscribe();
 
-    // Clean up listener saat komponen di-unmount
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // --- FULLSCREEN HANDLERS ---
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (fullscreenRef.current?.requestFullscreen) {
+        fullscreenRef.current.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   // --- SUPABASE API CALLS ---
   async function fetchKurs() {
@@ -365,23 +376,11 @@ export default function App() {
     const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
 
     if (diffDays <= 1) {
-      return { 
-        label: 'Tinggi', 
-        badgeColor: 'bg-rose-500 text-white font-bold', 
-        blockBg: 'bg-rose-50/80 border-rose-200' 
-      };
+      return { label: 'Tinggi', badgeColor: 'bg-rose-500 text-white font-bold', blockBg: 'bg-rose-50/80 border-rose-200' };
     } else if (diffDays <= 3) {
-      return { 
-        label: 'Sedang', 
-        badgeColor: 'bg-amber-500 text-white font-semibold', 
-        blockBg: 'bg-amber-50/80 border-amber-200' 
-      };
+      return { label: 'Sedang', badgeColor: 'bg-amber-500 text-white font-semibold', blockBg: 'bg-amber-50/80 border-amber-200' };
     } else {
-      return { 
-        label: 'Rendah', 
-        badgeColor: 'bg-slate-200 text-slate-700', 
-        blockBg: 'bg-slate-50/50 border-slate-100' 
-      };
+      return { label: 'Rendah', badgeColor: 'bg-slate-200 text-slate-700', blockBg: 'bg-slate-50/50 border-slate-100' };
     }
   };
 
@@ -488,12 +487,13 @@ export default function App() {
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
+      legend: { position: 'top', labels: { boxWidth: 10, font: { size: 9 } } },
     },
     scales: {
-      y: { ticks: { font: { size: 10 } } },
-      x: { ticks: { font: { size: 10 } } }
+      y: { ticks: { font: { size: 9 } } },
+      x: { ticks: { font: { size: 9 } } }
     }
   };
 
@@ -514,37 +514,37 @@ export default function App() {
   };
 
   const renderCalendar = () => (
-    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+    <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
       <div className="flex justify-between items-center">
-        <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
           <span>📅</span> Kalender Agenda Kuliah & Tugas
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button 
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-xs font-bold px-2"
+            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold px-2"
           >
             &lt;
           </button>
-          <span className="text-xs font-semibold text-slate-700 min-w-[100px] text-center">
+          <span className="text-[10px] font-semibold text-slate-700 min-w-[80px] text-center">
             {currentMonth.toLocaleString('id-ID', { month: 'long', year: 'numeric' })}
           </span>
           <button 
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-xs font-bold px-2"
+            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold px-2"
           >
             &gt;
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400">
+      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-slate-400">
         <div>MIN</div><div>SEN</div><div>SEL</div><div>RAB</div><div>KAM</div><div>JUM</div><div>SAB</div>
       </div>
 
       <div className="grid grid-cols-7 gap-1">
         {[...Array(firstDayOfMonth)].map((_, i) => (
-          <div key={`empty-${i}`} className="h-16 bg-slate-50/50 rounded-lg"></div>
+          <div key={`empty-${i}`} className="h-12 bg-slate-50/50 rounded-lg"></div>
         ))}
         {[...Array(daysInMonth)].map((_, i) => {
           const day = i + 1;
@@ -555,14 +555,14 @@ export default function App() {
             <div 
               key={day} 
               onClick={() => handleDateClick(dateStr)}
-              className="h-16 p-1 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg flex flex-col justify-between cursor-pointer transition overflow-hidden group"
+              className="h-12 p-1 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg flex flex-col justify-between cursor-pointer transition overflow-hidden group"
             >
-              <span className="text-[10px] font-bold text-slate-600 group-hover:text-blue-600">{day}</span>
-              <div className="space-y-0.5 overflow-y-auto max-h-10">
+              <span className="text-[9px] font-bold text-slate-600 group-hover:text-blue-600">{day}</span>
+              <div className="space-y-0.5 overflow-y-auto max-h-8">
                 {dayEvents.map((ev) => (
                   <div 
                     key={ev.id} 
-                    className={`text-[8px] px-1 py-0.5 rounded truncate font-medium border ${
+                    className={`text-[7px] px-0.5 py-0.2 rounded truncate font-medium border ${
                       ev.judul.startsWith('[Tugas]') 
                         ? 'bg-amber-100 text-amber-900 border-amber-300' 
                         : 'bg-blue-100 text-blue-800 border-blue-200'
@@ -580,74 +580,111 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans">
-      <div className="max-w-3xl mx-auto p-4 space-y-6">
+    <div ref={fullscreenRef} className="min-h-screen bg-slate-50 text-slate-800 pb-20 font-sans overflow-y-auto">
+      
+      {/* FLOATING ESC / EXIT BUTTON SAAT FULLSCREEN */}
+      {isFullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          className="fixed top-4 right-4 z-50 bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-1.5 animate-bounce"
+        >
+          <Minimize className="w-4 h-4" />
+          <span>Keluar Fullscreen (ESC)</span>
+        </button>
+      )}
+
+      <div className="max-w-4xl mx-auto p-4 space-y-5">
         
-        {/* Header App */}
-        <header className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+        {/* HEADER BARU DENGAN JAM DIGITAL LIVE & TOMBOL FULLSCREEN */}
+        <header className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Student Manager</h1>
             <p className="text-xs text-slate-500">Keuangan, Kuliah & Pembayaran</p>
           </div>
-          <div className="bg-slate-100 p-2 rounded-xl text-right border border-slate-200">
-            <div className="flex items-center gap-1.5 justify-end">
-              <span className="text-xs text-slate-500">1 RMB =</span>
-              {editingKurs ? (
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    value={tempKurs}
-                    onChange={(e) => setTempKurs(e.target.value)}
-                    className="w-20 bg-white border border-slate-300 text-xs rounded px-1 py-0.5"
-                  />
-                  <button onClick={updateKurs} className="text-xs bg-emerald-600 px-2 py-0.5 text-white font-bold rounded">OK</button>
-                </div>
-              ) : (
-                <button onClick={() => setEditingKurs(true)} className="flex items-center gap-1 font-bold text-blue-600 text-xs">
-                  <span>Rp {kursRate.toLocaleString('id-ID')}</span>
-                  <Edit2 className="w-3 h-3 text-slate-400" />
-                </button>
-              )}
+
+          <div className="flex items-center gap-3">
+            {/* JAM & TANGGAL REALTIME */}
+            <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-right">
+              <p className="text-sm font-mono font-bold text-amber-400">
+                {currentTime.toLocaleTimeString('id-ID')}
+              </p>
+              <p className="text-[9px] text-slate-300 font-medium">
+                {currentTime.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
             </div>
+
+            <div className="bg-slate-100 p-1.5 rounded-xl text-right border border-slate-200">
+              <div className="flex items-center gap-1 justify-end">
+                <span className="text-[10px] text-slate-500">1 RMB =</span>
+                {editingKurs ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={tempKurs}
+                      onChange={(e) => setTempKurs(e.target.value)}
+                      className="w-16 bg-white border border-slate-300 text-xs rounded px-1"
+                    />
+                    <button onClick={updateKurs} className="text-[10px] bg-emerald-600 px-1.5 py-0.5 text-white font-bold rounded">OK</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingKurs(true)} className="flex items-center gap-1 font-bold text-blue-600 text-xs">
+                    <span>Rp {kursRate.toLocaleString('id-ID')}</span>
+                    <Edit2 className="w-3 h-3 text-slate-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* TOMBOL TOGGLE FULLSCREEN */}
+            <button
+              onClick={toggleFullscreen}
+              className="bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-xl font-bold text-xs shadow-md transition flex items-center gap-1.5"
+              title="Fullscreen Mode"
+            >
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              <span className="hidden sm:inline">{isFullscreen ? 'Keluar' : 'Mode Fullscreen'}</span>
+            </button>
           </div>
         </header>
 
-        {/* Tab Navigation */}
-        <nav className="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
-          {[
-            { id: 'dashboard', label: 'Utama', icon: LayoutDashboard },
-            { id: 'todo', label: 'To Do Tugas', icon: CheckSquare },
-            { id: 'keuangan', label: 'Keuangan', icon: Wallet },
-            { id: 'kuliah', label: 'Kuliah', icon: CalendarIcon },
-            { id: 'pembayaran', label: 'Pembayaran', icon: GraduationCap }
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
-                  activeTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {/* Tab Navigation (Sembunyikan Tab jika dalam Fullscreen) */}
+        {!isFullscreen && (
+          <nav className="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
+            {[
+              { id: 'dashboard', label: 'Utama', icon: LayoutDashboard },
+              { id: 'todo', label: 'To Do Tugas', icon: CheckSquare },
+              { id: 'keuangan', label: 'Keuangan', icon: Wallet },
+              { id: 'kuliah', label: 'Kuliah', icon: CalendarIcon },
+              { id: 'pembayaran', label: 'Pembayaran', icon: GraduationCap }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                    activeTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* TAB UTAMA / DASHBOARD */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-5">
+        {(activeTab === 'dashboard' || isFullscreen) && (
+          <div className="space-y-4">
             {unpaidAlerts.length > 0 && (
-              <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl shadow-sm">
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm">
                 <div className="flex items-center gap-2 text-amber-800 font-bold text-xs mb-1">
                   <AlertCircle className="w-4 h-4 text-amber-600" />
                   <span>Peringatan Pembayaran Tenggat Waktu!</span>
                 </div>
                 {unpaidAlerts.map(p => (
-                  <div key={p.id} className="text-xs flex justify-between text-amber-900 mt-1">
+                  <div key={p.id} className="text-xs flex justify-between text-amber-900 mt-0.5">
                     <span>{p.kategori_tahun} - {p.nama_tagihan}</span>
                     <span className="font-semibold">{formatYuan(p.jumlah_yuan)} (Tenggat: {p.tenggat_waktu})</span>
                   </div>
@@ -656,8 +693,8 @@ export default function App() {
             )}
 
             {/* Rekapitulasi Keuangan */}
-            <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg space-y-3">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                 <span className="text-xs text-slate-400 font-medium">Rekapitulasi Keuangan</span>
                 <input
                   type="month"
@@ -666,45 +703,42 @@ export default function App() {
                   className="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs text-emerald-400 flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5"/> Pemasukan</p>
-                  <p className="text-base font-bold text-emerald-300">{formatYuan(monthIncomeYuan)}</p>
-                  <p className="text-xs text-slate-400">{formatIDR(monthIncomeYuan)}</p>
+                  <p className="text-[10px] text-emerald-400 flex items-center gap-1"><ArrowUpRight className="w-3 h-3"/> Pemasukan</p>
+                  <p className="text-sm font-bold text-emerald-300">{formatYuan(monthIncomeYuan)}</p>
+                  <p className="text-[10px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-rose-400 flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5"/> Pengeluaran (Total)</p>
-                  <p className="text-base font-bold text-rose-300">{formatYuan(monthExpenseYuan)}</p>
-                  <p className="text-xs text-slate-400">{formatIDR(monthExpenseYuan)}</p>
+                  <p className="text-[10px] text-rose-400 flex items-center gap-1"><ArrowDownRight className="w-3 h-3"/> Pengeluaran (Total)</p>
+                  <p className="text-sm font-bold text-rose-300">{formatYuan(monthExpenseYuan)}</p>
+                  <p className="text-[10px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
                 </div>
               </div>
 
               {/* Pengeluaran Bulanan (Diluar Biaya Kuliah) */}
-              <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+              <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
                 <div>
                   <p className="text-xs text-amber-400 font-medium">Pengeluaran Bulanan</p>
-                  <p className="text-[10px] text-slate-400">Diluar Biaya Kuliah</p>
+                  <p className="text-[9px] text-slate-400">Diluar Biaya Kuliah</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-amber-300">{formatYuan(monthNonCollegeExpenseYuan)}</p>
-                  <p className="text-[10px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
+                  <p className="text-xs font-bold text-amber-300">{formatYuan(monthNonCollegeExpenseYuan)}</p>
+                  <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                 </div>
               </div>
 
               {/* Rincian Pengeluaran Per Kategori */}
-              <div className="pt-3 border-t border-slate-800 space-y-2">
-                <p className="text-[11px] text-slate-400 font-semibold">Total Pengeluaran Per Kategori:</p>
+              <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                <p className="text-[10px] text-slate-400 font-semibold">Total Pengeluaran Per Kategori:</p>
                 {categoryExpenses.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic">Belum ada pengeluaran pada bulan ini.</p>
+                  <p className="text-[9px] text-slate-500 italic">Belum ada pengeluaran pada bulan ini.</p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[9px]">
                     {categoryExpenses.map(item => (
-                      <div key={item.kategori} className="flex justify-between items-center bg-slate-800/60 p-2 rounded-lg border border-slate-700/50">
-                        <span className="text-slate-300 font-medium">{item.kategori}</span>
-                        <div className="text-right">
-                          <span className="font-bold text-rose-300">{formatYuan(item.total)}</span>
-                          <span className="block text-[9px] text-slate-400">{formatIDR(item.total)}</span>
-                        </div>
+                      <div key={item.kategori} className="flex justify-between items-center bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50">
+                        <span className="text-slate-300 font-medium truncate">{item.kategori}</span>
+                        <span className="font-bold text-rose-300 ml-1">{formatYuan(item.total)}</span>
                       </div>
                     ))}
                   </div>
@@ -712,107 +746,111 @@ export default function App() {
               </div>
             </div>
 
-            {/* SEKSI TO DO TUGAS DI DASHBOARD */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                  <ListTodo className="w-4 h-4 text-amber-600" />
-                  <span>Daftar Tugas Mendatang</span>
-                </h2>
-                <button 
-                  onClick={() => setActiveTab('todo')} 
-                  className="text-[10px] font-bold text-blue-600 hover:underline"
-                >
-                  Lihat Semua ({todos.filter(t => !t.selesai).length})
-                </button>
-              </div>
+            {/* LAYOUT DUA KOLOM SAAT FULLSCREEN ATAU DASHBOARD */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* SEKSI TO DO TUGAS */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <ListTodo className="w-4 h-4 text-amber-600" />
+                    <span>Daftar Tugas Mendatang</span>
+                  </h2>
+                  <button 
+                    onClick={() => setActiveTab('todo')} 
+                    className="text-[10px] font-bold text-blue-600 hover:underline"
+                  >
+                    Lihat Semua ({todos.filter(t => !t.selesai).length})
+                  </button>
+                </div>
 
-              <div className="space-y-2">
-                {todos.filter(t => !t.selesai).length === 0 ? (
-                  <p className="text-xs text-slate-400 py-3 text-center">Semua tugas telah selesai / belum ada tugas.</p>
-                ) : (
-                  todos.filter(t => !t.selesai).slice(0, 4).map(item => {
-                    const priority = getAutoPriority(item.tenggat_waktu);
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {todos.filter(t => !t.selesai).length === 0 ? (
+                    <p className="text-xs text-slate-400 py-3 text-center">Semua tugas telah selesai.</p>
+                  ) : (
+                    todos.filter(t => !t.selesai).slice(0, 5).map(item => {
+                      const priority = getAutoPriority(item.tenggat_waktu);
 
-                    return (
-                      <div 
-                        key={item.id} 
-                        className={`p-3 border rounded-xl flex justify-between items-center transition ${priority.blockBg}`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
-                            <Square className="w-4 h-4 text-slate-300 hover:text-emerald-600" />
-                          </button>
-                          <div>
-                            <p className="font-bold text-xs text-slate-800">{item.judul}</p>
-                            <p className="text-[10px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
-                          </div>
-                        </div>
-
-                        <span className={`text-[9px] px-2 py-0.5 rounded ${priority.badgeColor}`}>
-                          Prioritas {priority.label}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* SEKSI AGENDA KULIAH TERDEKAT */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  <span>Agenda Kuliah Terdekat</span>
-                </h2>
-                <span className="text-[10px] text-slate-400">Mendatang</span>
-              </div>
-
-              <div className="space-y-2">
-                {upcomingEvents.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat / jam agenda telah lewat.</p>
-                ) : (
-                  upcomingEvents.slice(0, 4).map(ev => {
-                    const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
-
-                    return (
-                      <div 
-                        key={ev.id} 
-                        className={`p-3 rounded-xl border flex justify-between items-center transition ${
-                          isWithin24Hours 
-                            ? 'bg-amber-100/70 border-amber-300 text-amber-900' 
-                            : 'bg-slate-50 border-slate-100 text-slate-800'
-                        }`}
-                      >
-                        <div className="space-y-1">
+                      return (
+                        <div 
+                          key={item.id} 
+                          className={`p-2 border rounded-xl flex justify-between items-center transition ${priority.blockBg}`}
+                        >
                           <div className="flex items-center gap-2">
-                            <p className="font-bold text-xs">{ev.judul}</p>
-                            {isWithin24Hours && (
-                              <span className="text-[9px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-md">
-                                Segera (&lt; 24 jam)
-                              </span>
-                            )}
+                            <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
+                              <Square className="w-3.5 h-3.5 text-slate-300 hover:text-emerald-600" />
+                            </button>
+                            <div>
+                              <p className="font-bold text-xs text-slate-800">{item.judul}</p>
+                              <p className="text-[9px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
+                            </div>
                           </div>
-                          <p className="text-[10px] text-slate-500">
-                            {ev.tanggal} {ev.tanggal_selesai && ev.tanggal_selesai !== ev.tanggal ? `s/d ${ev.tanggal_selesai}` : ''} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
-                          </p>
-                          {ev.keterangan && <p className="text-[10px] text-slate-400">{ev.keterangan}</p>}
+
+                          <span className={`text-[8px] px-1.5 py-0.5 rounded ${priority.badgeColor}`}>
+                            {priority.label}
+                          </span>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
+                      );
+                    })
+                  )}
+                </div>
               </div>
+
+              {/* SEKSI AGENDA KULIAH TERDEKAT */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <span>Agenda Kuliah Terdekat</span>
+                  </h2>
+                  <span className="text-[10px] text-slate-400">Mendatang</span>
+                </div>
+
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {upcomingEvents.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
+                  ) : (
+                    upcomingEvents.slice(0, 5).map(ev => {
+                      const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
+
+                      return (
+                        <div 
+                          key={ev.id} 
+                          className={`p-2 rounded-xl border flex justify-between items-center transition ${
+                            isWithin24Hours 
+                              ? 'bg-amber-100/70 border-amber-300 text-amber-900' 
+                              : 'bg-slate-50 border-slate-100 text-slate-800'
+                          }`}
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-xs">{ev.judul}</p>
+                              {isWithin24Hours && (
+                                <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
+                                  &lt; 24 jam
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[9px] text-slate-500">
+                              {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
             </div>
 
             {/* Grafik Keuangan */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
               <div className="flex justify-between items-center">
-                <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan</h2>
-                <span className="text-[10px] text-slate-400 font-medium">Bulanan (Yuan)</span>
+                <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
+                <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
               </div>
-              <div className="h-48 flex items-center justify-center">
+              <div className="h-40 flex items-center justify-center">
                 <Line data={chartData} options={chartOptions} />
               </div>
             </div>
@@ -822,7 +860,7 @@ export default function App() {
         )}
 
         {/* TAB TO DO LIST TUGAS */}
-        {activeTab === 'todo' && (
+        {activeTab === 'todo' && !isFullscreen && (
           <div className="space-y-5">
             <form onSubmit={addTodo} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -918,7 +956,7 @@ export default function App() {
         )}
 
         {/* TAB KEUANGAN */}
-        {activeTab === 'keuangan' && (
+        {activeTab === 'keuangan' && !isFullscreen && (
           <div className="space-y-5">
             <form onSubmit={addTransaction} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700">Catat Transaksi</h2>
@@ -1020,7 +1058,7 @@ export default function App() {
         )}
 
         {/* TAB KULIAH */}
-        {activeTab === 'kuliah' && (
+        {activeTab === 'kuliah' && !isFullscreen && (
           <div className="space-y-5">
             {renderCalendar()}
 
@@ -1120,7 +1158,7 @@ export default function App() {
         )}
 
         {/* TAB PEMBAYARAN KULIAH */}
-        {activeTab === 'pembayaran' && (
+        {activeTab === 'pembayaran' && !isFullscreen && (
           <div className="space-y-5">
             <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg space-y-3">
               <span className="text-xs text-slate-400">Total Ringkasan Pembayaran Kuliah</span>
