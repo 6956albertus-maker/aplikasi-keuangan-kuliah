@@ -630,7 +630,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* TOMBOL FULLSCREEN HANYA DI LAPTOP/TABLET/IPAD (SEMBUNYI DI HP) */}
+            {/* TOMBOL FULLSCREEN HANYA DI LAPTOP/TABLET/IPAD */}
             <button
               onClick={toggleFullscreen}
               className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl font-bold text-xs shadow-md transition items-center gap-1.5"
@@ -673,65 +673,65 @@ export default function App() {
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-3'}`}>
             
-            {/* BARIS ATAS: KOTAK JAM & TANGGAL BESAR + KARTU REKAP KEUANGAN */}
+            {/* BARIS ATAS: KOTAK JAM (FONT LEBIH BESAR) + REKAPITULASI KEUANGAN (BOX LEBIH DOMINAN) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               
-              {/* KOTAK JAM & TANGGAL BESAR TERSENDIRI */}
+              {/* KOTAK JAM & TANGGAL (FONT DIPERBESAR TAPI UKURAN BOX TETAP) */}
               <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
                 <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
                   WAKTU REALTIME
                 </span>
-                <p className="text-3xl md:text-4xl font-mono font-extrabold text-amber-300 tracking-tight">
+                <p className="text-5xl md:text-6xl font-mono font-black text-amber-300 tracking-tight my-1">
                   {currentTime.toLocaleTimeString('id-ID')}
                 </p>
-                <p className="text-xs text-slate-300 font-medium mt-1">
+                <p className="text-sm md:text-base text-slate-200 font-semibold">
                   {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               </div>
 
-              {/* REKAPITULASI KEUANGAN & RINCIAN KATEGORI */}
-              <div className="md:col-span-2 bg-slate-900 text-white p-3.5 rounded-2xl shadow-md space-y-2.5 flex flex-col justify-between">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
-                  <span className="text-xs text-slate-400 font-medium">Rekapitulasi Keuangan</span>
+              {/* REKAPITULASI KEUANGAN DIPERBESAR */}
+              <div className="md:col-span-2 bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3 flex flex-col justify-between">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <span className="text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
                   <input
                     type="month"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="bg-slate-800 text-[10px] text-slate-200 border border-slate-700 rounded px-1.5 py-0.5"
+                    className="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-slate-800/50 p-1.5 rounded-xl border border-slate-700/50">
-                    <p className="text-[9px] text-emerald-400 font-bold">Pemasukan</p>
-                    <p className="text-xs font-bold text-emerald-300">{formatYuan(monthIncomeYuan)}</p>
-                    <p className="text-[8px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                    <p className="text-xs text-emerald-400 font-bold">Pemasukan</p>
+                    <p className="text-base md:text-lg font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
+                    <p className="text-[9px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
                   </div>
 
-                  <div className="bg-slate-800/50 p-1.5 rounded-xl border border-slate-700/50">
-                    <p className="text-[9px] text-rose-400 font-bold">Pengeluaran Total</p>
-                    <p className="text-xs font-bold text-rose-300">{formatYuan(monthExpenseYuan)}</p>
-                    <p className="text-[8px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
+                  <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                    <p className="text-xs text-rose-400 font-bold">Pengeluaran Total</p>
+                    <p className="text-base md:text-lg font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
+                    <p className="text-[9px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
                   </div>
 
-                  <div className="bg-slate-800/50 p-1.5 rounded-xl border border-slate-700/50">
-                    <p className="text-[9px] text-amber-400 font-bold">Non-Biaya Kuliah</p>
-                    <p className="text-xs font-bold text-amber-300">{formatYuan(monthNonCollegeExpenseYuan)}</p>
-                    <p className="text-[8px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
+                  <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                    <p className="text-xs text-amber-400 font-bold">Non-Biaya Kuliah</p>
+                    <p className="text-base md:text-lg font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
+                    <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                   </div>
                 </div>
 
                 {/* RINCIAN PER KATEGORI */}
-                <div className="pt-1 border-t border-slate-800">
-                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 text-[8px] text-center">
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 text-[9px] text-center">
                     {expenseCategories.map(cat => {
                       const total = currentMonthTransactions
                         .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
                         .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
                       return (
-                        <div key={cat} className="bg-slate-800/80 p-1 rounded border border-slate-700/40 truncate">
-                          <span className="block text-slate-400 font-semibold truncate">{cat}</span>
-                          <span className="font-bold text-rose-300">{total > 0 ? `¥${total}` : '-'}</span>
+                        <div key={cat} className="bg-slate-800/90 p-1.5 rounded-lg border border-slate-700/50 truncate">
+                          <span className="block text-slate-400 font-medium truncate">{cat}</span>
+                          <span className="font-bold text-rose-300 text-[10px]">{total > 0 ? `¥${total}` : '-'}</span>
                         </div>
                       );
                     })}
@@ -741,12 +741,12 @@ export default function App() {
 
             </div>
 
-            {/* BARIS TENGAH: SEKSI TO DO TUGAS & AGENDA TERDEKAT */}
+            {/* BARIS TENGAH: BOX TUGAS & AGENDA KULIAH DIBUAT LEBIH KECIL/RINGKAS */}
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isFullscreen ? 'flex-1' : ''}`}>
               
-              {/* TO DO TUGAS */}
-              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
-                <div className="flex justify-between items-center mb-1.5">
+              {/* TO DO TUGAS (DIBUAT KECIL) */}
+              <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
+                <div className="flex justify-between items-center mb-1">
                   <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1">
                     <ListTodo className="w-3.5 h-3.5 text-amber-600" />
                     <span>Daftar Tugas Mendatang</span>
@@ -756,11 +756,11 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="space-y-1 overflow-y-auto flex-1 max-h-36">
+                <div className={`space-y-1 overflow-y-auto flex-1 ${isFullscreen ? 'max-h-24' : 'max-h-28'}`}>
                   {todos.filter(t => !t.selesai).length === 0 ? (
-                    <p className="text-[10px] text-slate-400 py-3 text-center">Semua tugas telah selesai.</p>
+                    <p className="text-[10px] text-slate-400 py-2 text-center">Semua tugas telah selesai.</p>
                   ) : (
-                    todos.filter(t => !t.selesai).slice(0, 3).map(item => {
+                    todos.filter(t => !t.selesai).slice(0, 2).map(item => {
                       const priority = getAutoPriority(item.tenggat_waktu);
                       return (
                         <div key={item.id} className={`p-1.5 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
@@ -769,8 +769,8 @@ export default function App() {
                               <Square className="w-3.5 h-3.5 text-slate-300 hover:text-emerald-600" />
                             </button>
                             <div>
-                              <p className="font-bold text-[11px] text-slate-800 line-clamp-1">{item.judul}</p>
-                              <p className="text-[8.5px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
+                              <p className="font-bold text-[10.5px] text-slate-800 line-clamp-1">{item.judul}</p>
+                              <p className="text-[8px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
                             </div>
                           </div>
                           <span className={`text-[7.5px] px-1 py-0.2 rounded ${priority.badgeColor}`}>
@@ -783,9 +783,9 @@ export default function App() {
                 </div>
               </div>
 
-              {/* AGENDA KULIAH TERDEKAT */}
-              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
-                <div className="flex justify-between items-center mb-1.5">
+              {/* AGENDA KULIAH TERDEKAT (DIBUAT KECIL) */}
+              <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
+                <div className="flex justify-between items-center mb-1">
                   <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-blue-600" />
                     <span>Agenda Kuliah Terdekat</span>
@@ -793,24 +793,24 @@ export default function App() {
                   <span className="text-[9px] text-slate-400">Mendatang</span>
                 </div>
 
-                <div className="space-y-1 overflow-y-auto flex-1 max-h-36">
+                <div className={`space-y-1 overflow-y-auto flex-1 ${isFullscreen ? 'max-h-24' : 'max-h-28'}`}>
                   {upcomingEvents.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
+                    <p className="text-[10px] text-slate-400 py-2 text-center">Belum ada agenda terdekat.</p>
                   ) : (
-                    upcomingEvents.slice(0, 3).map(ev => {
+                    upcomingEvents.slice(0, 2).map(ev => {
                       const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
                       return (
                         <div key={ev.id} className={`p-1.5 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1">
-                              <p className="font-bold text-[11px] line-clamp-1">{ev.judul}</p>
+                              <p className="font-bold text-[10.5px] line-clamp-1">{ev.judul}</p>
                               {isWithin24Hours && (
                                 <span className="text-[7px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
                                   &lt; 24j
                                 </span>
                               )}
                             </div>
-                            <p className="text-[8.5px] text-slate-500">
+                            <p className="text-[8px] text-slate-500">
                               {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
                             </p>
                           </div>
@@ -832,7 +832,7 @@ export default function App() {
                   <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
                   <span className="text-[9px] text-slate-400 font-medium">Yuan (¥)</span>
                 </div>
-                <div className={`${isFullscreen ? 'flex-1 min-h-[110px]' : 'h-32'} flex items-center justify-center`}>
+                <div className={`${isFullscreen ? 'flex-1 min-h-[100px]' : 'h-32'} flex items-center justify-center`}>
                   <Line data={chartData} options={chartOptions} />
                 </div>
               </div>
