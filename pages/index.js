@@ -87,11 +87,47 @@ export default function App() {
   });
 
   useEffect(() => {
+    // 1. Fetch data awal saat aplikasi dimuat
     fetchKurs();
     fetchTransactions();
     fetchEvents();
     fetchPayments();
     fetchTodos();
+
+    // 2. LISTEN REALTIME CHANGES FROM SUPABASE
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transaksi' },
+        () => fetchTransactions()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'agenda_kuliah' },
+        () => fetchEvents()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pembayaran_kuliah' },
+        () => fetchPayments()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'todo_tugas' },
+        () => fetchTodos()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pengaturan' },
+        () => fetchKurs()
+      )
+      .subscribe();
+
+    // Clean up listener saat komponen di-unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // --- SUPABASE API CALLS ---
@@ -129,13 +165,11 @@ export default function App() {
     }]);
 
     setFinanceForm({ tipe: 'pengeluaran', kategori: 'Makan', nominalYuan: '', tanggal: new Date().toISOString().split('T')[0], keterangan: '' });
-    fetchTransactions();
   }
 
   async function deleteTransaction(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
     await supabase.from('transaksi').delete().eq('id', id);
-    fetchTransactions();
   }
 
   async function updateTransaction(e) {
@@ -155,7 +189,6 @@ export default function App() {
     }).eq('id', editingTransaction.id);
 
     setEditingTransaction(null);
-    fetchTransactions();
   }
 
   async function fetchEvents() {
@@ -197,7 +230,6 @@ export default function App() {
       keterangan: '' 
     });
 
-    fetchEvents();
     alert('Agenda berhasil disimpan!');
   }
 
@@ -227,13 +259,11 @@ export default function App() {
 
     setEditingEvent(null);
     setSelectedDateEvents(null);
-    fetchEvents();
   }
 
   async function deleteAgenda(id) {
     if (!window.confirm('Hapus agenda ini?')) return;
     await supabase.from('agenda_kuliah').delete().eq('id', id);
-    fetchEvents();
     if (selectedDateEvents) {
       setSelectedDateEvents(prev => ({
         ...prev,
@@ -252,13 +282,11 @@ export default function App() {
       sudah_dibayar: !currentStatus,
       tanggal_pembayaran: !currentStatus ? new Date().toISOString().split('T')[0] : null
     }).eq('id', id);
-    fetchPayments();
   }
 
   async function saveDueDate(id) {
     await supabase.from('pembayaran_kuliah').update({ tenggat_waktu: tempDueDate || null }).eq('id', id);
     setEditingDueDateId(null);
-    fetchPayments();
   }
 
   async function addPayment(e) {
@@ -274,13 +302,11 @@ export default function App() {
     }]);
 
     setNewPaymentForm({ nama_tagihan: '', jumlah_yuan: '', tenggat_waktu: '' });
-    fetchPayments();
   }
 
   async function deletePayment(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus tagihan ini?')) return;
     await supabase.from('pembayaran_kuliah').delete().eq('id', id);
-    fetchPayments();
   }
 
   // --- API TO DO LIST TUGAS ---
@@ -315,19 +341,15 @@ export default function App() {
     }]);
 
     setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
-    fetchTodos();
-    fetchEvents();
   }
 
   async function toggleTodoStatus(id, currentStatus) {
     await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
-    fetchTodos();
   }
 
   async function deleteTodo(id) {
     if (!window.confirm('Hapus tugas ini dari To-Do list?')) return;
     await supabase.from('todo_tugas').delete().eq('id', id);
-    fetchTodos();
   }
 
   // --- HELPER PRIORITAS TUGAS ---
@@ -375,7 +397,6 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
-  // Perhitungan total pengeluaran per kategori untuk bulan yang dipilih
   const categoryExpenses = expenseCategories.map(cat => {
     const total = currentMonthTransactions
       .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
