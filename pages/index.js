@@ -183,25 +183,6 @@ export default function App() {
     await supabase.from('transaksi').delete().eq('id', id);
   }
 
-  async function updateTransaction(e) {
-    e.preventDefault();
-    if (!editingTransaction) return;
-
-    const yuan = Number(editingTransaction.nominal_yuan);
-    const idr = yuan * kursRate;
-
-    await supabase.from('transaksi').update({
-      tipe: editingTransaction.tipe,
-      kategori: editingTransaction.tipe === 'pemasukan' ? 'Pemasukan' : editingTransaction.kategori,
-      nominal_yuan: yuan,
-      nominal_idr: idr,
-      tanggal: editingTransaction.tanggal,
-      keterangan: editingTransaction.keterangan
-    }).eq('id', editingTransaction.id);
-
-    setEditingTransaction(null);
-  }
-
   async function fetchEvents() {
     const { data } = await supabase.from('agenda_kuliah').select('*').order('tanggal', { ascending: true });
     if (data) setEvents(data);
@@ -242,34 +223,6 @@ export default function App() {
     });
 
     alert('Agenda berhasil disimpan!');
-  }
-
-  async function updateAgenda(e) {
-    e.preventDefault();
-    if (!editingEvent || !editingEvent.judul.trim()) {
-      alert('Judul agenda tidak boleh kosong!');
-      return;
-    }
-
-    const payload = {
-      judul: editingEvent.judul,
-      tanggal: editingEvent.tanggal,
-      tanggal_selesai: editingEvent.tanggal_selesai || editingEvent.tanggal,
-      jam: editingEvent.seharian ? '00:00' : (editingEvent.jam || '09:00'),
-      jam_selesai: editingEvent.seharian ? '23:59' : (editingEvent.jam_selesai || '10:00'),
-      seharian: editingEvent.seharian,
-      keterangan: editingEvent.keterangan
-    };
-
-    const { error } = await supabase.from('agenda_kuliah').update(payload).eq('id', editingEvent.id);
-
-    if (error) {
-      alert('Gagal memperbarui agenda: ' + error.message);
-      return;
-    }
-
-    setEditingEvent(null);
-    setSelectedDateEvents(null);
   }
 
   async function deleteAgenda(id) {
@@ -343,6 +296,7 @@ export default function App() {
     e.preventDefault();
     if (!todoForm.judul.trim()) return;
 
+    // HANYA MASUK KE TO-DO LIST (TIDAK LAGI INSERT KE AGENDA_KULIAH)
     const { error: todoError } = await supabase.from('todo_tugas').insert([{
       judul: todoForm.judul,
       tenggat_waktu: todoForm.tenggat_waktu,
@@ -353,16 +307,6 @@ export default function App() {
       alert('Gagal menambah tugas: ' + todoError.message);
       return;
     }
-
-    await supabase.from('agenda_kuliah').insert([{
-      judul: `[Tugas] ${todoForm.judul}`,
-      tanggal: todoForm.tenggat_waktu,
-      tanggal_selesai: todoForm.tenggat_waktu,
-      jam: '23:59',
-      jam_selesai: '23:59',
-      seharian: true,
-      keterangan: 'Tugas dari To-Do List'
-    }]);
 
     setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
   }
@@ -409,13 +353,6 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
-  const categoryExpenses = expenseCategories.map(cat => {
-    const total = currentMonthTransactions
-      .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
-      .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
-    return { kategori: cat, total };
-  });
-
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
@@ -424,16 +361,9 @@ export default function App() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const unpaidAlerts = payments.filter(p => {
-    if (p.sudah_dibayar || !p.tenggat_waktu) return false;
-    const dueDate = new Date(p.tenggat_waktu);
-    dueDate.setHours(0, 0, 0, 0);
-    const diffTime = dueDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 30;
-  });
-
+  // MURNI AGENDA KULIAH SAJA PADA BOX AGENDA KULIAH TERDEKAT (Tanpa Tugas)
   const upcomingEvents = events
+    .filter(ev => !ev.judul.startsWith('[Tugas]')) // memfilter jika masih ada sisa data lama
     .map(ev => {
       const endDateStr = ev.tanggal_selesai || ev.tanggal;
       const endTimeStr = ev.seharian ? '23:59:59' : (ev.jam_selesai || ev.jam || '23:59:59');
@@ -513,12 +443,28 @@ export default function App() {
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
 
+  // MENGGABUNGKAN AGENDA KULIAH + TO DO LIST PADA TAMPILAN KALENDER
   const getEventsForDate = (dateStr) => {
-    return events.filter((ev) => {
-      const startDate = ev.tanggal;
-      const endDate = ev.tanggal_selesai || ev.tanggal;
-      return dateStr >= startDate && dateStr <= endDate;
-    });
+    const filteredAgenda = events
+      .filter(ev => !ev.judul.startsWith('[Tugas]'))
+      .filter((ev) => {
+        const startDate = ev.tanggal;
+        const endDate = ev.tanggal_selesai || ev.tanggal;
+        return dateStr >= startDate && dateStr <= endDate;
+      })
+      .map(ev => ({ ...ev, isTodo: false }));
+
+    const filteredTodos = todos
+      .filter(t => !t.selesai && t.tenggat_waktu === dateStr)
+      .map(t => ({
+        id: `todo-${t.id}`,
+        judul: `[Tugas] ${t.judul}`,
+        tanggal: t.tenggat_waktu,
+        seharian: true,
+        isTodo: true
+      }));
+
+    return [...filteredAgenda, ...filteredTodos];
   };
 
   const handleDateClick = (dateStr) => {
@@ -578,7 +524,7 @@ export default function App() {
                   <div 
                     key={ev.id} 
                     className={`text-[7px] px-0.5 py-0 rounded truncate font-medium border ${
-                      ev.judul.startsWith('[Tugas]') 
+                      ev.isTodo || ev.judul.startsWith('[Tugas]')
                         ? 'bg-amber-100 text-amber-900 border-amber-300' 
                         : 'bg-blue-100 text-blue-800 border-blue-200'
                     }`}
@@ -645,7 +591,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* TOMBOL FULLSCREEN HANYA DI LAPTOP/TABLET/IPAD */}
+            {/* TOMBOL FULLSCREEN */}
             <button
               onClick={toggleFullscreen}
               className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs shadow-md transition items-center gap-1.5"
@@ -657,7 +603,7 @@ export default function App() {
           </div>
         </header>
 
-        {/* TAB NAVIGATION (Hanya muncul jika TIDAK Fullscreen) */}
+        {/* TAB NAVIGATION */}
         {!isFullscreen && (
           <nav className="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
             {[
@@ -794,26 +740,30 @@ export default function App() {
                       </h2>
                     </div>
                     <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
-                      {upcomingEvents.slice(0, 5).map(ev => {
-                        const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
-                        return (
-                          <div key={ev.id} className={`p-2 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-1">
-                                <p className="font-bold text-xs line-clamp-1">{ev.judul}</p>
-                                {isWithin24Hours && (
-                                  <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
-                                    &lt; 24j
-                                  </span>
-                                )}
+                      {upcomingEvents.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
+                      ) : (
+                        upcomingEvents.slice(0, 5).map(ev => {
+                          const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
+                          return (
+                            <div key={ev.id} className={`p-2 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1">
+                                  <p className="font-bold text-xs line-clamp-1">{ev.judul}</p>
+                                  {isWithin24Hours && (
+                                    <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
+                                      &lt; 24j
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[9px] text-slate-500">
+                                  {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                                </p>
                               </div>
-                              <p className="text-[9px] text-slate-500">
-                                {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
-                              </p>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 </div>
@@ -833,7 +783,7 @@ export default function App() {
                 </div>
               </>
             ) : (
-              /* TAMPILAN NORMAL (TIDAK FULLSCREEN) */
+              /* TAMPILAN NORMAL (BERURUTAN KE BAWAH) */
               <div className="flex flex-col gap-4">
                 <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
                   <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
@@ -934,6 +884,7 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* BOX AGENDA KULIAH TERDEKAT MURNI AGENDA */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                   <div className="flex justify-between items-center">
                     <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
@@ -1255,10 +1206,9 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB PEMBAYARAN KULIAH (TELAH DIPERBAIKI SIKLUS & DENGAN FORM TAMBAH/EDIT) */}
+        {/* TAB PEMBAYARAN KULIAH */}
         {activeTab === 'pembayaran' && !isFullscreen && (
           <div className="space-y-4">
-            {/* RINGKASAN PEMBAYARAN KULIAH */}
             <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg space-y-2">
               <span className="text-xs text-slate-400">Total Ringkasan Pembayaran Kuliah</span>
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
@@ -1275,7 +1225,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* NAVIGASI KATEGORI TAHUN */}
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {['Tahun Bahasa', 'Tahun 1', 'Tahun 2', 'Tahun 3', 'Tahun 4'].map(thn => (
                 <button
@@ -1288,7 +1237,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* FORM TAMBAH TAGIHAN BARU */}
             <form onSubmit={addPayment} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1">
                 <Plus className="w-3.5 h-3.5 text-blue-600" />
@@ -1326,7 +1274,6 @@ export default function App() {
               </div>
             </form>
 
-            {/* RINCIAN DAFTAR TAGIHAN */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
               <div className="p-3 bg-slate-50 font-bold text-xs text-slate-700">
                 Rincian Tagihan - {selectedPaymentYear}
@@ -1428,14 +1375,7 @@ export default function App() {
                           <p className="text-[10px] text-slate-500">{ev.keterangan}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => setEditingEvent(ev)}
-                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit Agenda"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                      {!ev.isTodo && (
                         <button 
                           onClick={() => deleteAgenda(ev.id)}
                           className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
@@ -1443,7 +1383,7 @@ export default function App() {
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      </div>
+                      )}
                     </div>
                   ))
                 )}
