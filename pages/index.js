@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus,
-  CheckSquare, Square, AlertTriangle, ListTodo, Maximize, Minimize
+  CheckSquare, Square, AlertTriangle, ListTodo, Maximize, Minimize, Filter, RefreshCw
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -31,7 +31,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Helper Fungsi Format Bulan Dinamis (YYYY-MM)
 const getCurrentMonthKey = () => {
   const d = new Date();
   const year = d.getFullYear();
@@ -53,23 +52,27 @@ export default function App() {
   // Kategori Pengeluaran
   const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
 
-  // States Keuangan (selectedMonth di-set dinamis)
+  // States Keuangan
   const [transactions, setTransactions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
+  const [filterMonthMutasi, setFilterMonthMutasi] = useState(''); // State Sort Bulan Mutasi
+  const [showFilterSort, setShowFilterSort] = useState(false);
+
   const [financeForm, setFinanceForm] = useState({
     tipe: 'pengeluaran',
     kategori: 'Makan',
+    metode_pembayaran: 'Cash', // Opsi Cash / Bank
     nominalYuan: '',
     tanggal: new Date().toISOString().split('T')[0],
     keterangan: ''
   });
-  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [editingTransaction, setEditingTransaction] = useState(null); // Modal Edit Transaksi
 
   // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
-  const [editingEvent, setEditingEvent] = useState(null);
+
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
     tanggal: new Date().toISOString().split('T')[0],
@@ -99,16 +102,10 @@ export default function App() {
     tenggat_waktu: new Date().toISOString().split('T')[0]
   });
 
-  // Timer Jam Realtime & Listener Fullscreen
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-
     return () => {
       clearInterval(timer);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
@@ -136,16 +133,11 @@ export default function App() {
     };
   }, []);
 
-  // --- FULLSCREEN HANDLERS ---
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      if (fullscreenRef.current?.requestFullscreen) {
-        fullscreenRef.current.requestFullscreen();
-      }
+      if (fullscreenRef.current?.requestFullscreen) fullscreenRef.current.requestFullscreen();
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+      if (document.exitFullscreen) document.exitFullscreen();
     }
   };
 
@@ -177,13 +169,41 @@ export default function App() {
     await supabase.from('transaksi').insert([{
       tipe: financeForm.tipe,
       kategori: financeForm.tipe === 'pemasukan' ? 'Pemasukan' : financeForm.kategori,
+      metode_pembayaran: financeForm.metode_pembayaran || 'Cash',
       nominal_yuan: yuan,
       nominal_idr: idr,
       tanggal: financeForm.tanggal,
       keterangan: financeForm.keterangan
     }]);
 
-    setFinanceForm({ tipe: 'pengeluaran', kategori: 'Makan', nominalYuan: '', tanggal: new Date().toISOString().split('T')[0], keterangan: '' });
+    setFinanceForm({
+      tipe: 'pengeluaran',
+      kategori: 'Makan',
+      metode_pembayaran: 'Cash',
+      nominalYuan: '',
+      tanggal: new Date().toISOString().split('T')[0],
+      keterangan: ''
+    });
+  }
+
+  async function updateTransaction(e) {
+    e.preventDefault();
+    if (!editingTransaction || !editingTransaction.nominal_yuan) return;
+
+    const yuan = Number(editingTransaction.nominal_yuan);
+    const idr = yuan * kursRate;
+
+    await supabase.from('transaksi').update({
+      tipe: editingTransaction.tipe,
+      kategori: editingTransaction.tipe === 'pemasukan' ? 'Pemasukan' : editingTransaction.kategori,
+      metode_pembayaran: editingTransaction.metode_pembayaran || 'Cash',
+      nominal_yuan: yuan,
+      nominal_idr: idr,
+      tanggal: editingTransaction.tanggal,
+      keterangan: editingTransaction.keterangan
+    }).eq('id', editingTransaction.id);
+
+    setEditingTransaction(null);
   }
 
   async function deleteTransaction(id) {
@@ -198,10 +218,7 @@ export default function App() {
 
   async function addAgenda(e) {
     e.preventDefault();
-    if (!agendaForm.judul.trim()) {
-      alert('Silakan isi Judul agenda terlebih dahulu!');
-      return;
-    }
+    if (!agendaForm.judul.trim()) { alert('Silakan isi Judul agenda!'); return; }
 
     const payload = {
       judul: agendaForm.judul,
@@ -214,22 +231,14 @@ export default function App() {
     };
 
     const { error } = await supabase.from('agenda_kuliah').insert([payload]);
-
-    if (error) {
-      alert('Gagal menyimpan agenda: ' + error.message);
-      return;
-    }
+    if (error) { alert('Gagal menyimpan agenda: ' + error.message); return; }
 
     setAgendaForm({ 
       judul: '', 
       tanggal: new Date().toISOString().split('T')[0], 
       tanggal_selesai: new Date().toISOString().split('T')[0],
-      jam: '09:00', 
-      jam_selesai: '10:00',
-      seharian: false,
-      keterangan: '' 
+      jam: '09:00', jam_selesai: '10:00', seharian: false, keterangan: '' 
     });
-
     alert('Agenda berhasil disimpan!');
   }
 
@@ -237,10 +246,7 @@ export default function App() {
     if (!window.confirm('Hapus agenda ini?')) return;
     await supabase.from('agenda_kuliah').delete().eq('id', id);
     if (selectedDateEvents) {
-      setSelectedDateEvents(prev => ({
-        ...prev,
-        list: prev.list.filter(ev => ev.id !== id)
-      }));
+      setSelectedDateEvents(prev => ({ ...prev, list: prev.list.filter(ev => ev.id !== id) }));
     }
   }
 
@@ -294,7 +300,6 @@ export default function App() {
     await supabase.from('pembayaran_kuliah').delete().eq('id', id);
   }
 
-  // --- API TO DO LIST TUGAS ---
   async function fetchTodos() {
     const { data } = await supabase.from('todo_tugas').select('*').order('selesai', { ascending: true }).order('tenggat_waktu', { ascending: true });
     if (data) setTodos(data);
@@ -304,17 +309,13 @@ export default function App() {
     e.preventDefault();
     if (!todoForm.judul.trim()) return;
 
-    const { error: todoError } = await supabase.from('todo_tugas').insert([{
+    const { error } = await supabase.from('todo_tugas').insert([{
       judul: todoForm.judul,
       tenggat_waktu: todoForm.tenggat_waktu,
       selesai: false
     }]);
 
-    if (todoError) {
-      alert('Gagal menambah tugas: ' + todoError.message);
-      return;
-    }
-
+    if (error) { alert('Gagal menambah tugas: ' + error.message); return; }
     setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
   }
 
@@ -327,59 +328,58 @@ export default function App() {
     await supabase.from('todo_tugas').delete().eq('id', id);
   }
 
-  // --- HELPER PRIORITAS TUGAS ---
   const getAutoPriority = (dueDateStr) => {
     if (!dueDateStr) return { label: 'Rendah', badgeColor: 'bg-slate-100 text-slate-600', blockBg: 'bg-slate-50 border-slate-100' };
-    
     const todayObj = new Date();
     todayObj.setHours(0, 0, 0, 0);
-    
     const dueObj = new Date(dueDateStr);
     dueObj.setHours(0, 0, 0, 0);
-
     const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 1) {
-      return { label: 'Tinggi', badgeColor: 'bg-rose-500 text-white font-bold', blockBg: 'bg-rose-50/80 border-rose-200' };
-    } else if (diffDays <= 3) {
-      return { label: 'Sedang', badgeColor: 'bg-amber-500 text-white font-semibold', blockBg: 'bg-amber-50/80 border-amber-200' };
-    } else {
-      return { label: 'Rendah', badgeColor: 'bg-slate-200 text-slate-700', blockBg: 'bg-slate-50/50 border-slate-100' };
-    }
+    if (diffDays <= 1) return { label: 'Tinggi', badgeColor: 'bg-rose-500 text-white font-bold', blockBg: 'bg-rose-50/80 border-rose-200' };
+    if (diffDays <= 3) return { label: 'Sedang', badgeColor: 'bg-amber-500 text-white font-semibold', blockBg: 'bg-amber-50/80 border-amber-200' };
+    return { label: 'Rendah', badgeColor: 'bg-slate-200 text-slate-700', blockBg: 'bg-slate-50/50 border-slate-100' };
   };
 
-  // --- HELPERS UMUM ---
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
-  // KEUANGAN DINAMIS DENGAN MONTH FILTER
   const currentMonthTransactions = transactions.filter(t => t.tanggal.startsWith(selectedMonth));
   const monthIncomeYuan = currentMonthTransactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthExpenseYuan = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
-  
   const monthNonCollegeExpenseYuan = currentMonthTransactions
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+
+  // LOGIKA MUTASI: 1 MINGGU TERAKHIR vs SORT BULAN
+  const now = new Date();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(now.getDate() - 7);
+
+  const filteredMutasiTransactions = transactions.filter(t => {
+    if (filterMonthMutasi) {
+      return t.tanggal.startsWith(filterMonthMutasi);
+    } else {
+      const tDate = new Date(t.tanggal);
+      return tDate >= sevenDaysAgo && tDate <= now;
+    }
+  });
 
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
 
-  const now = new Date();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // MURNI AGENDA KULIAH SAJA PADA BOX AGENDA KULIAH TERDEKAT
   const upcomingEvents = events
     .filter(ev => !ev.judul.startsWith('[Tugas]'))
     .map(ev => {
       const endDateStr = ev.tanggal_selesai || ev.tanggal;
       const endTimeStr = ev.seharian ? '23:59:59' : (ev.jam_selesai || ev.jam || '23:59:59');
       const eventEndDateTime = new Date(`${endDateStr}T${endTimeStr}`);
-      
       const startTimeStr = ev.seharian ? '00:00:00' : (ev.jam || '00:00:00');
       const eventStartDateTime = new Date(`${ev.tanggal}T${startTimeStr}`);
-      
       const diffMs = eventStartDateTime - now;
       const diffHours = diffMs / (1000 * 60 * 60);
 
@@ -419,20 +419,8 @@ export default function App() {
   const chartData = {
     labels: last6Months.map(m => m.label),
     datasets: [
-      {
-        label: 'Pemasukan (¥)',
-        data: incomeDataByMonth,
-        borderColor: '#10b981',
-        backgroundColor: '#10b981',
-        tension: 0.3,
-      },
-      {
-        label: 'Pengeluaran (¥)',
-        data: expenseDataByMonth,
-        borderColor: '#f43f5e',
-        backgroundColor: '#f43f5e',
-        tension: 0.3,
-      },
+      { label: 'Pemasukan (¥)', data: incomeDataByMonth, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3 },
+      { label: 'Pengeluaran (¥)', data: expenseDataByMonth, borderColor: '#f43f5e', backgroundColor: '#f43f5e', tension: 0.3 },
     ],
   };
 
@@ -451,7 +439,6 @@ export default function App() {
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
 
-  // MENGGABUNGKAN AGENDA KULIAH + TO DO LIST PADA TAMPILAN KALENDER
   const getEventsForDate = (dateStr) => {
     const filteredAgenda = events
       .filter(ev => !ev.judul.startsWith('[Tugas]'))
@@ -555,8 +542,6 @@ export default function App() {
         isFullscreen ? 'h-screen overflow-hidden p-3 flex flex-col justify-between' : 'pb-20'
       }`}
     >
-      
-      {/* FLOATING EXIT BUTTON SAAT FULLSCREEN */}
       {isFullscreen && (
         <button
           onClick={toggleFullscreen}
@@ -599,11 +584,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* TOMBOL FULLSCREEN */}
             <button
               onClick={toggleFullscreen}
               className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs shadow-md transition items-center gap-1.5"
-              title="Fullscreen Mode"
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
               <span>{isFullscreen ? 'Keluar' : 'Mode Fullscreen'}</span>
@@ -641,15 +624,11 @@ export default function App() {
         {/* MAIN DASHBOARD */}
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
-            
             {isFullscreen ? (
               <>
-                {/* BARIS ATAS FULLSCREEN */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
-                    <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
-                      WAKTU REALTIME
-                    </span>
+                    <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">WAKTU REALTIME</span>
                     <p className="text-5xl md:text-6xl font-mono font-black text-amber-300 tracking-tight my-1">
                       {currentTime.toLocaleTimeString('id-ID')}
                     </p>
@@ -708,7 +687,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* BARIS TENGAH FULLSCREEN */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 overflow-hidden">
                   <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
                     <div className="flex justify-between items-center mb-2">
@@ -731,9 +709,7 @@ export default function App() {
                                 <p className="text-[9px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
                               </div>
                             </div>
-                            <span className={`text-[8px] px-1.5 py-0.5 rounded ${priority.badgeColor}`}>
-                              {priority.label}
-                            </span>
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded ${priority.badgeColor}`}>{priority.label}</span>
                           </div>
                         );
                       })}
@@ -758,11 +734,7 @@ export default function App() {
                               <div className="space-y-0.5">
                                 <div className="flex items-center gap-1">
                                   <p className="font-bold text-xs line-clamp-1">{ev.judul}</p>
-                                  {isWithin24Hours && (
-                                    <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
-                                      &lt; 24j
-                                    </span>
-                                  )}
+                                  {isWithin24Hours && <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">&lt; 24j</span>}
                                 </div>
                                 <p className="text-[9px] text-slate-500">
                                   {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
@@ -776,7 +748,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* BARIS BAWAH FULLSCREEN */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
                   <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
                     <div className="flex justify-between items-center mb-1">
@@ -791,12 +762,9 @@ export default function App() {
                 </div>
               </>
             ) : (
-              /* TAMPILAN NORMAL (BERURUTAN KE BAWAH) */
               <div className="flex flex-col gap-4">
                 <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
-                  <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
-                    WAKTU REALTIME
-                  </span>
+                  <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">WAKTU REALTIME</span>
                   <p className="text-3xl md:text-4xl font-mono font-black text-amber-300 tracking-tight my-1">
                     {currentTime.toLocaleTimeString('id-ID')}
                   </p>
@@ -882,9 +850,7 @@ export default function App() {
                                 <p className="text-[10px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
                               </div>
                             </div>
-                            <span className={`text-[8px] px-2 py-0.5 rounded ${priority.badgeColor}`}>
-                              {priority.label}
-                            </span>
+                            <span className={`text-[8px] px-2 py-0.5 rounded ${priority.badgeColor}`}>{priority.label}</span>
                           </div>
                         );
                       })
@@ -892,7 +858,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* BOX AGENDA KULIAH TERDEKAT MURNI AGENDA */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                   <div className="flex justify-between items-center">
                     <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
@@ -913,11 +878,7 @@ export default function App() {
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-1">
                                 <p className="font-bold text-xs">{ev.judul}</p>
-                                {isWithin24Hours && (
-                                  <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
-                                    &lt; 24j
-                                  </span>
-                                )}
+                                {isWithin24Hours && <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">&lt; 24j</span>}
                               </div>
                               <p className="text-[10px] text-slate-500">
                                 {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
@@ -943,7 +904,6 @@ export default function App() {
                 {renderCalendar()}
               </div>
             )}
-
           </div>
         )}
 
@@ -1028,8 +988,10 @@ export default function App() {
         {/* TAB KEUANGAN */}
         {activeTab === 'keuangan' && !isFullscreen && (
           <div className="space-y-4">
+            {/* FORM CATAT TRANSAKSI */}
             <form onSubmit={addTransaction} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700">Catat Transaksi</h2>
+              
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -1045,6 +1007,35 @@ export default function App() {
                 >
                   Pemasukan
                 </button>
+              </div>
+
+              {/* METODE PEMBAYARAN: CASH / BANK */}
+              <div>
+                <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Metode Pembayaran</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFinanceForm({ ...financeForm, metode_pembayaran: 'Cash' })}
+                    className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
+                      financeForm.metode_pembayaran === 'Cash' 
+                        ? 'bg-slate-800 text-white border-slate-800' 
+                        : 'bg-slate-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    💵 Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFinanceForm({ ...financeForm, metode_pembayaran: 'Bank' })}
+                    className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
+                      financeForm.metode_pembayaran === 'Bank' 
+                        ? 'bg-blue-600 text-white border-blue-600' 
+                        : 'bg-slate-50 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    💳 Bank
+                  </button>
+                </div>
               </div>
 
               {financeForm.tipe === 'pengeluaran' && (
@@ -1087,28 +1078,121 @@ export default function App() {
               </button>
             </form>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-              <h2 className="font-bold text-xs text-slate-700">Riwayat Mutasi</h2>
-              <div className="divide-y divide-slate-100">
-                {transactions.map(t => (
-                  <div key={t.id} className="py-2.5 flex justify-between items-center text-xs">
-                    <div>
-                      <p className="font-bold text-slate-800">{t.keterangan || t.kategori}</p>
-                      <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
-                        </p>
-                        <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
-                      </div>
-                      <button onClick={() => deleteTransaction(t.id)} className="p-1 text-slate-300 hover:text-rose-600">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+            {/* KOTAK RIWAYAT MUTASI DENGAN FILTER SORT BULAN & LOGO DI POJOK KANAN ATAS */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex justify-between items-center relative">
+                <div>
+                  <h2 className="font-bold text-xs text-slate-700">Riwayat Mutasi</h2>
+                  <p className="text-[10px] text-slate-400">
+                    {filterMonthMutasi 
+                      ? `Menampilkan bulan: ${filterMonthMutasi}` 
+                      : 'Menampilkan: 1 Minggu Terakhir (Default)'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {filterMonthMutasi && (
+                    <button 
+                      onClick={() => setFilterMonthMutasi('')}
+                      className="p-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] flex items-center gap-1"
+                      title="Reset ke 1 Minggu Terakhir"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+
+                  {/* LOGO FILTER / SORT KECIL DI POJOK KANAN ATAS */}
+                  <button 
+                    onClick={() => setShowFilterSort(!showFilterSort)}
+                    className={`p-1.5 rounded-xl border transition ${
+                      showFilterSort || filterMonthMutasi 
+                        ? 'bg-blue-50 border-blue-300 text-blue-600' 
+                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                    }`}
+                    title="Sort berdasarkan Bulan"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* POP-UP / DROPDOWN SELECTOR UNTUK SORT BULAN */}
+              {showFilterSort && (
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-600 text-[11px]">Sort Berdasarkan Bulan:</span>
+                    <button 
+                      onClick={() => setShowFilterSort(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                ))}
+                  <div className="flex gap-2">
+                    <input
+                      type="month"
+                      value={filterMonthMutasi}
+                      onChange={(e) => {
+                        setFilterMonthMutasi(e.target.value);
+                        setShowFilterSort(false);
+                      }}
+                      className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* LIST MUTASI */}
+              <div className="divide-y divide-slate-100">
+                {filteredMutasiTransactions.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 text-center">Tidak ada riwayat transaksi pada periode ini.</p>
+                ) : (
+                  filteredMutasiTransactions.map(t => (
+                    <div key={t.id} className="py-2.5 flex justify-between items-center text-xs">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-slate-800">{t.keterangan || t.kategori}</p>
+                          <span className={`text-[8px] px-1.5 py-0.2 rounded font-semibold ${
+                            t.metode_pembayaran === 'Bank' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            {t.metode_pembayaran || 'Cash'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
+                          </p>
+                          <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
+                        </div>
+
+                        {/* TOMBOL EDIT KEUANGAN */}
+                        <button 
+                          onClick={() => setEditingTransaction(t)} 
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Transaksi"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* TOMBOL HAPUS */}
+                        <button 
+                          onClick={() => deleteTransaction(t.id)} 
+                          className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Hapus Transaksi"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1347,6 +1431,123 @@ export default function App() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL POP-UP EDIT TRANSAKSI KEUANGAN */}
+        {editingTransaction && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-sm text-slate-800">Edit Laporan Transaksi</h3>
+                <button 
+                  onClick={() => setEditingTransaction(null)} 
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={updateTransaction} className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pengeluaran' })}
+                    className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white' : 'bg-slate-50'}`}
+                  >
+                    Pengeluaran
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pemasukan' })}
+                    className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white' : 'bg-slate-50'}`}
+                  >
+                    Pemasukan
+                  </button>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Metode Pembayaran</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Cash' })}
+                      className={`py-1 rounded-lg text-xs font-semibold border ${editingTransaction.metode_pembayaran === 'Cash' ? 'bg-slate-800 text-white' : 'bg-slate-50'}`}
+                    >
+                      💵 Cash
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Bank' })}
+                      className={`py-1 rounded-lg text-xs font-semibold border ${editingTransaction.metode_pembayaran === 'Bank' ? 'bg-blue-600 text-white' : 'bg-slate-50'}`}
+                    >
+                      💳 Bank
+                    </button>
+                  </div>
+                </div>
+
+                {editingTransaction.tipe === 'pengeluaran' && (
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Kategori</label>
+                    <select
+                      value={editingTransaction.kategori}
+                      onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    >
+                      {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nominal (¥ Yuan)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editingTransaction.nominal_yuan}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal</label>
+                  <input
+                    type="date"
+                    value={editingTransaction.tanggal}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Keterangan</label>
+                  <input
+                    type="text"
+                    value={editingTransaction.keterangan || ''}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction(null)}
+                    className="w-1/2 bg-slate-100 text-slate-600 py-2 rounded-xl font-bold text-xs"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md"
+                  >
+                    Simpan Perubahan
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
