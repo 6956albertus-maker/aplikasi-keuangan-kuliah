@@ -384,8 +384,8 @@ export default function App() {
     }
   };
 
-  // --- HELPERS UMUM ---
-  const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID')}`;
+  // --- HELPERS UMUM (DENGAN 2 ANGKA DIBELAKANG KOMA FOR YUAN) ---
+  const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
   const currentMonthTransactions = transactions.filter(t => t.tanggal.startsWith(selectedMonth));
@@ -401,7 +401,7 @@ export default function App() {
       .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
       .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
     return { kategori: cat, total };
-  }).filter(item => item.total > 0);
+  });
 
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
@@ -675,180 +675,312 @@ export default function App() {
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
             
-            {/* BARIS ATAS: KOTAK JAM + REKAPITULASI KEUANGAN */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              
-              {/* KOTAK JAM & TANGGAL */}
-              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
-                <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
-                  WAKTU REALTIME
-                </span>
-                
-                <p className={`font-mono font-black text-amber-300 tracking-tight my-1 ${
-                  isFullscreen ? 'text-5xl md:text-6xl' : 'text-3xl md:text-4xl'
-                }`}>
-                  {currentTime.toLocaleTimeString('id-ID')}
-                </p>
-                
-                <p className={`text-slate-200 font-semibold ${
-                  isFullscreen ? 'text-sm md:text-base' : 'text-xs md:text-sm'
-                }`}>
-                  {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-              </div>
-
-              {/* REKAPITULASI KEUANGAN */}
-              <div className="md:col-span-2 bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3 flex flex-col justify-between">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                  <span className="text-xs md:text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
-                  <input
-                    type="month"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
-                    <p className="text-xs text-emerald-400 font-bold">Pemasukan</p>
-                    <p className="text-sm md:text-base font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
-                    <p className="text-[9px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
+            {/* JIKA FULLSCREEN: TAMPILAN GRID KIOSK */}
+            {isFullscreen ? (
+              <>
+                {/* BARIS ATAS FULLSCREEN */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* JAM & TANGGAL */}
+                  <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
+                    <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
+                      WAKTU REALTIME
+                    </span>
+                    <p className="text-5xl md:text-6xl font-mono font-black text-amber-300 tracking-tight my-1">
+                      {currentTime.toLocaleTimeString('id-ID')}
+                    </p>
+                    <p className="text-sm md:text-base text-slate-200 font-semibold">
+                      {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
                   </div>
 
-                  <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
-                    <p className="text-xs text-rose-400 font-bold">Pengeluaran Total</p>
-                    <p className="text-sm md:text-base font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
-                    <p className="text-[9px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
-                  </div>
+                  {/* REKAP KEUANGAN */}
+                  <div className="md:col-span-2 bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3 flex flex-col justify-between">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                      <span className="text-xs md:text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
+                      <input
+                        type="month"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1"
+                      />
+                    </div>
 
-                  <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
-                    <p className="text-xs text-amber-400 font-bold">Non-Biaya Kuliah</p>
-                    <p className="text-sm md:text-base font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
-                    <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
+                        <p className="text-xs text-emerald-400 font-bold">Pemasukan</p>
+                        <p className="text-sm md:text-base font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
+                        <p className="text-[9px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
+                      </div>
+
+                      <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
+                        <p className="text-xs text-rose-400 font-bold">Pengeluaran Total</p>
+                        <p className="text-sm md:text-base font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
+                        <p className="text-[9px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
+                      </div>
+
+                      <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
+                        <p className="text-xs text-amber-400 font-bold">Non-Biaya Kuliah</p>
+                        <p className="text-sm md:text-base font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
+                        <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800">
+                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 text-[9px] text-center">
+                        {expenseCategories.map(cat => {
+                          const total = currentMonthTransactions
+                            .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
+                            .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
+                          return (
+                            <div key={cat} className="bg-slate-800/90 p-1 rounded-lg border border-slate-700/50 truncate">
+                              <span className="block text-slate-400 font-medium truncate">{cat}</span>
+                              <span className="font-bold text-rose-300 text-[10px] block">{formatYuan(total)}</span>
+                              <span className="text-[8px] text-slate-400 block">{formatIDR(total)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* RINCIAN PER KATEGORI */}
-                <div className="pt-2 border-t border-slate-800">
-                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 text-[9px] text-center">
-                    {expenseCategories.map(cat => {
-                      const total = currentMonthTransactions
-                        .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
-                        .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
-                      return (
-                        <div key={cat} className="bg-slate-800/90 p-1 rounded-lg border border-slate-700/50 truncate">
-                          <span className="block text-slate-400 font-medium truncate">{cat}</span>
-                          <span className="font-bold text-rose-300 text-[10px]">{total > 0 ? `¥${total}` : '-'}</span>
-                        </div>
-                      );
-                    })}
+                {/* BARIS TENGAH FULLSCREEN */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 overflow-hidden">
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
+                    <div className="flex justify-between items-center mb-2">
+                      <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                        <ListTodo className="w-4 h-4 text-amber-600" />
+                        <span>Daftar Tugas Mendatang</span>
+                      </h2>
+                    </div>
+                    <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
+                      {todos.filter(t => !t.selesai).slice(0, 5).map(item => {
+                        const priority = getAutoPriority(item.tenggat_waktu);
+                        return (
+                          <div key={item.id} className={`p-2 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
+                                <Square className="w-4 h-4 text-slate-300 hover:text-emerald-600" />
+                              </button>
+                              <div>
+                                <p className="font-bold text-xs text-slate-800 line-clamp-1">{item.judul}</p>
+                                <p className="text-[9px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
+                              </div>
+                            </div>
+                            <span className={`text-[8px] px-1.5 py-0.5 rounded ${priority.badgeColor}`}>
+                              {priority.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </div>
 
-            </div>
-
-            {/* BARIS TENGAH: BOX TUGAS & AGENDA KULIAH */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isFullscreen ? 'flex-1 overflow-hidden' : ''}`}>
-              
-              {/* TO DO TUGAS */}
-              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                    <ListTodo className="w-4 h-4 text-amber-600" />
-                    <span>Daftar Tugas Mendatang</span>
-                  </h2>
-                  <button onClick={() => setActiveTab('todo')} className="text-[10px] font-bold text-blue-600 hover:underline">
-                    Lihat Semua ({todos.filter(t => !t.selesai).length})
-                  </button>
-                </div>
-
-                <div className={`space-y-1.5 overflow-y-auto flex-1 pr-1 ${isFullscreen ? '' : 'max-h-48'}`}>
-                  {todos.filter(t => !t.selesai).length === 0 ? (
-                    <p className="text-xs text-slate-400 py-3 text-center">Semua tugas telah selesai.</p>
-                  ) : (
-                    todos.filter(t => !t.selesai).slice(0, isFullscreen ? 5 : 10).map(item => {
-                      const priority = getAutoPriority(item.tenggat_waktu);
-                      return (
-                        <div key={item.id} className={`p-2 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
-                              <Square className="w-4 h-4 text-slate-300 hover:text-emerald-600" />
-                            </button>
-                            <div>
-                              <p className="font-bold text-xs text-slate-800 line-clamp-1">{item.judul}</p>
-                              <p className="text-[9px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
+                    <div className="flex justify-between items-center mb-2">
+                      <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-blue-600" />
+                        <span>Agenda Kuliah Terdekat</span>
+                      </h2>
+                    </div>
+                    <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
+                      {upcomingEvents.slice(0, 5).map(ev => {
+                        const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
+                        return (
+                          <div key={ev.id} className={`p-2 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1">
+                                <p className="font-bold text-xs line-clamp-1">{ev.judul}</p>
+                                {isWithin24Hours && (
+                                  <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
+                                    &lt; 24j
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[9px] text-slate-500">
+                                {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                              </p>
                             </div>
                           </div>
-                          <span className={`text-[8px] px-1.5 py-0.5 rounded ${priority.badgeColor}`}>
-                            {priority.label}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* AGENDA KULIAH TERDEKAT */}
-              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    <span>Agenda Kuliah Terdekat</span>
-                  </h2>
-                  <span className="text-[10px] text-slate-400">Mendatang</span>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
-                <div className={`space-y-1.5 overflow-y-auto flex-1 pr-1 ${isFullscreen ? '' : 'max-h-48'}`}>
-                  {upcomingEvents.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
-                  ) : (
-                    upcomingEvents.slice(0, isFullscreen ? 5 : 10).map(ev => {
-                      const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
-                      return (
-                        <div key={ev.id} className={`p-2 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-1">
-                              <p className="font-bold text-xs line-clamp-1">{ev.judul}</p>
-                              {isWithin24Hours && (
-                                <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
-                                  &lt; 24j
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[9px] text-slate-500">
-                              {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
-                            </p>
+                {/* BARIS BAWAH FULLSCREEN */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
+                    <div className="flex justify-between items-center mb-1">
+                      <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
+                      <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
+                    </div>
+                    <div className="flex-1 min-h-[100px] flex items-center justify-center">
+                      <Line data={chartData} options={chartOptions} />
+                    </div>
+                  </div>
+                  {renderCalendar()}
+                </div>
+              </>
+            ) : (
+              /* JIKA TAMPILAN NORMAL (TIDAK FULLSCREEN): TAMPILAN SATU BOX KEBAGIAN/BERURUTAN KE BAWAH */
+              <div className="flex flex-col gap-4">
+                {/* 1. KOTAK JAM & TANGGAL */}
+                <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
+                  <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
+                    WAKTU REALTIME
+                  </span>
+                  <p className="text-3xl md:text-4xl font-mono font-black text-amber-300 tracking-tight my-1">
+                    {currentTime.toLocaleTimeString('id-ID')}
+                  </p>
+                  <p className="text-xs md:text-sm text-slate-200 font-semibold">
+                    {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+
+                {/* 2. REKAPITULASI KEUANGAN */}
+                <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <span className="text-xs md:text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
+                    <input
+                      type="month"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded px-2 py-1"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
+                      <p className="text-xs text-emerald-400 font-bold">Pemasukan</p>
+                      <p className="text-sm md:text-base font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
+                      <p className="text-[9px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
+                    </div>
+
+                    <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
+                      <p className="text-xs text-rose-400 font-bold">Pengeluaran Total</p>
+                      <p className="text-sm md:text-base font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
+                      <p className="text-[9px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
+                    </div>
+
+                    <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
+                      <p className="text-xs text-amber-400 font-bold">Non-Biaya Kuliah</p>
+                      <p className="text-sm md:text-base font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
+                      <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
+                    </div>
+                  </div>
+
+                  {/* RINCIAN CATEGORY EXPENSES DENGAN DUA ANGKA DIBELAKANG KOMA DAN KONVERSI IDR */}
+                  <div className="pt-2 border-t border-slate-800">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                      {expenseCategories.map(cat => {
+                        const total = currentMonthTransactions
+                          .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
+                          .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
+                        return (
+                          <div key={cat} className="bg-slate-800/90 p-2 rounded-xl border border-slate-700/50">
+                            <span className="block text-slate-400 font-medium text-xs">{cat}</span>
+                            <span className="font-bold text-rose-300 text-xs block">{formatYuan(total)}</span>
+                            <span className="text-[9px] text-slate-400 block font-semibold">{formatIDR(total)}</span>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
+
+                {/* 3. DAFTAR TUGAS MENDATANG */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <ListTodo className="w-4 h-4 text-amber-600" />
+                      <span>Daftar Tugas Mendatang</span>
+                    </h2>
+                    <button onClick={() => setActiveTab('todo')} className="text-[10px] font-bold text-blue-600 hover:underline">
+                      Lihat Semua ({todos.filter(t => !t.selesai).length})
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {todos.filter(t => !t.selesai).length === 0 ? (
+                      <p className="text-xs text-slate-400 py-3 text-center">Semua tugas telah selesai.</p>
+                    ) : (
+                      todos.filter(t => !t.selesai).map(item => {
+                        const priority = getAutoPriority(item.tenggat_waktu);
+                        return (
+                          <div key={item.id} className={`p-2.5 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
+                                <Square className="w-4 h-4 text-slate-300 hover:text-emerald-600" />
+                              </button>
+                              <div>
+                                <p className="font-bold text-xs text-slate-800">{item.judul}</p>
+                                <p className="text-[10px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
+                              </div>
+                            </div>
+                            <span className={`text-[8px] px-2 py-0.5 rounded ${priority.badgeColor}`}>
+                              {priority.label}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. AGENDA KULIAH TERDEKAT */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      <span>Agenda Kuliah Terdekat</span>
+                    </h2>
+                    <span className="text-[10px] text-slate-400">Mendatang</span>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {upcomingEvents.length === 0 ? (
+                      <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
+                    ) : (
+                      upcomingEvents.map(ev => {
+                        const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
+                        return (
+                          <div key={ev.id} className={`p-2.5 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1">
+                                <p className="font-bold text-xs">{ev.judul}</p>
+                                {isWithin24Hours && (
+                                  <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
+                                    &lt; 24j
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-500">
+                                {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* 5. GRAFIK KEUANGAN BULANAN */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
+                    <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
+                  </div>
+                  <div className="h-44 flex items-center justify-center">
+                    <Line data={chartData} options={chartOptions} />
+                  </div>
+                </div>
+
+                {/* 6. KALENDER AGENDA */}
+                {renderCalendar()}
               </div>
-
-            </div>
-
-            {/* BARIS BAWAH: GRAFIK KEUANGAN & KALENDER AGENDA */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isFullscreen ? 'flex-1' : ''}`}>
-              
-              {/* GRAFIK KEUANGAN BULANAN */}
-              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
-                <div className="flex justify-between items-center mb-1">
-                  <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
-                  <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
-                </div>
-                <div className={`${isFullscreen ? 'flex-1 min-h-[100px]' : 'h-40'} flex items-center justify-center`}>
-                  <Line data={chartData} options={chartOptions} />
-                </div>
-              </div>
-
-              {/* KALENDER AGENDA */}
-              {renderCalendar()}
-
-            </div>
+            )}
 
           </div>
         )}
