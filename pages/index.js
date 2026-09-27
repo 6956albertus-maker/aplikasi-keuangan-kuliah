@@ -31,6 +31,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Helper Fungsi Format Bulan Dinamis (YYYY-MM)
+const getCurrentMonthKey = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [kursRate, setKursRate] = useState(2200);
@@ -45,9 +53,9 @@ export default function App() {
   // Kategori Pengeluaran
   const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
 
-  // States Keuangan
+  // States Keuangan (selectedMonth di-set dinamis)
   const [transactions, setTransactions] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState('2026-09');
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [financeForm, setFinanceForm] = useState({
     tipe: 'pengeluaran',
     kategori: 'Makan',
@@ -296,7 +304,6 @@ export default function App() {
     e.preventDefault();
     if (!todoForm.judul.trim()) return;
 
-    // HANYA MASUK KE TO-DO LIST (TIDAK LAGI INSERT KE AGENDA_KULIAH)
     const { error: todoError } = await supabase.from('todo_tugas').insert([{
       judul: todoForm.judul,
       tenggat_waktu: todoForm.tenggat_waktu,
@@ -345,6 +352,7 @@ export default function App() {
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
+  // KEUANGAN DINAMIS DENGAN MONTH FILTER
   const currentMonthTransactions = transactions.filter(t => t.tanggal.startsWith(selectedMonth));
   const monthIncomeYuan = currentMonthTransactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthExpenseYuan = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
@@ -361,9 +369,9 @@ export default function App() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // MURNI AGENDA KULIAH SAJA PADA BOX AGENDA KULIAH TERDEKAT (Tanpa Tugas)
+  // MURNI AGENDA KULIAH SAJA PADA BOX AGENDA KULIAH TERDEKAT
   const upcomingEvents = events
-    .filter(ev => !ev.judul.startsWith('[Tugas]')) // memfilter jika masih ada sisa data lama
+    .filter(ev => !ev.judul.startsWith('[Tugas]'))
     .map(ev => {
       const endDateStr = ev.tanggal_selesai || ev.tanggal;
       const endTimeStr = ev.seharian ? '23:59:59' : (ev.jam_selesai || ev.jam || '23:59:59');
