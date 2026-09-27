@@ -315,6 +315,19 @@ export default function App() {
     setNewPaymentForm({ nama_tagihan: '', jumlah_yuan: '', tenggat_waktu: '' });
   }
 
+  async function updatePayment(e) {
+    e.preventDefault();
+    if (!editingPayment || !editingPayment.nama_tagihan || !editingPayment.jumlah_yuan) return;
+
+    await supabase.from('pembayaran_kuliah').update({
+      nama_tagihan: editingPayment.nama_tagihan,
+      jumlah_yuan: Number(editingPayment.jumlah_yuan),
+      tenggat_waktu: editingPayment.tenggat_waktu || null
+    }).eq('id', editingPayment.id);
+
+    setEditingPayment(null);
+  }
+
   async function deletePayment(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus tagihan ini?')) return;
     await supabase.from('pembayaran_kuliah').delete().eq('id', id);
@@ -384,7 +397,7 @@ export default function App() {
     }
   };
 
-  // --- HELPERS UMUM (DENGAN 2 ANGKA DIBELAKANG KOMA FOR YUAN) ---
+  // --- HELPERS UMUM ---
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
@@ -675,12 +688,10 @@ export default function App() {
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
             
-            {/* JIKA FULLSCREEN: TAMPILAN GRID KIOSK */}
             {isFullscreen ? (
               <>
                 {/* BARIS ATAS FULLSCREEN */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* JAM & TANGGAL */}
                   <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
                       WAKTU REALTIME
@@ -693,7 +704,6 @@ export default function App() {
                     </p>
                   </div>
 
-                  {/* REKAP KEUANGAN */}
                   <div className="md:col-span-2 bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3 flex flex-col justify-between">
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                       <span className="text-xs md:text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
@@ -823,9 +833,8 @@ export default function App() {
                 </div>
               </>
             ) : (
-              /* JIKA TAMPILAN NORMAL (TIDAK FULLSCREEN): TAMPILAN SATU BOX KEBAGIAN/BERURUTAN KE BAWAH */
+              /* TAMPILAN NORMAL (TIDAK FULLSCREEN) */
               <div className="flex flex-col gap-4">
-                {/* 1. KOTAK JAM & TANGGAL */}
                 <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
                   <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
                     WAKTU REALTIME
@@ -838,7 +847,6 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* 2. REKAPITULASI KEUANGAN */}
                 <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3">
                   <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                     <span className="text-xs md:text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
@@ -870,7 +878,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* RINCIAN CATEGORY EXPENSES DENGAN DUA ANGKA DIBELAKANG KOMA DAN KONVERSI IDR */}
                   <div className="pt-2 border-t border-slate-800">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                       {expenseCategories.map(cat => {
@@ -889,7 +896,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 3. DAFTAR TUGAS MENDATANG */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                   <div className="flex justify-between items-center">
                     <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
@@ -928,7 +934,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 4. AGENDA KULIAH TERDEKAT */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                   <div className="flex justify-between items-center">
                     <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
@@ -966,7 +971,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 5. GRAFIK KEUANGAN BULANAN */}
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
                   <div className="flex justify-between items-center">
                     <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
@@ -977,7 +981,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 6. KALENDER AGENDA */}
                 {renderCalendar()}
               </div>
             )}
@@ -985,7 +988,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB TO DO LIST TUGAS (TIDAK TAMPIL SAAT FULLSCREEN) */}
+        {/* TAB TO DO LIST TUGAS */}
         {activeTab === 'todo' && !isFullscreen && (
           <div className="space-y-4">
             <form onSubmit={addTodo} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
@@ -1063,7 +1066,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB KEUANGAN (TIDAK TAMPIL SAAT FULLSCREEN) */}
+        {/* TAB KEUANGAN */}
         {activeTab === 'keuangan' && !isFullscreen && (
           <div className="space-y-4">
             <form onSubmit={addTransaction} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
@@ -1152,7 +1155,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB KULIAH (TIDAK TAMPIL SAAT FULLSCREEN) */}
+        {/* TAB KULIAH */}
         {activeTab === 'kuliah' && !isFullscreen && (
           <div className="space-y-4">
             {renderCalendar()}
@@ -1252,23 +1255,27 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB PEMBAYARAN KULIAH (TIDAK TAMPIL SAAT FULLSCREEN) */}
+        {/* TAB PEMBAYARAN KULIAH (TELAH DIPERBAIKI SIKLUS & DENGAN FORM TAMBAH/EDIT) */}
         {activeTab === 'pembayaran' && !isFullscreen && (
           <div className="space-y-4">
+            {/* RINGKASAN PEMBAYARAN KULIAH */}
             <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg space-y-2">
               <span className="text-xs text-slate-400">Total Ringkasan Pembayaran Kuliah</span>
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
                 <div>
                   <p className="text-xs text-emerald-400">Lunas</p>
                   <p className="text-sm font-bold text-emerald-300">{formatYuan(paidPaymentYuan)}</p>
+                  <p className="text-[10px] text-slate-400">{formatIDR(paidPaymentYuan)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-rose-400">Belum Lunas</p>
                   <p className="text-sm font-bold text-rose-300">{formatYuan(unpaidPaymentYuan)}</p>
+                  <p className="text-[10px] text-slate-400">{formatIDR(unpaidPaymentYuan)}</p>
                 </div>
               </div>
             </div>
 
+            {/* NAVIGASI KATEGORI TAHUN */}
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {['Tahun Bahasa', 'Tahun 1', 'Tahun 2', 'Tahun 3', 'Tahun 4'].map(thn => (
                 <button
@@ -1281,21 +1288,110 @@ export default function App() {
               ))}
             </div>
 
+            {/* FORM TAMBAH TAGIHAN BARU */}
+            <form onSubmit={addPayment} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5 text-blue-600" />
+                <span>Tambah Tagihan ({selectedPaymentYear})</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Nama Tagihan (ex: Asuransi / MCU)"
+                  value={newPaymentForm.nama_tagihan}
+                  onChange={(e) => setNewPaymentForm({ ...newPaymentForm, nama_tagihan: e.target.value })}
+                  className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  required
+                />
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="Nominal (¥ Yuan)"
+                  value={newPaymentForm.jumlah_yuan}
+                  onChange={(e) => setNewPaymentForm({ ...newPaymentForm, jumlah_yuan: e.target.value })}
+                  className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  required
+                />
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={newPaymentForm.tenggat_waktu}
+                  onChange={(e) => setNewPaymentForm({ ...newPaymentForm, tenggat_waktu: e.target.value })}
+                  className="w-1/2 border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                />
+                <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl text-xs font-bold shadow-md transition">
+                  Simpan Tagihan
+                </button>
+              </div>
+            </form>
+
+            {/* RINCIAN DAFTAR TAGIHAN */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
-              {payments.filter(p => p.kategori_tahun === selectedPaymentYear).map(item => (
-                <div key={item.id} className="p-3.5 flex justify-between items-center text-xs">
-                  <div>
-                    <p className="font-bold text-slate-800">{item.nama_tagihan}</p>
-                    <p className="font-bold text-blue-600">{formatYuan(item.jumlah_yuan)}</p>
+              <div className="p-3 bg-slate-50 font-bold text-xs text-slate-700">
+                Rincian Tagihan - {selectedPaymentYear}
+              </div>
+
+              {payments.filter(p => p.kategori_tahun === selectedPaymentYear).length === 0 ? (
+                <p className="text-xs text-slate-400 p-4 text-center">Belum ada tagihan untuk {selectedPaymentYear}.</p>
+              ) : (
+                payments.filter(p => p.kategori_tahun === selectedPaymentYear).map(item => (
+                  <div key={item.id} className="p-3.5 space-y-2 group hover:bg-slate-50/50 transition">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-xs text-slate-800">{item.nama_tagihan}</p>
+                        <p className="text-xs font-bold text-blue-600">{formatYuan(item.jumlah_yuan)}</p>
+                        <p className="text-[10px] text-slate-400">Prakiraan: {formatIDR(item.jumlah_yuan)}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => togglePaymentStatus(item.id, item.sudah_dibayar)}
+                          className={`px-3 py-1 rounded-xl text-[10px] font-bold transition ${item.sudah_dibayar ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}
+                        >
+                          {item.sudah_dibayar ? '✓ Lunas' : 'Belum Dibayar'}
+                        </button>
+
+                        <button
+                          onClick={() => setEditingPayment(item)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Tagihan"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => deletePayment(item.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Hapus Tagihan"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl text-[10px] text-slate-500">
+                      <span>Tenggat Waktu:</span>
+                      {editingDueDateId === item.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="date"
+                            value={tempDueDate}
+                            onChange={(e) => setTempDueDate(e.target.value)}
+                            className="border border-slate-300 rounded px-1 text-[10px]"
+                          />
+                          <button onClick={() => saveDueDate(item.id)} className="bg-blue-600 text-white px-2 py-0.5 rounded font-bold">Simpan</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setEditingDueDateId(item.id); setTempDueDate(item.tenggat_waktu || ''); }} className="font-semibold text-blue-600 flex items-center gap-1">
+                          {item.tenggat_waktu || 'Set Tanggal'}
+                          <Edit2 className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => togglePaymentStatus(item.id, item.sudah_dibayar)}
-                    className={`px-3 py-1 rounded-xl text-[10px] font-bold ${item.sudah_dibayar ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}
-                  >
-                    {item.sudah_dibayar ? '✓ Lunas' : 'Belum Dibayar'}
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
@@ -1359,6 +1455,74 @@ export default function App() {
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL POP-UP EDIT PEMBAYARAN */}
+        {editingPayment && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-sm text-slate-800">Edit Tagihan</h3>
+                <button 
+                  onClick={() => setEditingPayment(null)} 
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={updatePayment} className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nama Tagihan</label>
+                  <input
+                    type="text"
+                    value={editingPayment.nama_tagihan}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nominal Yuan (¥)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={editingPayment.jumlah_yuan}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tenggat Waktu</label>
+                  <input
+                    type="date"
+                    value={editingPayment.tenggat_waktu || ''}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPayment(null)}
+                    className="w-1/2 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-xs"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md"
+                  >
+                    Simpan Perubahan
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
