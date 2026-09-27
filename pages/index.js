@@ -673,10 +673,10 @@ export default function App() {
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-3'}`}>
             
-            {/* BARIS ATAS: KOTAK JAM (FONT LEBIH BESAR) + REKAPITULASI KEUANGAN (BOX LEBIH DOMINAN) */}
+            {/* BARIS ATAS: KOTAK JAM + REKAPITULASI KEUANGAN */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               
-              {/* KOTAK JAM & TANGGAL (FONT DIPERBESAR TAPI UKURAN BOX TETAP) */}
+              {/* KOTAK JAM & TANGGAL */}
               <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
                 <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
                   WAKTU REALTIME
@@ -689,7 +689,7 @@ export default function App() {
                 </p>
               </div>
 
-              {/* REKAPITULASI KEUANGAN DIPERBESAR */}
+              {/* REKAPITULASI KEUANGAN */}
               <div className="md:col-span-2 bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3 flex flex-col justify-between">
                 <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                   <span className="text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
@@ -741,11 +741,11 @@ export default function App() {
 
             </div>
 
-            {/* BARIS TENGAH: BOX TUGAS & AGENDA KULIAH DIBUAT LEBIH KECIL/RINGKAS */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isFullscreen ? 'flex-1' : ''}`}>
+            {/* BARIS TENGAH: BOX TUGAS & AGENDA KULIAH MENAMPILKAN HINGGA 5 ITEM */}
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isFullscreen ? 'flex-1 overflow-hidden' : ''}`}>
               
-              {/* TO DO TUGAS (DIBUAT KECIL) */}
-              <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
+              {/* TO DO TUGAS (DIUBAH MENJADI 5 ITEM) */}
+              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
                 <div className="flex justify-between items-center mb-1">
                   <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1">
                     <ListTodo className="w-3.5 h-3.5 text-amber-600" />
@@ -756,11 +756,11 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className={`space-y-1 overflow-y-auto flex-1 ${isFullscreen ? 'max-h-24' : 'max-h-28'}`}>
+                <div className="space-y-1 overflow-y-auto flex-1 pr-1">
                   {todos.filter(t => !t.selesai).length === 0 ? (
                     <p className="text-[10px] text-slate-400 py-2 text-center">Semua tugas telah selesai.</p>
                   ) : (
-                    todos.filter(t => !t.selesai).slice(0, 2).map(item => {
+                    todos.filter(t => !t.selesai).slice(0, 5).map(item => {
                       const priority = getAutoPriority(item.tenggat_waktu);
                       return (
                         <div key={item.id} className={`p-1.5 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
@@ -783,8 +783,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* AGENDA KULIAH TERDEKAT (DIBUAT KECIL) */}
-              <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
+              {/* AGENDA KULIAH TERDEKAT (DIUBAH MENJADI 5 ITEM) */}
+              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
                 <div className="flex justify-between items-center mb-1">
                   <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-blue-600" />
@@ -793,11 +793,11 @@ export default function App() {
                   <span className="text-[9px] text-slate-400">Mendatang</span>
                 </div>
 
-                <div className={`space-y-1 overflow-y-auto flex-1 ${isFullscreen ? 'max-h-24' : 'max-h-28'}`}>
+                <div className="space-y-1 overflow-y-auto flex-1 pr-1">
                   {upcomingEvents.length === 0 ? (
                     <p className="text-[10px] text-slate-400 py-2 text-center">Belum ada agenda terdekat.</p>
                   ) : (
-                    upcomingEvents.slice(0, 2).map(ev => {
+                    upcomingEvents.slice(0, 5).map(ev => {
                       const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
                       return (
                         <div key={ev.id} className={`p-1.5 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
