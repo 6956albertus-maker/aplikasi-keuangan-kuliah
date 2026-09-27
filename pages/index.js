@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus,
-  CheckSquare, Square, AlertTriangle, ListTodo, Maximize, Minimize, Filter, RefreshCw
+  CheckSquare, Square, AlertTriangle, ListTodo, Maximize, Minimize, Filter, RefreshCw,
+  CreditCard, Banknote
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -344,11 +345,20 @@ export default function App() {
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
-  // --- LOGIKA KEUANGAN & SISA SALDO ---
-  // Total Kumulatif Seluruh Transaksi (Sisa Saldo Keseluruhan)
+  // --- LOGIKA KEUANGAN & SISA SALDO (TOTAL & BERDASARKAN METODE PEMBAYARAN) ---
+  // Total Kumulatif Seluruh Transaksi
   const totalIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalRemainingBalanceYuan = totalIncomeAllTime - totalExpenseAllTime;
+
+  // Sisa Saldo Total Per Metode Pembayaran (Cash & Bank)
+  const cashIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const cashExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const totalCashBalanceYuan = cashIncomeAllTime - cashExpenseAllTime;
+
+  const bankIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan' && t.metode_pembayaran === 'Bank').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const bankExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran' && t.metode_pembayaran === 'Bank').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const totalBankBalanceYuan = bankIncomeAllTime - bankExpenseAllTime;
 
   // Transaksi Bulan Ini
   const currentMonthTransactions = transactions.filter(t => t.tanggal.startsWith(selectedMonth));
@@ -356,6 +366,15 @@ export default function App() {
   const monthExpenseYuan = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthBalanceYuan = monthIncomeYuan - monthExpenseYuan; // Sisa saldo bulan berjalan
   
+  // Sisa Saldo Bulan Ini Per Metode Pembayaran (Cash & Bank)
+  const monthCashIncome = currentMonthTransactions.filter(t => t.tipe === 'pemasukan' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const monthCashExpense = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const monthCashBalanceYuan = monthCashIncome - monthCashExpense;
+
+  const monthBankIncome = currentMonthTransactions.filter(t => t.tipe === 'pemasukan' && t.metode_pembayaran === 'Bank').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const monthBankExpense = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran' && t.metode_pembayaran === 'Bank').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+  const monthBankBalanceYuan = monthBankIncome - monthBankExpense;
+
   const monthNonCollegeExpenseYuan = currentMonthTransactions
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
@@ -657,29 +676,41 @@ export default function App() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
-                        <p className="text-xs text-cyan-400 font-bold">Total Sisa Saldo</p>
-                        <p className="text-sm md:text-base font-extrabold text-cyan-300 mt-0.5">{formatYuan(totalRemainingBalanceYuan)}</p>
-                        <p className="text-[9px] text-slate-400">{formatIDR(totalRemainingBalanceYuan)}</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                      <div className="bg-slate-800/60 p-2 rounded-xl border border-cyan-500/30">
+                        <p className="text-[10px] text-cyan-400 font-bold">Sisa Saldo Total</p>
+                        <p className="text-xs md:text-sm font-extrabold text-cyan-300 mt-0.5">{formatYuan(totalRemainingBalanceYuan)}</p>
+                        <p className="text-[8px] text-slate-400">{formatIDR(totalRemainingBalanceYuan)}</p>
+                      </div>
+
+                      <div className="bg-slate-800/60 p-2 rounded-xl border border-emerald-500/30">
+                        <p className="text-[10px] text-emerald-400 font-bold">💵 Saldo Cash</p>
+                        <p className="text-xs md:text-sm font-extrabold text-emerald-300 mt-0.5">{formatYuan(totalCashBalanceYuan)}</p>
+                        <p className="text-[8px] text-slate-400">{formatIDR(totalCashBalanceYuan)}</p>
+                      </div>
+
+                      <div className="bg-slate-800/60 p-2 rounded-xl border border-blue-500/30">
+                        <p className="text-[10px] text-blue-400 font-bold">💳 Saldo Bank</p>
+                        <p className="text-xs md:text-sm font-extrabold text-blue-300 mt-0.5">{formatYuan(totalBankBalanceYuan)}</p>
+                        <p className="text-[8px] text-slate-400">{formatIDR(totalBankBalanceYuan)}</p>
                       </div>
 
                       <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
-                        <p className="text-xs text-emerald-400 font-bold">Pemasukan</p>
-                        <p className="text-sm md:text-base font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
-                        <p className="text-[9px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
+                        <p className="text-[10px] text-emerald-400 font-bold">Pemasukan ({selectedMonth})</p>
+                        <p className="text-xs md:text-sm font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
+                        <p className="text-[8px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
                       </div>
 
                       <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
-                        <p className="text-xs text-rose-400 font-bold">Pengeluaran Total</p>
-                        <p className="text-sm md:text-base font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
-                        <p className="text-[9px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
+                        <p className="text-[10px] text-rose-400 font-bold">Pengeluaran Total</p>
+                        <p className="text-xs md:text-sm font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
+                        <p className="text-[8px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
                       </div>
 
                       <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
-                        <p className="text-xs text-amber-400 font-bold">Non-Biaya Kuliah</p>
-                        <p className="text-sm md:text-base font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
-                        <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
+                        <p className="text-[10px] text-amber-400 font-bold">Non-Biaya Kuliah</p>
+                        <p className="text-xs md:text-sm font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
+                        <p className="text-[8px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                       </div>
                     </div>
 
@@ -799,14 +830,32 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                    {/* FITUR BARU: SISA SALDO TOTAL */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-center">
+                    {/* SISA SALDO TOTAL KESELURUHAN */}
                     <div className="bg-slate-800/60 p-2.5 rounded-xl border border-cyan-500/30">
                       <p className="text-xs text-cyan-400 font-bold">Total Sisa Saldo</p>
                       <p className={`text-sm md:text-base font-extrabold mt-0.5 ${totalRemainingBalanceYuan >= 0 ? 'text-cyan-300' : 'text-rose-400'}`}>
                         {formatYuan(totalRemainingBalanceYuan)}
                       </p>
                       <p className="text-[9px] text-slate-400">{formatIDR(totalRemainingBalanceYuan)}</p>
+                    </div>
+
+                    {/* FITUR BARU: SISA SALDO CASH TOTAL */}
+                    <div className="bg-slate-800/60 p-2.5 rounded-xl border border-emerald-500/30">
+                      <p className="text-xs text-emerald-400 font-bold">💵 Sisa Saldo Cash</p>
+                      <p className={`text-sm md:text-base font-extrabold mt-0.5 ${totalCashBalanceYuan >= 0 ? 'text-emerald-300' : 'text-rose-400'}`}>
+                        {formatYuan(totalCashBalanceYuan)}
+                      </p>
+                      <p className="text-[9px] text-slate-400">{formatIDR(totalCashBalanceYuan)}</p>
+                    </div>
+
+                    {/* FITUR BARU: SISA SALDO BANK TOTAL */}
+                    <div className="bg-slate-800/60 p-2.5 rounded-xl border border-blue-500/30">
+                      <p className="text-xs text-blue-400 font-bold">💳 Sisa Saldo Bank</p>
+                      <p className={`text-sm md:text-base font-extrabold mt-0.5 ${totalBankBalanceYuan >= 0 ? 'text-blue-300' : 'text-rose-400'}`}>
+                        {formatYuan(totalBankBalanceYuan)}
+                      </p>
+                      <p className="text-[9px] text-slate-400">{formatIDR(totalBankBalanceYuan)}</p>
                     </div>
 
                     <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
@@ -1012,26 +1061,63 @@ export default function App() {
         {/* TAB KEUANGAN */}
         {activeTab === 'keuangan' && !isFullscreen && (
           <div className="space-y-4">
-            {/* KAD TAMPILAN SISA SALDO */}
+            {/* KAD TAMPILAN SISA SALDO (DENGAN RINCIAN SALDO CASH & SALDO BANK) */}
             <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm border border-slate-800 space-y-3">
               <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                <span className="text-xs font-bold text-slate-300">Ringkasan Baki / Sisa Saldo</span>
+                <span className="text-xs font-bold text-slate-300">Ringkasan Sisa Saldo Real-Time</span>
                 <span className="text-[10px] text-cyan-400 bg-cyan-950/60 border border-cyan-800 px-2 py-0.5 rounded-lg font-semibold">Live Real-time</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-center">
+
+              {/* BARIS 1: SISA SALDO TOTAL KESELURUHAN */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-center">
                 <div className="bg-slate-800/80 p-3 rounded-xl border border-cyan-500/30">
-                  <p className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Total Sisa Saldo (Semua)</p>
+                  <p className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Total Sisa Saldo (Keseluruhan)</p>
                   <p className={`text-base font-extrabold mt-1 ${totalRemainingBalanceYuan >= 0 ? 'text-cyan-300' : 'text-rose-400'}`}>
                     {formatYuan(totalRemainingBalanceYuan)}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">{formatIDR(totalRemainingBalanceYuan)}</p>
                 </div>
                 <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Sisa Saldo ({selectedMonth})</p>
+                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Net Bulanan ({selectedMonth})</p>
                   <p className={`text-base font-extrabold mt-1 ${monthBalanceYuan >= 0 ? 'text-emerald-300' : 'text-rose-400'}`}>
                     {formatYuan(monthBalanceYuan)}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">{formatIDR(monthBalanceYuan)}</p>
+                </div>
+              </div>
+
+              {/* BARIS 2: RINCIAN SALDO CASH & BANK */}
+              <div className="grid grid-cols-2 gap-3 text-center pt-1">
+                <div className="bg-slate-800/60 p-3 rounded-xl border border-emerald-500/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-400 uppercase font-bold tracking-wider">
+                      <Banknote className="w-3.5 h-3.5" />
+                      <span>Sisa Saldo Cash</span>
+                    </div>
+                    <p className={`text-sm md:text-base font-extrabold mt-1 ${totalCashBalanceYuan >= 0 ? 'text-emerald-300' : 'text-rose-400'}`}>
+                      {formatYuan(totalCashBalanceYuan)}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatIDR(totalCashBalanceYuan)}</p>
+                  </div>
+                  <p className="text-[9px] text-slate-500 border-t border-slate-700/60 mt-2 pt-1">
+                    Bulan Ini: <span className={monthCashBalanceYuan >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{formatYuan(monthCashBalanceYuan)}</span>
+                  </p>
+                </div>
+
+                <div className="bg-slate-800/60 p-3 rounded-xl border border-blue-500/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-center gap-1 text-[10px] text-blue-400 uppercase font-bold tracking-wider">
+                      <CreditCard className="w-3.5 h-3.5" />
+                      <span>Sisa Saldo Bank</span>
+                    </div>
+                    <p className={`text-sm md:text-base font-extrabold mt-1 ${totalBankBalanceYuan >= 0 ? 'text-blue-300' : 'text-rose-400'}`}>
+                      {formatYuan(totalBankBalanceYuan)}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatIDR(totalBankBalanceYuan)}</p>
+                  </div>
+                  <p className="text-[9px] text-slate-500 border-t border-slate-700/60 mt-2 pt-1">
+                    Bulan Ini: <span className={monthBankBalanceYuan >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{formatYuan(monthBankBalanceYuan)}</span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -1204,9 +1290,9 @@ export default function App() {
                           <span className={`text-[8px] px-1.5 py-0.2 rounded font-semibold ${
                             t.metode_pembayaran === 'Bank' 
                               ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-slate-200 text-slate-700'
+                              : 'bg-emerald-100 text-emerald-700'
                           }`}>
-                            {t.metode_pembayaran || 'Cash'}
+                            {t.metode_pembayaran === 'Bank' ? '💳 Bank' : '💵 Cash'}
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
