@@ -489,11 +489,11 @@ export default function App() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'top', labels: { boxWidth: 8, font: { size: 8 } } },
+      legend: { position: 'top', labels: { boxWidth: 10, font: { size: isFullscreen ? 8 : 10 } } },
     },
     scales: {
-      y: { ticks: { font: { size: 8 } } },
-      x: { ticks: { font: { size: 8 } } }
+      y: { ticks: { font: { size: isFullscreen ? 8 : 10 } } },
+      x: { ticks: { font: { size: isFullscreen ? 8 : 10 } } }
     }
   };
 
@@ -514,37 +514,37 @@ export default function App() {
   };
 
   const renderCalendar = () => (
-    <div className={`bg-white p-3 rounded-2xl shadow-sm border border-slate-200 ${isFullscreen ? 'h-full flex flex-col justify-between' : 'space-y-2'}`}>
+    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 ${isFullscreen ? 'p-3 h-full flex flex-col justify-between' : 'p-4 space-y-3'}`}>
       <div className="flex justify-between items-center">
-        <h2 className="text-[11px] font-bold text-slate-900 flex items-center gap-1">
+        <h2 className={`${isFullscreen ? 'text-[11px]' : 'text-xs'} font-bold text-slate-900 flex items-center gap-1`}>
           <span>📅</span> Kalender Agenda & Tugas
         </h2>
         <div className="flex items-center gap-1">
           <button 
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-            className="p-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[9px] font-bold px-1.5"
+            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold px-2"
           >
             &lt;
           </button>
-          <span className="text-[9px] font-semibold text-slate-700 min-w-[70px] text-center">
+          <span className="text-[10px] font-semibold text-slate-700 min-w-[70px] text-center">
             {currentMonth.toLocaleString('id-ID', { month: 'short', year: 'numeric' })}
           </span>
           <button 
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-            className="p-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[9px] font-bold px-1.5"
+            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold px-2"
           >
             &gt;
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5 text-center text-[8px] font-bold text-slate-400">
+      <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-bold text-slate-400">
         <div>MIN</div><div>SEN</div><div>SEL</div><div>RAB</div><div>KAM</div><div>JUM</div><div>SAB</div>
       </div>
 
-      <div className={`grid grid-cols-7 gap-0.5 ${isFullscreen ? 'flex-1 grid-rows-5' : ''}`}>
+      <div className={`grid grid-cols-7 gap-1 ${isFullscreen ? 'flex-1 grid-rows-5' : ''}`}>
         {[...Array(firstDayOfMonth)].map((_, i) => (
-          <div key={`empty-${i}`} className="bg-slate-50/50 rounded"></div>
+          <div key={`empty-${i}`} className="bg-slate-50/50 rounded-lg"></div>
         ))}
         {[...Array(daysInMonth)].map((_, i) => {
           const day = i + 1;
@@ -555,14 +555,16 @@ export default function App() {
             <div 
               key={day} 
               onClick={() => handleDateClick(dateStr)}
-              className={`p-0.5 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded flex flex-col justify-between cursor-pointer transition overflow-hidden group ${isFullscreen ? 'h-full' : 'h-9'}`}
+              className={`p-1 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg flex flex-col justify-between cursor-pointer transition overflow-hidden group ${
+                isFullscreen ? 'h-full' : 'h-11'
+              }`}
             >
-              <span className="text-[8px] font-bold text-slate-600 group-hover:text-blue-600">{day}</span>
+              <span className="text-[9px] font-bold text-slate-600 group-hover:text-blue-600">{day}</span>
               <div className="space-y-0.5 overflow-hidden">
                 {dayEvents.slice(0, 2).map((ev) => (
                   <div 
                     key={ev.id} 
-                    className={`text-[6.5px] px-0.5 py-0 rounded truncate font-medium border ${
+                    className={`text-[7px] px-0.5 py-0 rounded truncate font-medium border ${
                       ev.judul.startsWith('[Tugas]') 
                         ? 'bg-amber-100 text-amber-900 border-amber-300' 
                         : 'bg-blue-100 text-blue-800 border-blue-200'
@@ -598,28 +600,28 @@ export default function App() {
         </button>
       )}
 
-      <div className={`${isFullscreen ? 'h-full flex flex-col justify-between gap-2 max-w-full' : 'max-w-4xl mx-auto p-4 space-y-4'}`}>
+      <div className={`${isFullscreen ? 'h-full flex flex-col justify-between gap-2 max-w-full' : 'max-w-4xl mx-auto p-4 space-y-5'}`}>
         
         {/* HEADER APLIKASI */}
-        <header className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-2">
+        <header className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-3">
           <div>
-            <h1 className="text-base font-bold text-slate-900">Student Manager</h1>
-            <p className="text-[10px] text-slate-500">Keuangan, Kuliah & Pembayaran</p>
+            <h1 className="text-xl font-bold text-slate-900">Student Manager</h1>
+            <p className="text-xs text-slate-500">Keuangan, Kuliah & Pembayaran</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div className="bg-slate-100 p-1.5 rounded-xl text-right border border-slate-200">
               <div className="flex items-center gap-1 justify-end">
-                <span className="text-[9px] text-slate-500">1 RMB =</span>
+                <span className="text-[10px] text-slate-500">1 RMB =</span>
                 {editingKurs ? (
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
                       value={tempKurs}
                       onChange={(e) => setTempKurs(e.target.value)}
-                      className="w-14 bg-white border border-slate-300 text-[10px] rounded px-1"
+                      className="w-16 bg-white border border-slate-300 text-xs rounded px-1"
                     />
-                    <button onClick={updateKurs} className="text-[9px] bg-emerald-600 px-1 py-0.5 text-white font-bold rounded">OK</button>
+                    <button onClick={updateKurs} className="text-[10px] bg-emerald-600 px-1.5 py-0.5 text-white font-bold rounded">OK</button>
                   </div>
                 ) : (
                   <button onClick={() => setEditingKurs(true)} className="flex items-center gap-1 font-bold text-blue-600 text-xs">
@@ -633,10 +635,10 @@ export default function App() {
             {/* TOMBOL FULLSCREEN HANYA DI LAPTOP/TABLET/IPAD */}
             <button
               onClick={toggleFullscreen}
-              className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl font-bold text-xs shadow-md transition items-center gap-1.5"
+              className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs shadow-md transition items-center gap-1.5"
               title="Fullscreen Mode"
             >
-              {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
               <span>{isFullscreen ? 'Keluar' : 'Mode Fullscreen'}</span>
             </button>
           </div>
@@ -657,11 +659,11 @@ export default function App() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
                     activeTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-4 h-4" />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -671,7 +673,7 @@ export default function App() {
 
         {/* MAIN DASHBOARD */}
         {(activeTab === 'dashboard' || isFullscreen) && (
-          <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-3'}`}>
+          <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
             
             {/* BARIS ATAS: KOTAK JAM + REKAPITULASI KEUANGAN */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -681,10 +683,17 @@ export default function App() {
                 <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">
                   WAKTU REALTIME
                 </span>
-                <p className="text-5xl md:text-6xl font-mono font-black text-amber-300 tracking-tight my-1">
+                
+                {/* UKURAN FONT BERBEDA ANTARA NORMAL DAN FULLSCREEN */}
+                <p className={`font-mono font-black text-amber-300 tracking-tight my-1 ${
+                  isFullscreen ? 'text-5xl md:text-6xl' : 'text-3xl md:text-4xl'
+                }`}>
                   {currentTime.toLocaleTimeString('id-ID')}
                 </p>
-                <p className="text-sm md:text-base text-slate-200 font-semibold">
+                
+                <p className={`text-slate-200 font-semibold ${
+                  isFullscreen ? 'text-sm md:text-base' : 'text-xs md:text-sm'
+                }`}>
                   {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               </div>
@@ -692,7 +701,7 @@ export default function App() {
               {/* REKAPITULASI KEUANGAN */}
               <div className="md:col-span-2 bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3 flex flex-col justify-between">
                 <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                  <span className="text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
+                  <span className="text-xs md:text-sm font-bold text-slate-300">Rekapitulasi Keuangan</span>
                   <input
                     type="month"
                     value={selectedMonth}
@@ -702,21 +711,21 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                  <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
                     <p className="text-xs text-emerald-400 font-bold">Pemasukan</p>
-                    <p className="text-base md:text-lg font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
+                    <p className="text-sm md:text-base font-extrabold text-emerald-300 mt-0.5">{formatYuan(monthIncomeYuan)}</p>
                     <p className="text-[9px] text-slate-400">{formatIDR(monthIncomeYuan)}</p>
                   </div>
 
-                  <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                  <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
                     <p className="text-xs text-rose-400 font-bold">Pengeluaran Total</p>
-                    <p className="text-base md:text-lg font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
+                    <p className="text-sm md:text-base font-extrabold text-rose-300 mt-0.5">{formatYuan(monthExpenseYuan)}</p>
                     <p className="text-[9px] text-slate-400">{formatIDR(monthExpenseYuan)}</p>
                   </div>
 
-                  <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                  <div className="bg-slate-800/60 p-2 rounded-xl border border-slate-700/60">
                     <p className="text-xs text-amber-400 font-bold">Non-Biaya Kuliah</p>
-                    <p className="text-base md:text-lg font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
+                    <p className="text-sm md:text-base font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
                     <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                   </div>
                 </div>
@@ -729,7 +738,7 @@ export default function App() {
                         .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
                         .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
                       return (
-                        <div key={cat} className="bg-slate-800/90 p-1.5 rounded-lg border border-slate-700/50 truncate">
+                        <div key={cat} className="bg-slate-800/90 p-1 rounded-lg border border-slate-700/50 truncate">
                           <span className="block text-slate-400 font-medium truncate">{cat}</span>
                           <span className="font-bold text-rose-300 text-[10px]">{total > 0 ? `¥${total}` : '-'}</span>
                         </div>
@@ -741,39 +750,39 @@ export default function App() {
 
             </div>
 
-            {/* BARIS TENGAH: BOX TUGAS & AGENDA KULIAH MENAMPILKAN HINGGA 5 ITEM */}
+            {/* BARIS TENGAH: BOX TUGAS & AGENDA KULIAH */}
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isFullscreen ? 'flex-1 overflow-hidden' : ''}`}>
               
-              {/* TO DO TUGAS (DIUBAH MENJADI 5 ITEM) */}
-              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
-                <div className="flex justify-between items-center mb-1">
-                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1">
-                    <ListTodo className="w-3.5 h-3.5 text-amber-600" />
+              {/* TO DO TUGAS */}
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <ListTodo className="w-4 h-4 text-amber-600" />
                     <span>Daftar Tugas Mendatang</span>
                   </h2>
-                  <button onClick={() => setActiveTab('todo')} className="text-[9px] font-bold text-blue-600 hover:underline">
+                  <button onClick={() => setActiveTab('todo')} className="text-[10px] font-bold text-blue-600 hover:underline">
                     Lihat Semua ({todos.filter(t => !t.selesai).length})
                   </button>
                 </div>
 
-                <div className="space-y-1 overflow-y-auto flex-1 pr-1">
+                <div className={`space-y-1.5 overflow-y-auto flex-1 pr-1 ${isFullscreen ? '' : 'max-h-48'}`}>
                   {todos.filter(t => !t.selesai).length === 0 ? (
-                    <p className="text-[10px] text-slate-400 py-2 text-center">Semua tugas telah selesai.</p>
+                    <p className="text-xs text-slate-400 py-3 text-center">Semua tugas telah selesai.</p>
                   ) : (
-                    todos.filter(t => !t.selesai).slice(0, 5).map(item => {
+                    todos.filter(t => !t.selesai).slice(0, isFullscreen ? 5 : 10).map(item => {
                       const priority = getAutoPriority(item.tenggat_waktu);
                       return (
-                        <div key={item.id} className={`p-1.5 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
-                          <div className="flex items-center gap-1.5">
+                        <div key={item.id} className={`p-2 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
+                          <div className="flex items-center gap-2">
                             <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
-                              <Square className="w-3.5 h-3.5 text-slate-300 hover:text-emerald-600" />
+                              <Square className="w-4 h-4 text-slate-300 hover:text-emerald-600" />
                             </button>
                             <div>
-                              <p className="font-bold text-[10.5px] text-slate-800 line-clamp-1">{item.judul}</p>
-                              <p className="text-[8px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
+                              <p className="font-bold text-xs text-slate-800 line-clamp-1">{item.judul}</p>
+                              <p className="text-[9px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
                             </div>
                           </div>
-                          <span className={`text-[7.5px] px-1 py-0.2 rounded ${priority.badgeColor}`}>
+                          <span className={`text-[8px] px-1.5 py-0.5 rounded ${priority.badgeColor}`}>
                             {priority.label}
                           </span>
                         </div>
@@ -783,34 +792,34 @@ export default function App() {
                 </div>
               </div>
 
-              {/* AGENDA KULIAH TERDEKAT (DIUBAH MENJADI 5 ITEM) */}
-              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
-                <div className="flex justify-between items-center mb-1">
-                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-blue-600" />
+              {/* AGENDA KULIAH TERDEKAT */}
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-blue-600" />
                     <span>Agenda Kuliah Terdekat</span>
                   </h2>
-                  <span className="text-[9px] text-slate-400">Mendatang</span>
+                  <span className="text-[10px] text-slate-400">Mendatang</span>
                 </div>
 
-                <div className="space-y-1 overflow-y-auto flex-1 pr-1">
+                <div className={`space-y-1.5 overflow-y-auto flex-1 pr-1 ${isFullscreen ? '' : 'max-h-48'}`}>
                   {upcomingEvents.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 py-2 text-center">Belum ada agenda terdekat.</p>
+                    <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
                   ) : (
-                    upcomingEvents.slice(0, 5).map(ev => {
+                    upcomingEvents.slice(0, isFullscreen ? 5 : 10).map(ev => {
                       const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
                       return (
-                        <div key={ev.id} className={`p-1.5 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
+                        <div key={ev.id} className={`p-2 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1">
-                              <p className="font-bold text-[10.5px] line-clamp-1">{ev.judul}</p>
+                              <p className="font-bold text-xs line-clamp-1">{ev.judul}</p>
                               {isWithin24Hours && (
-                                <span className="text-[7px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
+                                <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">
                                   &lt; 24j
                                 </span>
                               )}
                             </div>
-                            <p className="text-[8px] text-slate-500">
+                            <p className="text-[9px] text-slate-500">
                               {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
                             </p>
                           </div>
@@ -827,12 +836,12 @@ export default function App() {
             <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isFullscreen ? 'flex-1' : ''}`}>
               
               {/* GRAFIK KEUANGAN BULANAN */}
-              <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
                 <div className="flex justify-between items-center mb-1">
                   <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
-                  <span className="text-[9px] text-slate-400 font-medium">Yuan (¥)</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
                 </div>
-                <div className={`${isFullscreen ? 'flex-1 min-h-[100px]' : 'h-32'} flex items-center justify-center`}>
+                <div className={`${isFullscreen ? 'flex-1 min-h-[100px]' : 'h-40'} flex items-center justify-center`}>
                   <Line data={chartData} options={chartOptions} />
                 </div>
               </div>
@@ -859,7 +868,7 @@ export default function App() {
                 placeholder="Nama Tugas/Praktikum..."
                 value={todoForm.judul}
                 onChange={(e) => setTodoForm({ ...todoForm, judul: e.target.value })}
-                className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                 required
               />
 
@@ -873,7 +882,7 @@ export default function App() {
                 />
               </div>
 
-              <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md">
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
                 + Tambah Tugas
               </button>
             </form>
@@ -902,7 +911,7 @@ export default function App() {
                             {item.judul}
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className={`text-[8px] px-1 py-0.2 rounded ${priority.badgeColor}`}>
+                            <span className={`text-[8px] px-1.5 py-0.2 rounded ${priority.badgeColor}`}>
                               Prioritas {priority.label}
                             </span>
                             <span className={`text-[9.5px] ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
@@ -932,14 +941,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setFinanceForm({ ...financeForm, tipe: 'pengeluaran' })}
-                  className={`py-1.5 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pengeluaran' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-600'}`}
+                  className={`py-2 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pengeluaran' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-600'}`}
                 >
                   Pengeluaran
                 </button>
                 <button
                   type="button"
                   onClick={() => setFinanceForm({ ...financeForm, tipe: 'pemasukan' })}
-                  className={`py-1.5 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pemasukan' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 text-slate-600'}`}
+                  className={`py-2 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pemasukan' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 text-slate-600'}`}
                 >
                   Pemasukan
                 </button>
@@ -949,7 +958,7 @@ export default function App() {
                 <select
                   value={financeForm.kategori}
                   onChange={(e) => setFinanceForm({ ...financeForm, kategori: e.target.value })}
-                  className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                 >
                   {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
@@ -961,7 +970,7 @@ export default function App() {
                 placeholder="Nominal (¥ Yuan)"
                 value={financeForm.nominalYuan}
                 onChange={(e) => setFinanceForm({ ...financeForm, nominalYuan: e.target.value })}
-                className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                 required
               />
 
@@ -969,7 +978,7 @@ export default function App() {
                 type="date"
                 value={financeForm.tanggal}
                 onChange={(e) => setFinanceForm({ ...financeForm, tanggal: e.target.value })}
-                className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
               />
 
               <input
@@ -977,10 +986,10 @@ export default function App() {
                 placeholder="Keterangan..."
                 value={financeForm.keterangan}
                 onChange={(e) => setFinanceForm({ ...financeForm, keterangan: e.target.value })}
-                className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
               />
 
-              <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md">
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
                 Simpan Transaksi
               </button>
             </form>
@@ -989,17 +998,17 @@ export default function App() {
               <h2 className="font-bold text-xs text-slate-700">Riwayat Mutasi</h2>
               <div className="divide-y divide-slate-100">
                 {transactions.map(t => (
-                  <div key={t.id} className="py-2 flex justify-between items-center text-xs">
+                  <div key={t.id} className="py-2.5 flex justify-between items-center text-xs">
                     <div>
                       <p className="font-bold text-slate-800">{t.keterangan || t.kategori}</p>
-                      <p className="text-[9px] text-slate-400">{t.tanggal} • {t.kategori}</p>
+                      <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
                         <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
                         </p>
-                        <p className="text-[9px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
+                        <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
                       </div>
                       <button onClick={() => deleteTransaction(t.id)} className="p-1 text-slate-300 hover:text-rose-600">
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1028,7 +1037,7 @@ export default function App() {
                 placeholder="Judul agenda/tugas"
                 value={agendaForm.judul}
                 onChange={(e) => setAgendaForm({ ...agendaForm, judul: e.target.value })}
-                className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
                 required
               />
 
@@ -1047,7 +1056,7 @@ export default function App() {
                 />
               </div>
 
-              <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md">
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
                 + Simpan Agenda
               </button>
             </form>
@@ -1085,14 +1094,14 @@ export default function App() {
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
               {payments.filter(p => p.kategori_tahun === selectedPaymentYear).map(item => (
-                <div key={item.id} className="p-3 flex justify-between items-center text-xs">
+                <div key={item.id} className="p-3.5 flex justify-between items-center text-xs">
                   <div>
                     <p className="font-bold text-slate-800">{item.nama_tagihan}</p>
                     <p className="font-bold text-blue-600">{formatYuan(item.jumlah_yuan)}</p>
                   </div>
                   <button
                     onClick={() => togglePaymentStatus(item.id, item.sudah_dibayar)}
-                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold ${item.sudah_dibayar ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}
+                    className={`px-3 py-1 rounded-xl text-[10px] font-bold ${item.sudah_dibayar ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}
                   >
                     {item.sudah_dibayar ? '✓ Lunas' : 'Belum Dibayar'}
                   </button>
