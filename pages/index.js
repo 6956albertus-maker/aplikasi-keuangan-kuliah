@@ -684,7 +684,6 @@ export default function App() {
                   WAKTU REALTIME
                 </span>
                 
-                {/* UKURAN FONT BERBEDA ANTARA NORMAL DAN FULLSCREEN */}
                 <p className={`font-mono font-black text-amber-300 tracking-tight my-1 ${
                   isFullscreen ? 'text-5xl md:text-6xl' : 'text-3xl md:text-4xl'
                 }`}>
@@ -1026,7 +1025,7 @@ export default function App() {
           <div className="space-y-4">
             {renderCalendar()}
 
-            <form onSubmit={addAgenda} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <form onSubmit={addAgenda} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <Plus className="w-4 h-4 text-blue-600" />
                 <span>Tambah Agenda Baru</span>
@@ -1037,24 +1036,82 @@ export default function App() {
                 placeholder="Judul agenda/tugas"
                 value={agendaForm.judul}
                 onChange={(e) => setAgendaForm({ ...agendaForm, judul: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                 required
               />
 
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={agendaForm.tanggal}
-                  onChange={(e) => setAgendaForm({ ...agendaForm, tanggal: e.target.value })}
-                  className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
-                />
-                <input
-                  type="date"
-                  value={agendaForm.tanggal_selesai}
-                  onChange={(e) => setAgendaForm({ ...agendaForm, tanggal_selesai: e.target.value })}
-                  className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
-                />
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal Mulai</label>
+                  <input
+                    type="date"
+                    value={agendaForm.tanggal}
+                    onChange={(e) => {
+                      const startDate = e.target.value;
+                      setAgendaForm(prev => ({
+                        ...prev,
+                        tanggal: startDate,
+                        tanggal_selesai: prev.tanggal_selesai < startDate ? startDate : prev.tanggal_selesai
+                      }));
+                    }}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal Selesai</label>
+                  <input
+                    type="date"
+                    min={agendaForm.tanggal}
+                    value={agendaForm.tanggal_selesai}
+                    onChange={(e) => setAgendaForm({ ...agendaForm, tanggal_selesai: e.target.value })}
+                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  />
+                </div>
               </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="seharian"
+                  checked={agendaForm.seharian}
+                  onChange={(e) => setAgendaForm({ ...agendaForm, seharian: e.target.checked })}
+                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="seharian" className="text-xs font-semibold text-slate-600 cursor-pointer select-none">
+                  Seharian (24 Jam)
+                </label>
+              </div>
+
+              {!agendaForm.seharian && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Jam Mulai</label>
+                    <input
+                      type="time"
+                      value={agendaForm.jam}
+                      onChange={(e) => setAgendaForm({ ...agendaForm, jam: e.target.value })}
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Jam Selesai</label>
+                    <input
+                      type="time"
+                      value={agendaForm.jam_selesai}
+                      onChange={(e) => setAgendaForm({ ...agendaForm, jam_selesai: e.target.value })}
+                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <input
+                type="text"
+                placeholder="Keterangan tambahan (opsional)"
+                value={agendaForm.keterangan}
+                onChange={(e) => setAgendaForm({ ...agendaForm, keterangan: e.target.value })}
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+              />
 
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
                 + Simpan Agenda
@@ -1107,6 +1164,69 @@ export default function App() {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL POP-UP DETAILS AGENDA KALENDER */}
+        {selectedDateEvents && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-sm text-slate-800">
+                  Agenda Tanggal: {selectedDateEvents.date}
+                </h3>
+                <button 
+                  onClick={() => setSelectedDateEvents(null)} 
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {selectedDateEvents.list.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4">Tidak ada agenda pada tanggal ini.</p>
+                ) : (
+                  selectedDateEvents.list.map((ev) => (
+                    <div key={ev.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-start">
+                      <div className="space-y-1">
+                        <p className="font-bold text-xs text-slate-800">{ev.judul}</p>
+                        <p className="text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                        </p>
+                        {ev.keterangan && (
+                          <p className="text-[10px] text-slate-500">{ev.keterangan}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => setEditingEvent(ev)}
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Agenda"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => deleteAgenda(ev.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Hapus Agenda"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button
+                onClick={() => setSelectedDateEvents(null)}
+                className="w-full bg-slate-100 text-slate-700 py-2 rounded-xl font-bold text-xs"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         )}
