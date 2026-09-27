@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-supabase-js'; // Sesuaikan impor library Supabase Anda
+import { createClient } from '@supabase/supabase-js';
 
-// Inisialisasi Supabase Client (Ganti dengan URL & Key milik Anda jika dipisah)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_KEY';
+// Inisialisasi Supabase Client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function StudentManager() {
   // --- STATE MANAGEMENT ---
   const [activeTab, setActiveTab] = useState('Keuangan');
-  const [kursCnyToIdr, setKursCnyToIdr] = useState(2687); // Default kurs RMB ke IDR
+  const [kursCnyToIdr, setKursCnyToIdr] = useState(2687); // Kurs RMB ke IDR
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +41,7 @@ export default function StudentManager() {
     fetchTransactions();
   }, []);
 
-  // --- LOGIKA HITUNG SALDO CASH & BANK ---
+  // --- HITUNG LOGIKA SALDO CASH & BANK ---
   const calculateBalances = () => {
     let cashRmb = 0;
     let bankRmb = 0;
@@ -90,10 +90,9 @@ export default function StudentManager() {
     if (error) {
       alert('Gagal menyimpan transaksi: ' + error.message);
     } else {
-      // Reset form
       setNominalYuan('');
       setKeterangan('');
-      fetchTransactions(); // Refresh data
+      fetchTransactions();
     }
   };
 
@@ -107,34 +106,34 @@ export default function StudentManager() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 font-sans">
+      <div className="max-w-3xl mx-auto">
         {/* HEADER */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Student Manager</h1>
-            <p className="text-sm text-gray-500">Keuangan, Kuliah & Pembayaran</p>
+            <h1 className="text-xl font-bold text-gray-800">Student Manager</h1>
+            <p className="text-xs text-gray-400 mt-0.5">Keuangan, Kuliah & Pembayaran</p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="bg-gray-100 px-3 py-1.5 rounded-lg text-xs text-gray-600 font-medium">
+          <div className="flex items-center gap-2">
+            <span className="bg-blue-50 text-blue-600 text-xs px-3 py-1.5 rounded-lg font-medium">
               1 RMB = Rp {kursCnyToIdr.toLocaleString('id-ID')}
             </span>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-medium transition">
+            <button className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition">
               Mode Fullscreen
             </button>
           </div>
         </div>
 
-        {/* NAVIGATION TABS */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        {/* TAB NAVIGASI */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
           {['Utama', 'To Do Tugas', 'Keuangan', 'Kuliah', 'Pembayaran'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap ${
                 activeTab === tab
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-100'
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                  : 'bg-white text-gray-500 hover:bg-gray-50 border border-gray-100'
               }`}
             >
               {tab}
@@ -144,12 +143,16 @@ export default function StudentManager() {
 
         {activeTab === 'Keuangan' && (
           <>
-            {/* KARTU SISA SALDO CASH & BANK */}
+            {/* ======================================================== */}
+            {/* KARTU SISA SALDO CASH & BANK                             */}
+            {/* ======================================================== */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {/* Saldo Cash */}
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center">
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sisa Saldo Cash</p>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Sisa Saldo Cash
+                  </p>
                   <h2 className="text-2xl font-bold text-gray-800 mt-1">
                     ¥ {cashRmb.toLocaleString('id-ID', { minimumFractionDigits: 2 })}
                   </h2>
@@ -165,7 +168,9 @@ export default function StudentManager() {
               {/* Saldo Bank */}
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center">
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Sisa Saldo Bank</p>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Sisa Saldo Bank
+                  </p>
                   <h2 className="text-2xl font-bold text-gray-800 mt-1">
                     ¥ {bankRmb.toLocaleString('id-ID', { minimumFractionDigits: 2 })}
                   </h2>
@@ -181,16 +186,16 @@ export default function StudentManager() {
 
             {/* FORM CATAT TRANSAKSI */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Catat Transaksi</h3>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Tipe Transaksi: Pengeluaran / Pemasukan */}
-                <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-xl">
+              <h3 className="text-xs font-semibold text-gray-700 mb-4">Catat Transaksi</h3>
+              <form onSubmit={handleSubmit} className="space-y-3">
+                {/* Tipe Transaksi */}
+                <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
                   <button
                     type="button"
                     onClick={() => setTipe('Pengeluaran')}
-                    className={`py-2 rounded-lg text-sm font-semibold transition ${
+                    className={`py-2 rounded-lg text-xs font-semibold transition ${
                       tipe === 'Pengeluaran'
-                        ? 'bg-rose-500 text-white shadow-sm'
+                        ? 'bg-[#ff4d6d] text-white shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -199,7 +204,7 @@ export default function StudentManager() {
                   <button
                     type="button"
                     onClick={() => setTipe('Pemasukan')}
-                    className={`py-2 rounded-lg text-sm font-semibold transition ${
+                    className={`py-2 rounded-lg text-xs font-semibold transition ${
                       tipe === 'Pemasukan'
                         ? 'bg-emerald-500 text-white shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
@@ -209,14 +214,14 @@ export default function StudentManager() {
                   </button>
                 </div>
 
-                {/* Metode Pembayaran: Cash / Bank */}
-                <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-xl">
+                {/* Metode Pembayaran */}
+                <div className="grid grid-cols-2 gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
                   <button
                     type="button"
                     onClick={() => setMetodePembayaran('Cash')}
-                    className={`py-2 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                    className={`py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
                       metodePembayaran === 'Cash'
-                        ? 'bg-slate-800 text-white shadow-sm'
+                        ? 'bg-[#1e293b] text-white shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -225,9 +230,9 @@ export default function StudentManager() {
                   <button
                     type="button"
                     onClick={() => setMetodePembayaran('Bank')}
-                    className={`py-2 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2 ${
+                    className={`py-2 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
                       metodePembayaran === 'Bank'
-                        ? 'bg-slate-800 text-white shadow-sm'
+                        ? 'bg-[#1e293b] text-white shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -239,7 +244,7 @@ export default function StudentManager() {
                 <select
                   value={kategori}
                   onChange={(e) => setKategori(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
                 >
                   <option value="Makan">Makan</option>
                   <option value="Jajan">Jajan</option>
@@ -249,14 +254,14 @@ export default function StudentManager() {
                   <option value="Lainnya">Lainnya</option>
                 </select>
 
-                {/* Nominal */}
+                {/* Nominal Yuan */}
                 <input
                   type="number"
                   step="0.01"
                   placeholder="Nominal (¥ Yuan)"
                   value={nominalYuan}
                   onChange={(e) => setNominalYuan(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 placeholder-gray-400"
                   required
                 />
 
@@ -265,7 +270,7 @@ export default function StudentManager() {
                   type="date"
                   value={tanggal}
                   onChange={(e) => setTanggal(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
                   required
                 />
 
@@ -275,13 +280,13 @@ export default function StudentManager() {
                   placeholder="Keterangan..."
                   value={keterangan}
                   onChange={(e) => setKeterangan(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 placeholder-gray-400"
                 />
 
-                {/* Submit Button */}
+                {/* Tombol Submit */}
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium text-sm transition shadow-sm shadow-blue-200"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-xs transition shadow-sm shadow-blue-200 mt-2"
                 >
                   Simpan Transaksi
                 </button>
@@ -290,12 +295,12 @@ export default function StudentManager() {
 
             {/* RIWAYAT MUTASI */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Riwayat Mutasi</h3>
-              
+              <h3 className="text-xs font-semibold text-gray-700 mb-4">Riwayat Mutasi</h3>
+
               {loading ? (
-                <p className="text-center text-gray-400 text-sm py-4">Memuat data...</p>
+                <p className="text-center text-gray-400 text-xs py-4">Memuat data...</p>
               ) : transactions.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-4">Belum ada transaksi.</p>
+                <p className="text-center text-gray-400 text-xs py-4">Belum ada transaksi.</p>
               ) : (
                 <div className="space-y-3">
                   {transactions.map((tx) => {
@@ -303,25 +308,25 @@ export default function StudentManager() {
                     return (
                       <div
                         key={tx.id}
-                        className="flex justify-between items-center p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 rounded-lg transition"
+                        className="flex justify-between items-center p-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 rounded-lg transition"
                       >
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-800">
+                            <span className="text-xs font-semibold text-gray-800">
                               {tx.kategori || 'Transaksi'}
                             </span>
-                            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full uppercase font-semibold">
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md uppercase font-medium">
                               {tx.metode_pembayaran || 'Cash'}
                             </span>
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5">
+                          <p className="text-[11px] text-gray-400 mt-0.5">
                             {tx.tanggal} • {tx.keterangan || '-'}
                           </p>
                         </div>
                         <div className="text-right flex items-center gap-3">
                           <div>
                             <p
-                              className={`text-sm font-bold ${
+                              className={`text-xs font-bold ${
                                 isPemasukan ? 'text-emerald-600' : 'text-rose-500'
                               }`}
                             >
@@ -330,7 +335,7 @@ export default function StudentManager() {
                                 minimumFractionDigits: 2,
                               })}
                             </p>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-[10px] text-gray-400">
                               Rp {Number(tx.nominal_idr).toLocaleString('id-ID')}
                             </p>
                           </div>
