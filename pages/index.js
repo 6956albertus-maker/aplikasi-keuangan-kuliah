@@ -27,8 +27,10 @@ ChartJS.register(
   Legend
 );
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Environment Variable Handling untuk kompatibilitas Next.js / Create React App / Vite
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const getCurrentMonthKey = () => {
@@ -44,15 +46,15 @@ export default function App() {
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
 
-  // Live Clock & Fullscreen
+  // State Jam Live & Fullscreen
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenRef = useRef(null);
 
-  // Kategori
+  // Kategori Pengeluaran
   const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
 
-  // Keuangan States
+  // States Keuangan
   const [transactions, setTransactions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [filterMonthMutasi, setFilterMonthMutasi] = useState('');
@@ -68,7 +70,7 @@ export default function App() {
   });
   const [editingTransaction, setEditingTransaction] = useState(null);
 
-  // Agenda & Kalender States
+  // States Kuliah & Kalender
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
@@ -83,7 +85,7 @@ export default function App() {
     keterangan: ''
   });
 
-  // Tagihan Kuliah States
+  // States Pembayaran Kuliah
   const [payments, setPayments] = useState([]);
   const [selectedPaymentYear, setSelectedPaymentYear] = useState('Tahun Bahasa');
   const [editingDueDateId, setEditingDueDateId] = useState(null);
@@ -95,7 +97,7 @@ export default function App() {
     tenggat_waktu: ''
   });
 
-  // To Do List States
+  // States To Do List Tugas
   const [todos, setTodos] = useState([]);
   const [todoForm, setTodoForm] = useState({
     judul: '',
@@ -113,7 +115,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetchAllData();
+    fetchKurs();
+    fetchTransactions();
+    fetchEvents();
+    fetchPayments();
+    fetchTodos();
 
     const channel = supabase
       .channel('schema-db-changes')
@@ -129,14 +135,6 @@ export default function App() {
     };
   }, []);
 
-  const fetchAllData = () => {
-    fetchKurs();
-    fetchTransactions();
-    fetchEvents();
-    fetchPayments();
-    fetchTodos();
-  };
-
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       if (fullscreenRef.current?.requestFullscreen) fullscreenRef.current.requestFullscreen();
@@ -145,38 +143,23 @@ export default function App() {
     }
   };
 
-  // --- API CALLS WITH ERROR HANDLING ---
+  // --- SUPABASE API CALLS ---
   async function fetchKurs() {
-    try {
-      const { data, error } = await supabase.from('pengaturan').select('value').eq('key', 'kurs_yuan').single();
-      if (error && error.code !== 'PGRST116') console.error('Fetch Kurs Error:', error.message);
-      if (data) { setKursRate(Number(data.value)); setTempKurs(Number(data.value)); }
-    } catch (err) {
-      console.error('Fetch Kurs Failed:', err);
-    }
+    const { data } = await supabase.from('pengaturan').select('value').eq('key', 'kurs_yuan').single();
+    if (data) { setKursRate(Number(data.value)); setTempKurs(Number(data.value)); }
   }
 
   async function updateKurs() {
     const newRate = Number(tempKurs);
     if (!newRate) return;
-    try {
-      const { error } = await supabase.from('pengaturan').upsert({ key: 'kurs_yuan', value: newRate });
-      if (error) throw error;
-      setKursRate(newRate);
-      setEditingKurs(false);
-    } catch (err) {
-      alert('Gagal mengupdate kurs: ' + err.message);
-    }
+    await supabase.from('pengaturan').upsert({ key: 'kurs_yuan', value: newRate });
+    setKursRate(newRate);
+    setEditingKurs(false);
   }
 
   async function fetchTransactions() {
-    try {
-      const { data, error } = await supabase.from('transaksi').select('*').order('tanggal', { ascending: false });
-      if (error) throw error;
-      if (data) setTransactions(data);
-    } catch (err) {
-      console.error('Fetch Transactions Failed:', err);
-    }
+    const { data } = await supabase.from('transaksi').select('*').order('tanggal', { ascending: false });
+    if (data) setTransactions(data);
   }
 
   async function addTransaction(e) {
@@ -185,30 +168,24 @@ export default function App() {
     const yuan = Number(financeForm.nominalYuan);
     const idr = yuan * kursRate;
 
-    try {
-      const { error } = await supabase.from('transaksi').insert([{
-        tipe: financeForm.tipe,
-        kategori: financeForm.tipe === 'pemasukan' ? 'Pemasukan' : financeForm.kategori,
-        metode_pembayaran: financeForm.metode_pembayaran || 'Cash',
-        nominal_yuan: yuan,
-        nominal_idr: idr,
-        tanggal: financeForm.tanggal,
-        keterangan: financeForm.keterangan
-      }]);
-      if (error) throw error;
+    await supabase.from('transaksi').insert([{
+      tipe: financeForm.tipe,
+      kategori: financeForm.tipe === 'pemasukan' ? 'Pemasukan' : financeForm.kategori,
+      metode_pembayaran: financeForm.metode_pembayaran || 'Cash',
+      nominal_yuan: yuan,
+      nominal_idr: idr,
+      tanggal: financeForm.tanggal,
+      keterangan: financeForm.keterangan
+    }]);
 
-      setFinanceForm({
-        tipe: 'pengeluaran',
-        kategori: 'Makan',
-        metode_pembayaran: 'Cash',
-        nominalYuan: '',
-        tanggal: new Date().toISOString().split('T')[0],
-        keterangan: ''
-      });
-      fetchTransactions();
-    } catch (err) {
-      alert('Gagal menambahkan transaksi: ' + err.message);
-    }
+    setFinanceForm({
+      tipe: 'pengeluaran',
+      kategori: 'Makan',
+      metode_pembayaran: 'Cash',
+      nominalYuan: '',
+      tanggal: new Date().toISOString().split('T')[0],
+      keterangan: ''
+    });
   }
 
   async function updateTransaction(e) {
@@ -218,44 +195,27 @@ export default function App() {
     const yuan = Number(editingTransaction.nominal_yuan);
     const idr = yuan * kursRate;
 
-    try {
-      const { error } = await supabase.from('transaksi').update({
-        tipe: editingTransaction.tipe,
-        kategori: editingTransaction.tipe === 'pemasukan' ? 'Pemasukan' : editingTransaction.kategori,
-        metode_pembayaran: editingTransaction.metode_pembayaran || 'Cash',
-        nominal_yuan: yuan,
-        nominal_idr: idr,
-        tanggal: editingTransaction.tanggal,
-        keterangan: editingTransaction.keterangan
-      }).eq('id', editingTransaction.id);
+    await supabase.from('transaksi').update({
+      tipe: editingTransaction.tipe,
+      kategori: editingTransaction.tipe === 'pemasukan' ? 'Pemasukan' : editingTransaction.kategori,
+      metode_pembayaran: editingTransaction.metode_pembayaran || 'Cash',
+      nominal_yuan: yuan,
+      nominal_idr: idr,
+      tanggal: editingTransaction.tanggal,
+      keterangan: editingTransaction.keterangan
+    }).eq('id', editingTransaction.id);
 
-      if (error) throw error;
-      setEditingTransaction(null);
-      fetchTransactions();
-    } catch (err) {
-      alert('Gagal memperbarui transaksi: ' + err.message);
-    }
+    setEditingTransaction(null);
   }
 
   async function deleteTransaction(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
-    try {
-      const { error } = await supabase.from('transaksi').delete().eq('id', id);
-      if (error) throw error;
-      fetchTransactions();
-    } catch (err) {
-      alert('Gagal menghapus transaksi: ' + err.message);
-    }
+    await supabase.from('transaksi').delete().eq('id', id);
   }
 
   async function fetchEvents() {
-    try {
-      const { data, error } = await supabase.from('agenda_kuliah').select('*').order('tanggal', { ascending: true });
-      if (error) throw error;
-      if (data) setEvents(data);
-    } catch (err) {
-      console.error('Fetch Events Failed:', err);
-    }
+    const { data } = await supabase.from('agenda_kuliah').select('*').order('tanggal', { ascending: true });
+    if (data) setEvents(data);
   }
 
   async function addAgenda(e) {
@@ -272,170 +232,102 @@ export default function App() {
       keterangan: agendaForm.keterangan
     };
 
-    try {
-      const { error } = await supabase.from('agenda_kuliah').insert([payload]);
-      if (error) throw error;
+    const { error } = await supabase.from('agenda_kuliah').insert([payload]);
+    if (error) { alert('Gagal menyimpan agenda: ' + error.message); return; }
 
-      setAgendaForm({ 
-        judul: '', 
-        tanggal: new Date().toISOString().split('T')[0], 
-        tanggal_selesai: new Date().toISOString().split('T')[0],
-        jam: '09:00', jam_selesai: '10:00', seharian: false, keterangan: '' 
-      });
-      fetchEvents();
-      alert('Agenda berhasil disimpan!');
-    } catch (err) {
-      alert('Gagal menyimpan agenda: ' + err.message);
-    }
+    setAgendaForm({ 
+      judul: '', 
+      tanggal: new Date().toISOString().split('T')[0], 
+      tanggal_selesai: new Date().toISOString().split('T')[0],
+      jam: '09:00', jam_selesai: '10:00', seharian: false, keterangan: '' 
+    });
+    alert('Agenda berhasil disimpan!');
   }
 
   async function deleteAgenda(id) {
     if (!window.confirm('Hapus agenda ini?')) return;
-    try {
-      const { error } = await supabase.from('agenda_kuliah').delete().eq('id', id);
-      if (error) throw error;
-      if (selectedDateEvents) {
-        setSelectedDateEvents(prev => ({ ...prev, list: prev.list.filter(ev => ev.id !== id) }));
-      }
-      fetchEvents();
-    } catch (err) {
-      alert('Gagal menghapus agenda: ' + err.message);
+    await supabase.from('agenda_kuliah').delete().eq('id', id);
+    if (selectedDateEvents) {
+      setSelectedDateEvents(prev => ({ ...prev, list: prev.list.filter(ev => ev.id !== id) }));
     }
   }
 
   async function fetchPayments() {
-    try {
-      const { data, error } = await supabase.from('pembayaran_kuliah').select('*').order('id', { ascending: true });
-      if (error) throw error;
-      if (data) setPayments(data);
-    } catch (err) {
-      console.error('Fetch Payments Failed:', err);
-    }
+    const { data } = await supabase.from('pembayaran_kuliah').select('*').order('id', { ascending: true });
+    if (data) setPayments(data);
   }
 
   async function togglePaymentStatus(id, currentStatus) {
-    try {
-      const { error } = await supabase.from('pembayaran_kuliah').update({
-        sudah_dibayar: !currentStatus,
-        tanggal_pembayaran: !currentStatus ? new Date().toISOString().split('T')[0] : null
-      }).eq('id', id);
-      if (error) throw error;
-      fetchPayments();
-    } catch (err) {
-      alert('Gagal mengupdate status pembayaran: ' + err.message);
-    }
+    await supabase.from('pembayaran_kuliah').update({
+      sudah_dibayar: !currentStatus,
+      tanggal_pembayaran: !currentStatus ? new Date().toISOString().split('T')[0] : null
+    }).eq('id', id);
   }
 
   async function saveDueDate(id) {
-    try {
-      const { error } = await supabase.from('pembayaran_kuliah').update({ tenggat_waktu: tempDueDate || null }).eq('id', id);
-      if (error) throw error;
-      setEditingDueDateId(null);
-      fetchPayments();
-    } catch (err) {
-      alert('Gagal mengupdate tenggat waktu: ' + err.message);
-    }
+    await supabase.from('pembayaran_kuliah').update({ tenggat_waktu: tempDueDate || null }).eq('id', id);
+    setEditingDueDateId(null);
   }
 
   async function addPayment(e) {
     e.preventDefault();
     if (!newPaymentForm.nama_tagihan || !newPaymentForm.jumlah_yuan) return;
 
-    try {
-      const { error } = await supabase.from('pembayaran_kuliah').insert([{
-        kategori_tahun: selectedPaymentYear,
-        nama_tagihan: newPaymentForm.nama_tagihan,
-        jumlah_yuan: Number(newPaymentForm.jumlah_yuan),
-        sudah_dibayar: false,
-        tenggat_waktu: newPaymentForm.tenggat_waktu || null
-      }]);
-      if (error) throw error;
+    await supabase.from('pembayaran_kuliah').insert([{
+      kategori_tahun: selectedPaymentYear,
+      nama_tagihan: newPaymentForm.nama_tagihan,
+      jumlah_yuan: Number(newPaymentForm.jumlah_yuan),
+      sudah_dibayar: false,
+      tenggat_waktu: newPaymentForm.tenggat_waktu || null
+    }]);
 
-      setNewPaymentForm({ nama_tagihan: '', jumlah_yuan: '', tenggat_waktu: '' });
-      fetchPayments();
-    } catch (err) {
-      alert('Gagal menambah tagihan: ' + err.message);
-    }
+    setNewPaymentForm({ nama_tagihan: '', jumlah_yuan: '', tenggat_waktu: '' });
   }
 
   async function updatePayment(e) {
     e.preventDefault();
     if (!editingPayment || !editingPayment.nama_tagihan || !editingPayment.jumlah_yuan) return;
 
-    try {
-      const { error } = await supabase.from('pembayaran_kuliah').update({
-        nama_tagihan: editingPayment.nama_tagihan,
-        jumlah_yuan: Number(editingPayment.jumlah_yuan),
-        tenggat_waktu: editingPayment.tenggat_waktu || null
-      }).eq('id', editingPayment.id);
-      if (error) throw error;
+    await supabase.from('pembayaran_kuliah').update({
+      nama_tagihan: editingPayment.nama_tagihan,
+      jumlah_yuan: Number(editingPayment.jumlah_yuan),
+      tenggat_waktu: editingPayment.tenggat_waktu || null
+    }).eq('id', editingPayment.id);
 
-      setEditingPayment(null);
-      fetchPayments();
-    } catch (err) {
-      alert('Gagal mengupdate tagihan: ' + err.message);
-    }
+    setEditingPayment(null);
   }
 
   async function deletePayment(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus tagihan ini?')) return;
-    try {
-      const { error } = await supabase.from('pembayaran_kuliah').delete().eq('id', id);
-      if (error) throw error;
-      fetchPayments();
-    } catch (err) {
-      alert('Gagal menghapus tagihan: ' + err.message);
-    }
+    await supabase.from('pembayaran_kuliah').delete().eq('id', id);
   }
 
   async function fetchTodos() {
-    try {
-      const { data, error } = await supabase.from('todo_tugas').select('*').order('selesai', { ascending: true }).order('tenggat_waktu', { ascending: true });
-      if (error) throw error;
-      if (data) setTodos(data);
-    } catch (err) {
-      console.error('Fetch Todos Failed:', err);
-    }
+    const { data } = await supabase.from('todo_tugas').select('*').order('selesai', { ascending: true }).order('tenggat_waktu', { ascending: true });
+    if (data) setTodos(data);
   }
 
   async function addTodo(e) {
     e.preventDefault();
     if (!todoForm.judul.trim()) return;
 
-    try {
-      const { error } = await supabase.from('todo_tugas').insert([{
-        judul: todoForm.judul,
-        tenggat_waktu: todoForm.tenggat_waktu,
-        selesai: false
-      }]);
-      if (error) throw error;
+    const { error } = await supabase.from('todo_tugas').insert([{
+      judul: todoForm.judul,
+      tenggat_waktu: todoForm.tenggat_waktu,
+      selesai: false
+    }]);
 
-      setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
-      fetchTodos();
-    } catch (err) {
-      alert('Gagal menambah tugas: ' + err.message);
-    }
+    if (error) { alert('Gagal menambah tugas: ' + error.message); return; }
+    setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
   }
 
   async function toggleTodoStatus(id, currentStatus) {
-    try {
-      const { error } = await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
-      if (error) throw error;
-      fetchTodos();
-    } catch (err) {
-      alert('Gagal mengubah status tugas: ' + err.message);
-    }
+    await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
   }
 
   async function deleteTodo(id) {
     if (!window.confirm('Hapus tugas ini dari To-Do list?')) return;
-    try {
-      const { error } = await supabase.from('todo_tugas').delete().eq('id', id);
-      if (error) throw error;
-      fetchTodos();
-    } catch (err) {
-      alert('Gagal menghapus tugas: ' + err.message);
-    }
+    await supabase.from('todo_tugas').delete().eq('id', id);
   }
 
   const getAutoPriority = (dueDateStr) => {
@@ -454,7 +346,7 @@ export default function App() {
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
-  // Keuangan & Balance Calculations
+  // Logika Keuangan & Sisa Saldo
   const totalIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalRemainingBalanceYuan = totalIncomeAllTime - totalExpenseAllTime;
@@ -686,7 +578,7 @@ export default function App() {
 
       <div className={`${isFullscreen ? 'h-full flex flex-col justify-between gap-2 max-w-full' : 'max-w-4xl mx-auto p-4 space-y-5'}`}>
         
-        {/* HEADER */}
+        {/* HEADER APLIKASI */}
         <header className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Student Manager</h1>
@@ -1776,7 +1668,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL DETAILS AGENDA KALENDER */}
+        {/* MODAL DETAILS AGENDA */}
         {selectedDateEvents && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
