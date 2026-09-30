@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
-  Clock, AlertCircle, Edit2, ArrowUpRight, ArrowDownRight, X, Info, Trash2, Plus,
-  CheckSquare, Square, AlertTriangle, ListTodo, Maximize, Minimize, Filter, RefreshCw,
-  CreditCard, Banknote
+  Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
+  Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -28,8 +27,8 @@ ChartJS.register(
   Legend
 );
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const getCurrentMonthKey = () => {
@@ -45,31 +44,31 @@ export default function App() {
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
 
-  // State Jam Live & Fullscreen
+  // Live Clock & Fullscreen
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenRef = useRef(null);
 
-  // Kategori Pengeluaran
+  // Kategori
   const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
 
-  // States Keuangan
+  // Keuangan States
   const [transactions, setTransactions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
-  const [filterMonthMutasi, setFilterMonthMutasi] = useState(''); // State Sort Bulan Mutasi
+  const [filterMonthMutasi, setFilterMonthMutasi] = useState('');
   const [showFilterSort, setShowFilterSort] = useState(false);
 
   const [financeForm, setFinanceForm] = useState({
     tipe: 'pengeluaran',
     kategori: 'Makan',
-    metode_pembayaran: 'Cash', // Opsi Cash / Bank
+    metode_pembayaran: 'Cash',
     nominalYuan: '',
     tanggal: new Date().toISOString().split('T')[0],
     keterangan: ''
   });
-  const [editingTransaction, setEditingTransaction] = useState(null); // Modal Edit Transaksi
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
-  // States Kuliah & Kalender
+  // Agenda & Kalender States
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
@@ -84,7 +83,7 @@ export default function App() {
     keterangan: ''
   });
 
-  // States Pembayaran Kuliah
+  // Tagihan Kuliah States
   const [payments, setPayments] = useState([]);
   const [selectedPaymentYear, setSelectedPaymentYear] = useState('Tahun Bahasa');
   const [editingDueDateId, setEditingDueDateId] = useState(null);
@@ -96,7 +95,7 @@ export default function App() {
     tenggat_waktu: ''
   });
 
-  // States To Do List Tugas
+  // To Do List States
   const [todos, setTodos] = useState([]);
   const [todoForm, setTodoForm] = useState({
     judul: '',
@@ -114,11 +113,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetchKurs();
-    fetchTransactions();
-    fetchEvents();
-    fetchPayments();
-    fetchTodos();
+    fetchAllData();
 
     const channel = supabase
       .channel('schema-db-changes')
@@ -134,6 +129,14 @@ export default function App() {
     };
   }, []);
 
+  const fetchAllData = () => {
+    fetchKurs();
+    fetchTransactions();
+    fetchEvents();
+    fetchPayments();
+    fetchTodos();
+  };
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       if (fullscreenRef.current?.requestFullscreen) fullscreenRef.current.requestFullscreen();
@@ -142,23 +145,38 @@ export default function App() {
     }
   };
 
-  // --- SUPABASE API CALLS ---
+  // --- API CALLS WITH ERROR HANDLING ---
   async function fetchKurs() {
-    const { data } = await supabase.from('pengaturan').select('value').eq('key', 'kurs_yuan').single();
-    if (data) { setKursRate(Number(data.value)); setTempKurs(Number(data.value)); }
+    try {
+      const { data, error } = await supabase.from('pengaturan').select('value').eq('key', 'kurs_yuan').single();
+      if (error && error.code !== 'PGRST116') console.error('Fetch Kurs Error:', error.message);
+      if (data) { setKursRate(Number(data.value)); setTempKurs(Number(data.value)); }
+    } catch (err) {
+      console.error('Fetch Kurs Failed:', err);
+    }
   }
 
   async function updateKurs() {
     const newRate = Number(tempKurs);
     if (!newRate) return;
-    await supabase.from('pengaturan').upsert({ key: 'kurs_yuan', value: newRate });
-    setKursRate(newRate);
-    setEditingKurs(false);
+    try {
+      const { error } = await supabase.from('pengaturan').upsert({ key: 'kurs_yuan', value: newRate });
+      if (error) throw error;
+      setKursRate(newRate);
+      setEditingKurs(false);
+    } catch (err) {
+      alert('Gagal mengupdate kurs: ' + err.message);
+    }
   }
 
   async function fetchTransactions() {
-    const { data } = await supabase.from('transaksi').select('*').order('tanggal', { ascending: false });
-    if (data) setTransactions(data);
+    try {
+      const { data, error } = await supabase.from('transaksi').select('*').order('tanggal', { ascending: false });
+      if (error) throw error;
+      if (data) setTransactions(data);
+    } catch (err) {
+      console.error('Fetch Transactions Failed:', err);
+    }
   }
 
   async function addTransaction(e) {
@@ -167,24 +185,30 @@ export default function App() {
     const yuan = Number(financeForm.nominalYuan);
     const idr = yuan * kursRate;
 
-    await supabase.from('transaksi').insert([{
-      tipe: financeForm.tipe,
-      kategori: financeForm.tipe === 'pemasukan' ? 'Pemasukan' : financeForm.kategori,
-      metode_pembayaran: financeForm.metode_pembayaran || 'Cash',
-      nominal_yuan: yuan,
-      nominal_idr: idr,
-      tanggal: financeForm.tanggal,
-      keterangan: financeForm.keterangan
-    }]);
+    try {
+      const { error } = await supabase.from('transaksi').insert([{
+        tipe: financeForm.tipe,
+        kategori: financeForm.tipe === 'pemasukan' ? 'Pemasukan' : financeForm.kategori,
+        metode_pembayaran: financeForm.metode_pembayaran || 'Cash',
+        nominal_yuan: yuan,
+        nominal_idr: idr,
+        tanggal: financeForm.tanggal,
+        keterangan: financeForm.keterangan
+      }]);
+      if (error) throw error;
 
-    setFinanceForm({
-      tipe: 'pengeluaran',
-      kategori: 'Makan',
-      metode_pembayaran: 'Cash',
-      nominalYuan: '',
-      tanggal: new Date().toISOString().split('T')[0],
-      keterangan: ''
-    });
+      setFinanceForm({
+        tipe: 'pengeluaran',
+        kategori: 'Makan',
+        metode_pembayaran: 'Cash',
+        nominalYuan: '',
+        tanggal: new Date().toISOString().split('T')[0],
+        keterangan: ''
+      });
+      fetchTransactions();
+    } catch (err) {
+      alert('Gagal menambahkan transaksi: ' + err.message);
+    }
   }
 
   async function updateTransaction(e) {
@@ -194,27 +218,44 @@ export default function App() {
     const yuan = Number(editingTransaction.nominal_yuan);
     const idr = yuan * kursRate;
 
-    await supabase.from('transaksi').update({
-      tipe: editingTransaction.tipe,
-      kategori: editingTransaction.tipe === 'pemasukan' ? 'Pemasukan' : editingTransaction.kategori,
-      metode_pembayaran: editingTransaction.metode_pembayaran || 'Cash',
-      nominal_yuan: yuan,
-      nominal_idr: idr,
-      tanggal: editingTransaction.tanggal,
-      keterangan: editingTransaction.keterangan
-    }).eq('id', editingTransaction.id);
+    try {
+      const { error } = await supabase.from('transaksi').update({
+        tipe: editingTransaction.tipe,
+        kategori: editingTransaction.tipe === 'pemasukan' ? 'Pemasukan' : editingTransaction.kategori,
+        metode_pembayaran: editingTransaction.metode_pembayaran || 'Cash',
+        nominal_yuan: yuan,
+        nominal_idr: idr,
+        tanggal: editingTransaction.tanggal,
+        keterangan: editingTransaction.keterangan
+      }).eq('id', editingTransaction.id);
 
-    setEditingTransaction(null);
+      if (error) throw error;
+      setEditingTransaction(null);
+      fetchTransactions();
+    } catch (err) {
+      alert('Gagal memperbarui transaksi: ' + err.message);
+    }
   }
 
   async function deleteTransaction(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
-    await supabase.from('transaksi').delete().eq('id', id);
+    try {
+      const { error } = await supabase.from('transaksi').delete().eq('id', id);
+      if (error) throw error;
+      fetchTransactions();
+    } catch (err) {
+      alert('Gagal menghapus transaksi: ' + err.message);
+    }
   }
 
   async function fetchEvents() {
-    const { data } = await supabase.from('agenda_kuliah').select('*').order('tanggal', { ascending: true });
-    if (data) setEvents(data);
+    try {
+      const { data, error } = await supabase.from('agenda_kuliah').select('*').order('tanggal', { ascending: true });
+      if (error) throw error;
+      if (data) setEvents(data);
+    } catch (err) {
+      console.error('Fetch Events Failed:', err);
+    }
   }
 
   async function addAgenda(e) {
@@ -231,102 +272,170 @@ export default function App() {
       keterangan: agendaForm.keterangan
     };
 
-    const { error } = await supabase.from('agenda_kuliah').insert([payload]);
-    if (error) { alert('Gagal menyimpan agenda: ' + error.message); return; }
+    try {
+      const { error } = await supabase.from('agenda_kuliah').insert([payload]);
+      if (error) throw error;
 
-    setAgendaForm({ 
-      judul: '', 
-      tanggal: new Date().toISOString().split('T')[0], 
-      tanggal_selesai: new Date().toISOString().split('T')[0],
-      jam: '09:00', jam_selesai: '10:00', seharian: false, keterangan: '' 
-    });
-    alert('Agenda berhasil disimpan!');
+      setAgendaForm({ 
+        judul: '', 
+        tanggal: new Date().toISOString().split('T')[0], 
+        tanggal_selesai: new Date().toISOString().split('T')[0],
+        jam: '09:00', jam_selesai: '10:00', seharian: false, keterangan: '' 
+      });
+      fetchEvents();
+      alert('Agenda berhasil disimpan!');
+    } catch (err) {
+      alert('Gagal menyimpan agenda: ' + err.message);
+    }
   }
 
   async function deleteAgenda(id) {
     if (!window.confirm('Hapus agenda ini?')) return;
-    await supabase.from('agenda_kuliah').delete().eq('id', id);
-    if (selectedDateEvents) {
-      setSelectedDateEvents(prev => ({ ...prev, list: prev.list.filter(ev => ev.id !== id) }));
+    try {
+      const { error } = await supabase.from('agenda_kuliah').delete().eq('id', id);
+      if (error) throw error;
+      if (selectedDateEvents) {
+        setSelectedDateEvents(prev => ({ ...prev, list: prev.list.filter(ev => ev.id !== id) }));
+      }
+      fetchEvents();
+    } catch (err) {
+      alert('Gagal menghapus agenda: ' + err.message);
     }
   }
 
   async function fetchPayments() {
-    const { data } = await supabase.from('pembayaran_kuliah').select('*').order('id', { ascending: true });
-    if (data) setPayments(data);
+    try {
+      const { data, error } = await supabase.from('pembayaran_kuliah').select('*').order('id', { ascending: true });
+      if (error) throw error;
+      if (data) setPayments(data);
+    } catch (err) {
+      console.error('Fetch Payments Failed:', err);
+    }
   }
 
   async function togglePaymentStatus(id, currentStatus) {
-    await supabase.from('pembayaran_kuliah').update({
-      sudah_dibayar: !currentStatus,
-      tanggal_pembayaran: !currentStatus ? new Date().toISOString().split('T')[0] : null
-    }).eq('id', id);
+    try {
+      const { error } = await supabase.from('pembayaran_kuliah').update({
+        sudah_dibayar: !currentStatus,
+        tanggal_pembayaran: !currentStatus ? new Date().toISOString().split('T')[0] : null
+      }).eq('id', id);
+      if (error) throw error;
+      fetchPayments();
+    } catch (err) {
+      alert('Gagal mengupdate status pembayaran: ' + err.message);
+    }
   }
 
   async function saveDueDate(id) {
-    await supabase.from('pembayaran_kuliah').update({ tenggat_waktu: tempDueDate || null }).eq('id', id);
-    setEditingDueDateId(null);
+    try {
+      const { error } = await supabase.from('pembayaran_kuliah').update({ tenggat_waktu: tempDueDate || null }).eq('id', id);
+      if (error) throw error;
+      setEditingDueDateId(null);
+      fetchPayments();
+    } catch (err) {
+      alert('Gagal mengupdate tenggat waktu: ' + err.message);
+    }
   }
 
   async function addPayment(e) {
     e.preventDefault();
     if (!newPaymentForm.nama_tagihan || !newPaymentForm.jumlah_yuan) return;
 
-    await supabase.from('pembayaran_kuliah').insert([{
-      kategori_tahun: selectedPaymentYear,
-      nama_tagihan: newPaymentForm.nama_tagihan,
-      jumlah_yuan: Number(newPaymentForm.jumlah_yuan),
-      sudah_dibayar: false,
-      tenggat_waktu: newPaymentForm.tenggat_waktu || null
-    }]);
+    try {
+      const { error } = await supabase.from('pembayaran_kuliah').insert([{
+        kategori_tahun: selectedPaymentYear,
+        nama_tagihan: newPaymentForm.nama_tagihan,
+        jumlah_yuan: Number(newPaymentForm.jumlah_yuan),
+        sudah_dibayar: false,
+        tenggat_waktu: newPaymentForm.tenggat_waktu || null
+      }]);
+      if (error) throw error;
 
-    setNewPaymentForm({ nama_tagihan: '', jumlah_yuan: '', tenggat_waktu: '' });
+      setNewPaymentForm({ nama_tagihan: '', jumlah_yuan: '', tenggat_waktu: '' });
+      fetchPayments();
+    } catch (err) {
+      alert('Gagal menambah tagihan: ' + err.message);
+    }
   }
 
   async function updatePayment(e) {
     e.preventDefault();
     if (!editingPayment || !editingPayment.nama_tagihan || !editingPayment.jumlah_yuan) return;
 
-    await supabase.from('pembayaran_kuliah').update({
-      nama_tagihan: editingPayment.nama_tagihan,
-      jumlah_yuan: Number(editingPayment.jumlah_yuan),
-      tenggat_waktu: editingPayment.tenggat_waktu || null
-    }).eq('id', editingPayment.id);
+    try {
+      const { error } = await supabase.from('pembayaran_kuliah').update({
+        nama_tagihan: editingPayment.nama_tagihan,
+        jumlah_yuan: Number(editingPayment.jumlah_yuan),
+        tenggat_waktu: editingPayment.tenggat_waktu || null
+      }).eq('id', editingPayment.id);
+      if (error) throw error;
 
-    setEditingPayment(null);
+      setEditingPayment(null);
+      fetchPayments();
+    } catch (err) {
+      alert('Gagal mengupdate tagihan: ' + err.message);
+    }
   }
 
   async function deletePayment(id) {
     if (!window.confirm('Apakah Anda yakin ingin menghapus tagihan ini?')) return;
-    await supabase.from('pembayaran_kuliah').delete().eq('id', id);
+    try {
+      const { error } = await supabase.from('pembayaran_kuliah').delete().eq('id', id);
+      if (error) throw error;
+      fetchPayments();
+    } catch (err) {
+      alert('Gagal menghapus tagihan: ' + err.message);
+    }
   }
 
   async function fetchTodos() {
-    const { data } = await supabase.from('todo_tugas').select('*').order('selesai', { ascending: true }).order('tenggat_waktu', { ascending: true });
-    if (data) setTodos(data);
+    try {
+      const { data, error } = await supabase.from('todo_tugas').select('*').order('selesai', { ascending: true }).order('tenggat_waktu', { ascending: true });
+      if (error) throw error;
+      if (data) setTodos(data);
+    } catch (err) {
+      console.error('Fetch Todos Failed:', err);
+    }
   }
 
   async function addTodo(e) {
     e.preventDefault();
     if (!todoForm.judul.trim()) return;
 
-    const { error } = await supabase.from('todo_tugas').insert([{
-      judul: todoForm.judul,
-      tenggat_waktu: todoForm.tenggat_waktu,
-      selesai: false
-    }]);
+    try {
+      const { error } = await supabase.from('todo_tugas').insert([{
+        judul: todoForm.judul,
+        tenggat_waktu: todoForm.tenggat_waktu,
+        selesai: false
+      }]);
+      if (error) throw error;
 
-    if (error) { alert('Gagal menambah tugas: ' + error.message); return; }
-    setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
+      setTodoForm({ judul: '', tenggat_waktu: new Date().toISOString().split('T')[0] });
+      fetchTodos();
+    } catch (err) {
+      alert('Gagal menambah tugas: ' + err.message);
+    }
   }
 
   async function toggleTodoStatus(id, currentStatus) {
-    await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
+    try {
+      const { error } = await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
+      if (error) throw error;
+      fetchTodos();
+    } catch (err) {
+      alert('Gagal mengubah status tugas: ' + err.message);
+    }
   }
 
   async function deleteTodo(id) {
     if (!window.confirm('Hapus tugas ini dari To-Do list?')) return;
-    await supabase.from('todo_tugas').delete().eq('id', id);
+    try {
+      const { error } = await supabase.from('todo_tugas').delete().eq('id', id);
+      if (error) throw error;
+      fetchTodos();
+    } catch (err) {
+      alert('Gagal menghapus tugas: ' + err.message);
+    }
   }
 
   const getAutoPriority = (dueDateStr) => {
@@ -345,13 +454,11 @@ export default function App() {
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
-  // --- LOGIKA KEUANGAN & SISA SALDO (TOTAL & BERDASARKAN METODE PEMBAYARAN) ---
-  // Total Kumulatif Seluruh Transaksi
+  // Keuangan & Balance Calculations
   const totalIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalRemainingBalanceYuan = totalIncomeAllTime - totalExpenseAllTime;
 
-  // Sisa Saldo Total Per Metode Pembayaran (Cash & Bank)
   const cashIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const cashExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalCashBalanceYuan = cashIncomeAllTime - cashExpenseAllTime;
@@ -360,13 +467,11 @@ export default function App() {
   const bankExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran' && t.metode_pembayaran === 'Bank').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalBankBalanceYuan = bankIncomeAllTime - bankExpenseAllTime;
 
-  // Transaksi Bulan Ini
   const currentMonthTransactions = transactions.filter(t => t.tanggal.startsWith(selectedMonth));
   const monthIncomeYuan = currentMonthTransactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthExpenseYuan = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
-  const monthBalanceYuan = monthIncomeYuan - monthExpenseYuan; // Sisa saldo bulan berjalan
+  const monthBalanceYuan = monthIncomeYuan - monthExpenseYuan;
   
-  // Sisa Saldo Bulan Ini Per Metode Pembayaran (Cash & Bank)
   const monthCashIncome = currentMonthTransactions.filter(t => t.tipe === 'pemasukan' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthCashExpense = currentMonthTransactions.filter(t => t.tipe === 'pengeluaran' && (t.metode_pembayaran === 'Cash' || !t.metode_pembayaran)).reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const monthCashBalanceYuan = monthCashIncome - monthCashExpense;
@@ -379,7 +484,6 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
-  // LOGIKA MUTASI: 1 MINGGU TERAKHIR vs SORT BULAN
   const now = new Date();
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 7);
@@ -582,7 +686,7 @@ export default function App() {
 
       <div className={`${isFullscreen ? 'h-full flex flex-col justify-between gap-2 max-w-full' : 'max-w-4xl mx-auto p-4 space-y-5'}`}>
         
-        {/* HEADER APLIKASI */}
+        {/* HEADER */}
         <header className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Student Manager</h1>
@@ -831,7 +935,6 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-center">
-                    {/* SISA SALDO TOTAL KESELURUHAN */}
                     <div className="bg-slate-800/60 p-2.5 rounded-xl border border-cyan-500/30">
                       <p className="text-xs text-cyan-400 font-bold">Total Sisa Saldo</p>
                       <p className={`text-sm md:text-base font-extrabold mt-0.5 ${totalRemainingBalanceYuan >= 0 ? 'text-cyan-300' : 'text-rose-400'}`}>
@@ -840,7 +943,6 @@ export default function App() {
                       <p className="text-[9px] text-slate-400">{formatIDR(totalRemainingBalanceYuan)}</p>
                     </div>
 
-                    {/* FITUR BARU: SISA SALDO CASH TOTAL */}
                     <div className="bg-slate-800/60 p-2.5 rounded-xl border border-emerald-500/30">
                       <p className="text-xs text-emerald-400 font-bold">💵 Sisa Saldo Cash</p>
                       <p className={`text-sm md:text-base font-extrabold mt-0.5 ${totalCashBalanceYuan >= 0 ? 'text-emerald-300' : 'text-rose-400'}`}>
@@ -849,7 +951,6 @@ export default function App() {
                       <p className="text-[9px] text-slate-400">{formatIDR(totalCashBalanceYuan)}</p>
                     </div>
 
-                    {/* FITUR BARU: SISA SALDO BANK TOTAL */}
                     <div className="bg-slate-800/60 p-2.5 rounded-xl border border-blue-500/30">
                       <p className="text-xs text-blue-400 font-bold">💳 Sisa Saldo Bank</p>
                       <p className={`text-sm md:text-base font-extrabold mt-0.5 ${totalBankBalanceYuan >= 0 ? 'text-blue-300' : 'text-rose-400'}`}>
@@ -1061,14 +1162,12 @@ export default function App() {
         {/* TAB KEUANGAN */}
         {activeTab === 'keuangan' && !isFullscreen && (
           <div className="space-y-4">
-            {/* KAD TAMPILAN SISA SALDO (DENGAN RINCIAN SALDO CASH & SALDO BANK) */}
             <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm border border-slate-800 space-y-3">
               <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold text-slate-300">Ringkasan Sisa Saldo Real-Time</span>
                 <span className="text-[10px] text-cyan-400 bg-cyan-950/60 border border-cyan-800 px-2 py-0.5 rounded-lg font-semibold">Live Real-time</span>
               </div>
 
-              {/* BARIS 1: SISA SALDO TOTAL KESELURUHAN */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-center">
                 <div className="bg-slate-800/80 p-3 rounded-xl border border-cyan-500/30">
                   <p className="text-[10px] text-cyan-400 uppercase font-bold tracking-wider">Total Sisa Saldo (Keseluruhan)</p>
@@ -1086,7 +1185,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* BARIS 2: RINCIAN SALDO CASH & BANK */}
               <div className="grid grid-cols-2 gap-3 text-center pt-1">
                 <div className="bg-slate-800/60 p-3 rounded-xl border border-emerald-500/30 flex flex-col justify-between">
                   <div>
@@ -1122,7 +1220,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* FORM CATAT TRANSAKSI */}
             <form onSubmit={addTransaction} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <h2 className="font-bold text-xs text-slate-700">Catat Transaksi</h2>
               
@@ -1143,7 +1240,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* METODE PEMBAYARAN: CASH / BANK */}
               <div>
                 <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Metode Pembayaran</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -1212,7 +1308,6 @@ export default function App() {
               </button>
             </form>
 
-            {/* KOTAK RIWAYAT MUTASI DENGAN FILTER SORT BULAN & LOGO DI POJOK KANAN ATAS */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center relative">
                 <div>
@@ -1236,7 +1331,6 @@ export default function App() {
                     </button>
                   )}
 
-                  {/* LOGO FILTER / SORT KECIL DI POJOK KANAN ATAS */}
                   <button 
                     onClick={() => setShowFilterSort(!showFilterSort)}
                     className={`p-1.5 rounded-xl border transition ${
@@ -1251,7 +1345,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* POP-UP / DROPDOWN SELECTOR UNTUK SORT BULAN */}
               {showFilterSort && (
                 <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
@@ -1277,7 +1370,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* LIST MUTASI */}
               <div className="divide-y divide-slate-100">
                 {filteredMutasiTransactions.length === 0 ? (
                   <p className="text-xs text-slate-400 py-4 text-center">Tidak ada riwayat transaksi pada periode ini.</p>
@@ -1306,7 +1398,6 @@ export default function App() {
                           <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
                         </div>
 
-                        {/* TOMBOL EDIT KEUANGAN */}
                         <button 
                           onClick={() => setEditingTransaction(t)} 
                           className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -1315,7 +1406,6 @@ export default function App() {
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* TOMBOL HAPUS */}
                         <button 
                           onClick={() => deleteTransaction(t.id)} 
                           className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
@@ -1569,7 +1659,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL POP-UP EDIT TRANSAKSI KEUANGAN */}
+        {/* MODAL EDIT TRANSAKSI */}
         {editingTransaction && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
@@ -1686,7 +1776,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL POP-UP DETAILS AGENDA KALENDER */}
+        {/* MODAL DETAILS AGENDA KALENDER */}
         {selectedDateEvents && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
@@ -1742,7 +1832,7 @@ export default function App() {
           </div>
         )}
 
-        {/* MODAL POP-UP EDIT PEMBAYARAN */}
+        {/* MODAL EDIT PEMBAYARAN */}
         {editingPayment && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
