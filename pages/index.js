@@ -5,7 +5,9 @@ import {
   Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
   Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote,
   Search, Download, AlertTriangle, Target, Calculator, Moon, Sun,
-  Pin, StickyNote, PieChart, CheckCircle2
+  Pin, StickyNote, PieChart, CheckCircle2, Bookmark, Flame, Upload,
+  DollarSign, Percent, FileText, Check, Award, ArrowUpRight, ArrowDownRight,
+  Sparkles, ShieldCheck, Heart, MessageSquare
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -75,7 +77,7 @@ export default function App() {
   const [sortMutasiOrder, setSortMutasiOrder] = useState('date-desc');
   const [showFilterSort, setShowFilterSort] = useState(false);
   const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState(3000); 
-  const [dailyBudgetLimit] = useState(100);
+  const [dailyBudgetLimit, setDailyBudgetLimit] = useState(100);
   const [editingBudget, setEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(3000);
 
@@ -135,23 +137,148 @@ export default function App() {
   const [calcYuanInput, setCalcYuanInput] = useState('');
   const [calcIdrInput, setCalcIdrInput] = useState('');
 
- // Sticky Notes State
+  // Sticky Notes State
   const [stickyNote, setStickyNote] = useState('');
 
-  useEffect(() => {
-    // Ambil data dari localStorage setelah komponen dimuat di browser
-    const savedNote = localStorage.getItem('app_sticky_note');
-    if (savedNote) {
-      setStickyNote(savedNote);
+  // ==========================================
+  // 🌟 20 FITUR BARU STATE & LOGIC
+  // ==========================================
+  // Fitur 1: Focus Pomodoro Timer
+  const [pomoTime, setPomoTime] = useState(25 * 60);
+  const [pomoActive, setPomoActive] = useState(false);
+  const [pomoMode, setPomoMode] = useState('work'); // 'work' | 'break'
+
+  // Fitur 2: Streak Harian Akses Aplikasi
+  const [streakCount, setStreakCount] = useState(1);
+
+  // Fitur 3: Target Tabungan / Savings Goal
+  const [savingsGoals, setSavingsGoals] = useState([
+    { id: 1, name: 'Beli Laptop Baru', targetYuan: 5000, currentYuan: 2200 },
+    { id: 2, name: 'Tiket Pulang Indo', targetYuan: 3000, currentYuan: 1500 }
+  ]);
+  const [newGoalForm, setNewGoalForm] = useState({ name: '', targetYuan: '' });
+
+  // Fitur 4: Kalkulator IPK / GPA
+  const [gpaCourses, setGpaCourses] = useState([
+    { id: 1, name: 'Bahasa Mandarin', gpa: 4.0, sks: 4 },
+    { id: 2, name: 'Matematika Diskrit', gpa: 3.5, sks: 3 }
+  ]);
+  const [newCourse, setNewCourse] = useState({ name: '', gpa: 4.0, sks: 3 });
+
+  // Fitur 5: Wishlist Barang Impor / Belanja
+  const [wishlist, setWishlist] = useState([
+    { id: 1, title: 'Sepatu Running', priceYuan: 299, bought: false },
+    { id: 2, title: 'Monitor Tambahan 24 inch', priceYuan: 650, bought: false }
+  ]);
+  const [newWishItem, setNewWishItem] = useState({ title: '', priceYuan: '' });
+
+  // Fitur 6: Quick Bookmark Link Penting Kuliah
+  const [bookmarks, setBookmarks] = useState([
+    { id: 1, title: 'Portal Kampus', url: 'https://portal.university.edu' },
+    { id: 2, title: 'Perpustakaan Digital', url: 'https://library.university.edu' }
+  ]);
+  const [newBookmark, setNewBookmark] = useState({ title: '', url: '' });
+
+  // Fitur 7: Tagihan Rutin Bulanan (Subscription Tracker)
+  const [subscriptions, setSubscriptions] = useState([
+    { id: 1, name: 'Sewa Wifi Koin/Kamar', amountYuan: 80, dueDateDay: 5 },
+    { id: 2, name: 'Spotify / iCloud', amountYuan: 15, dueDateDay: 15 }
+  ]);
+
+  // Fitur 8: Rating / Mood Tracker Harian
+  const [todayMood, setTodayMood] = useState('😊');
+
+  // Fitur 9: Kalkulator Tip & Split Bill
+  const [splitBillAmount, setSplitBillAmount] = useState('');
+  const [splitBillPeople, setSplitBillPeople] = useState('2');
+
+  // Fitur 10: Quick Emergency Lockout / Hide Balance
+  const [hideBalance, setHideBalance] = useState(false);
+
+  // Fitur 11: Catatan Darurat No Telp / Alamat Kampus & Kedubes
+  const [emergencyContacts] = useState([
+    { role: 'Keamanan Kampus / Int. Office', phone: '+86 1234 5678' },
+    { role: 'Kedutaan / KBRI Tiongkok', phone: '+86 10 6532 5488' }
+  ]);
+
+  // Fitur 12: Pengingat Minum Air Putih (Water Intake Tracker)
+  const [waterGlasses, setWaterGlasses] = useState(0);
+
+  // Fitur 13: Export Data Keseluruhan ke JSON (Backup Local)
+  const exportFullBackupJSON = () => {
+    const backupData = {
+      transactions,
+      todos,
+      events,
+      payments,
+      savingsGoals,
+      wishlist,
+      stickyNote,
+      expenseCategories,
+      backupDate: new Date().toISOString()
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `student_manager_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Fitur 14: Import Data Backup JSON
+  const handleImportBackupJSON = (event) => {
+    const fileReader = new FileReader();
+    if (event.target.files && event.target.files[0]) {
+      fileReader.readAsText(event.target.files[0], "UTF-8");
+      fileReader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed.transactions) setTransactions(parsed.transactions);
+          if (parsed.todos) setTodos(parsed.todos);
+          if (parsed.events) setEvents(parsed.events);
+          if (parsed.payments) setPayments(parsed.payments);
+          if (parsed.savingsGoals) setSavingsGoals(parsed.savingsGoals);
+          if (parsed.wishlist) setWishlist(parsed.wishlist);
+          if (parsed.stickyNote) setStickyNote(parsed.stickyNote);
+          alert('Backup berhasil dipulihkan!');
+        } catch (err) {
+          alert('Format file JSON backup tidak valid!');
+        }
+      };
     }
+  };
+
+  // Fitur 15: Simulasi Inflasi / Proyeksi Pengeluaran 1 Tahun
+  const yearlyExpenseProjection = () => {
+    return (monthExpenseYuan * 12);
+  };
+
+  // Timer Effect Pomodoro
+  useEffect(() => {
+    let interval = null;
+    if (pomoActive && pomoTime > 0) {
+      interval = setInterval(() => setPomoTime(t => t - 1), 1000);
+    } else if (pomoTime === 0 && pomoActive) {
+      setPomoActive(false);
+      alert(pomoMode === 'work' ? 'Sesi Fokus Selesai! Waktunya Istirahat.' : 'Waktu Istirahat Selesai! Kembali Belajar.');
+      setPomoMode(pomoMode === 'work' ? 'break' : 'work');
+      setPomoTime(pomoMode === 'work' ? 5 * 60 : 25 * 60);
+    }
+    return () => clearInterval(interval);
+  }, [pomoActive, pomoTime, pomoMode]);
+
+  useEffect(() => {
+    const savedNote = localStorage.getItem('app_sticky_note');
+    if (savedNote) setStickyNote(savedNote);
   }, []);
 
   useEffect(() => {
-    // Simpan ke localStorage hanya jika berjalan di browser
     if (typeof window !== 'undefined') {
       localStorage.setItem('app_sticky_note', stickyNote);
     }
   }, [stickyNote]);
+
   // Clock CST
   useEffect(() => {
     const updateCSTClock = () => {
@@ -496,8 +623,8 @@ export default function App() {
     return { label: 'Rendah', code: 'low', badgeColor: 'bg-slate-200 text-slate-700', blockBg: 'bg-slate-50/50 border-slate-100' };
   };
 
-  const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
+  const formatYuan = (val) => hideBalance ? '¥ ***' : `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatIDR = (val) => hideBalance ? 'Rp ***' : `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
   // Logika Keuangan
   const totalIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
@@ -671,22 +798,53 @@ export default function App() {
     ],
   };
 
+  // ==========================================
+  // 🛠 PERBAIKAN GRAFIK PIE / DOUGHNUT CATEGORY
+  // ==========================================
   const categoryTotalsArr = expenseCategories.map(cat => {
     return currentMonthTransactions
       .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
-      .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
+      .reduce((sum, t) => sum + Number(t.nominal_yuan || 0), 0);
   });
 
+  const totalCurrentExpense = categoryTotalsArr.reduce((a, b) => a + b, 0);
+
   const doughnutData = {
-    labels: expenseCategories,
+    labels: totalCurrentExpense === 0 ? ['Belum Ada Pengeluaran'] : expenseCategories,
     datasets: [
       {
-        data: categoryTotalsArr,
-        backgroundColor: [
-          '#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'
-        ]
+        data: totalCurrentExpense === 0 ? [1] : categoryTotalsArr,
+        backgroundColor: totalCurrentExpense === 0 
+          ? ['#cbd5e1'] 
+          : ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b', '#a855f7', '#14b8a6'],
+        borderWidth: 2,
+        borderColor: darkMode ? '#0f172a' : '#ffffff',
       }
     ]
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 10,
+          font: { size: isFullscreen ? 8 : 10 },
+          color: darkMode ? '#cbd5e1' : '#334155'
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context) {
+            if (totalCurrentExpense === 0) return ' Belum ada pengeluaran';
+            const value = context.raw || 0;
+            return ` ¥ ${value.toLocaleString('id-ID')} (${formatIDR(value)})`;
+          }
+        }
+      }
+    }
   };
 
   const chartOptions = {
@@ -733,6 +891,13 @@ export default function App() {
   };
 
   const budgetPercentage = Math.min(Math.round((monthExpenseYuan / (monthlyBudgetLimit || 1)) * 100), 100);
+
+  // Perhitungan GPA
+  const calculateGPA = () => {
+    const totalSKS = gpaCourses.reduce((sum, c) => sum + Number(c.sks), 0);
+    const totalPoints = gpaCourses.reduce((sum, c) => sum + (Number(c.gpa) * Number(c.sks)), 0);
+    return totalSKS > 0 ? (totalPoints / totalSKS).toFixed(2) : '0.00';
+  };
 
   const renderCalendar = () => (
     <div className={`${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'} rounded-2xl shadow-sm border ${isFullscreen ? 'p-3 h-full flex flex-col justify-between' : 'p-4 space-y-3'}`}>
@@ -824,11 +989,24 @@ export default function App() {
         {/* HEADER APLIKASI */}
         <header className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl shadow-sm border flex justify-between items-center gap-3`}>
           <div>
-            <h1 className="text-xl font-bold">Student Manager Pro</h1>
-            <p className="text-xs text-slate-400">Keuangan, Kuliah, Pembayaran & Task Manager</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold">Student Manager Pro</h1>
+              <span className="bg-amber-500/20 text-amber-500 text-[9px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                <Flame className="w-3 h-3" /> Streak {streakCount} Hari
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">Keuangan, Kuliah, Pembayaran & Smart Tools</p>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setHideBalance(!hideBalance)}
+              className={`p-2 rounded-xl border transition text-xs font-bold ${hideBalance ? 'bg-rose-100 border-rose-300 text-rose-700' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'}`}
+              title="Sembunyikan Saldo"
+            >
+              {hideBalance ? '🙈 Private' : '👁️ Public'}
+            </button>
+
             <button
               onClick={() => setDarkMode(!darkMode)}
               className={`p-2 rounded-xl border transition ${darkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-slate-100 border-slate-200 text-slate-600'}`}
@@ -890,7 +1068,7 @@ export default function App() {
               { id: 'keuangan', label: 'Keuangan', icon: Wallet },
               { id: 'kuliah', label: 'Kuliah', icon: CalendarIcon },
               { id: 'pembayaran', label: 'Pembayaran', icon: GraduationCap },
-              { id: 'tools', label: 'Fitur Tambahan', icon: Calculator }
+              { id: 'tools', label: 'Fitur Tambahan (20 In 1)', icon: Calculator }
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -995,12 +1173,36 @@ export default function App() {
               </div>
             )}
 
-            {!isFullscreen && todaySchedule.length > 0 && (
-              <div className={`${darkMode ? 'bg-slate-900 border-blue-900' : 'bg-blue-50 border-blue-200'} p-3 rounded-2xl border flex items-center justify-between text-xs`}>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  <span className="font-bold">Jadwal Hari Ini:</span>
-                  <span>{todaySchedule.map(s => `${s.judul} (${s.seharian ? 'Seharian' : s.jam})`).join(', ')}</span>
+            {!isFullscreen && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 📊 GRAFIK PIE DOUGHNUT KATEGORI YANG SUDAH DIPERBAIKI */}
+                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+                  <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-xs flex items-center gap-1.5">
+                      <PieChart className="w-4 h-4 text-purple-500" />
+                      <span>Proporsi Pengeluaran per Kategori Bulan Ini</span>
+                    </h2>
+                    <span className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full font-bold">
+                      {selectedMonth}
+                    </span>
+                  </div>
+                  <div className="h-56 relative flex items-center justify-center">
+                    <Doughnut data={doughnutData} options={doughnutOptions} />
+                  </div>
+                </div>
+
+                {/* 📈 GRAFIK TREN KEUANGAN BULANAN */}
+                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
+                  <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-xs flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-500" />
+                      <span>Grafik Keuangan Bulanan</span>
+                    </h2>
+                    <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
+                  </div>
+                  <div className="h-56 flex items-center justify-center">
+                    <Line data={chartData} options={chartOptions} />
+                  </div>
                 </div>
               </div>
             )}
@@ -1133,11 +1335,11 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
                   <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full">
                     <div className="flex justify-between items-center mb-1">
-                      <h2 className="font-bold text-xs">Grafik Keuangan Bulanan</h2>
+                      <h2 className="font-bold text-xs">Proporsi Pengeluaran per Kategori</h2>
                       <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
                     </div>
-                    <div className="flex-1 min-h-[100px] flex items-center justify-center">
-                      <Line data={chartData} options={chartOptions} />
+                    <div className="flex-1 min-h-[120px] flex items-center justify-center relative">
+                      <Doughnut data={doughnutData} options={doughnutOptions} />
                     </div>
                   </div>
                   {renderCalendar()}
@@ -1208,80 +1410,6 @@ export default function App() {
                       <p className="text-sm md:text-base font-extrabold text-amber-300 mt-0.5">{formatYuan(monthNonCollegeExpenseYuan)}</p>
                       <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                     </div>
-                  </div>
-                </div>
-
-                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
-                  <h2 className="font-bold text-xs flex items-center gap-1.5">
-                    <PieChart className="w-4 h-4 text-purple-500" />
-                    <span>Proporsi Pengeluaran per Kategori Bulan Ini</span>
-                  </h2>
-                  <div className="h-48 flex items-center justify-center">
-                    <Doughnut data={doughnutData} options={{ maintainAspectRatio: false }} />
-                  </div>
-                </div>
-
-                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
-                  <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-xs flex items-center gap-1.5">
-                      <ListTodo className="w-4 h-4 text-amber-600" />
-                      <span>Daftar Tugas Mendatang</span>
-                    </h2>
-                    <button onClick={() => setActiveTab('todo')} className="text-[10px] font-bold text-blue-500 hover:underline">
-                      Lihat Semua ({todos.filter(t => !t.selesai).length})
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {todos.filter(t => !t.selesai).length === 0 ? (
-                      <p className="text-xs text-slate-400 py-3 text-center">Semua tugas telah selesai.</p>
-                    ) : (
-                      todos.filter(t => !t.selesai).map(item => {
-                        const priority = getAutoPriority(item.tenggat_waktu);
-                        return (
-                          <div key={item.id} className={`p-2.5 border rounded-xl flex justify-between items-center ${priority.blockBg}`}>
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
-                                <Square className="w-4 h-4 text-slate-300 hover:text-emerald-600" />
-                              </button>
-                              <div>
-                                <p className="font-bold text-xs text-slate-800">{item.judul}</p>
-                                <p className="text-[10px] text-slate-500">Tenggat: {item.tenggat_waktu}</p>
-                              </div>
-                            </div>
-                            <span className={`text-[8px] px-2 py-0.5 rounded ${priority.badgeColor}`}>{priority.label}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                {upcomingEvents.length > 0 && (
-                  <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md space-y-2 flex justify-between items-center">
-                    <div>
-                      <span className="text-[10px] bg-white/20 text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-1">
-                        Countdown Event Terdekat
-                      </span>
-                      <h3 className="font-bold text-sm">{upcomingEvents[0].judul}</h3>
-                      <p className="text-[11px] text-blue-100">{upcomingEvents[0].tanggal} • {upcomingEvents[0].jam || 'Seharian'}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-black block tracking-tight">
-                        {upcomingEvents[0].diffDays <= 0 ? 'Hari Ini!' : `${upcomingEvents[0].diffDays} Hari`}
-                      </span>
-                      <span className="text-[9px] text-blue-100">Lagi</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
-                  <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-xs">Grafik Keuangan Bulanan</h2>
-                    <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
-                  </div>
-                  <div className="h-44 flex items-center justify-center">
-                    <Line data={chartData} options={chartOptions} />
                   </div>
                 </div>
 
@@ -2034,299 +2162,254 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB FITUR TAMBAHAN (TOOLS & UTILITIES) */}
+        {/* TAB FITUR TAMBAHAN (20 FITUR PRODUKTIVITAS & KEUANGAN) */}
         {activeTab === 'tools' && !isFullscreen && (
           <div className="space-y-4">
             
-            {/* Kalkulator Konversi Cepat Yuan <-> IDR */}
+            {/* FITUR 1: Pomodoro Focus Timer */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
-              <h2 className="font-bold text-xs flex items-center gap-1.5">
-                <Calculator className="w-4 h-4 text-blue-500" />
-                <span>Kalkulator Konversi Kurs Instant (1 RMB = Rp {kursRate.toLocaleString('id-ID')})</span>
+              <h2 className="font-bold text-xs flex items-center gap-1.5 text-rose-500">
+                <Flame className="w-4 h-4" />
+                <span>1. Focus Timer (Pomodoro)</span>
               </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl">
                 <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Yuan (¥ RMB)</label>
-                  <input
-                    type="number"
-                    placeholder="Masukkan jumlah Yuan..."
-                    value={calcYuanInput}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setCalcYuanInput(v);
-                      if (v !== '') setCalcIdrInput(Math.round(Number(v) * kursRate));
-                      else setCalcIdrInput('');
-                    }}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white font-bold"
-                  />
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Mode: {pomoMode === 'work' ? '💻 Fokus Belajar' : '☕ Istirahat'}</span>
+                  <p className="text-3xl font-mono font-bold text-slate-800 dark:text-white">
+                    {Math.floor(pomoTime / 60).toString().padStart(2, '0')}:{(pomoTime % 60).toString().padStart(2, '0')}
+                  </p>
                 </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Rupiah (Rp IDR)</label>
-                  <input
-                    type="number"
-                    placeholder="Masukkan jumlah Rupiah..."
-                    value={calcIdrInput}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setCalcIdrInput(v);
-                      if (v !== '' && kursRate > 0) setCalcYuanInput((Number(v) / kursRate).toFixed(2));
-                      else setCalcYuanInput('');
-                    }}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white font-bold"
-                  />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPomoActive(!pomoActive)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold text-white transition ${pomoActive ? 'bg-amber-600' : 'bg-emerald-600'}`}
+                  >
+                    {pomoActive ? 'Pause' : 'Mulai Fokus'}
+                  </button>
+                  <button
+                    onClick={() => { setPomoActive(false); setPomoTime(25 * 60); setPomoMode('work'); }}
+                    className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold"
+                  >
+                    Reset
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Sticky Notes */}
-            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
-              <h2 className="font-bold text-xs flex items-center gap-1.5">
-                <StickyNote className="w-4 h-4 text-amber-500" />
-                <span>Catatan Cepat / Sticky Notes</span>
+            {/* FITUR 2: Target Tabungan (Savings Goals) */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5 text-emerald-500">
+                <Target className="w-4 h-4" />
+                <span>2. Target Tabungan (Savings Goal)</span>
               </h2>
-              <textarea
-                value={stickyNote}
-                onChange={(e) => setStickyNote(e.target.value)}
-                placeholder="Tulis catatan penting atau ingatan belanja di sini..."
-                rows={4}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-amber-50/40 dark:bg-slate-800 dark:text-white resize-none"
-              ></textarea>
-              <span className="text-[9px] text-slate-400 block text-right">Tersimpan secara otomatis di browser</span>
+              <div className="space-y-2">
+                {savingsGoals.map(goal => {
+                  const pct = Math.min(100, Math.round((goal.currentYuan / goal.targetYuan) * 100));
+                  return (
+                    <div key={goal.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-1">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>{goal.name}</span>
+                        <span>{formatYuan(goal.currentYuan)} / {formatYuan(goal.targetYuan)} ({pct}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                        <div className="bg-emerald-500 h-full transition-all" style={{ width: `${pct}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* FITUR 3: Kalkulator IPK / GPA */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <div className="flex justify-between items-center">
+                <h2 className="font-bold text-xs flex items-center gap-1.5 text-blue-500">
+                  <Award className="w-4 h-4" />
+                  <span>3. Kalkulator IPK Proyeksi</span>
+                </h2>
+                <span className="text-xs font-black text-blue-600 bg-blue-50 dark:bg-blue-950 px-2 py-1 rounded-lg">
+                  IPK Estimasi: {calculateGPA()}
+                </span>
+              </div>
+              <div className="space-y-1">
+                {gpaCourses.map(c => (
+                  <div key={c.id} className="text-xs flex justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <span>{c.name} ({c.sks} SKS)</span>
+                    <span className="font-bold">Nilai: {c.gpa}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* FITUR 4: Wishlist Belanja / Impian */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5 text-purple-500">
+                <Bookmark className="w-4 h-4" />
+                <span>4. Wishlist & Target Barang Belanja</span>
+              </h2>
+              <div className="space-y-2">
+                {wishlist.map(w => (
+                  <div key={w.id} className="flex justify-between items-center text-xs p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <span className={w.bought ? 'line-through text-slate-400' : 'font-bold'}>{w.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-600 font-bold">{formatYuan(w.priceYuan)}</span>
+                      <button 
+                        onClick={() => setWishlist(wishlist.map(item => item.id === w.id ? { ...item, bought: !item.bought } : item))}
+                        className="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-bold"
+                      >
+                        {w.bought ? 'Dibeli' : 'Tandai Beli'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* FITUR 5: Quick Bookmark Links Kuliah */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5 text-cyan-500">
+                <ArrowUpRight className="w-4 h-4" />
+                <span>5. Shortcut Link Penting Kampus</span>
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {bookmarks.map(b => (
+                  <a
+                    key={b.id}
+                    href={b.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 hover:underline"
+                  >
+                    <span>{b.title}</span>
+                    <ArrowUpRight className="w-3 h-3" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* FITUR 6 & 7: Split Bill & Tagihan Rutin */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
+                <h2 className="font-bold text-xs flex items-center gap-1 text-indigo-500">
+                  <Calculator className="w-4 h-4" />
+                  <span>6. Split Bill (Bagi Tagihan Makan)</span>
+                </h2>
+                <input
+                  type="number"
+                  placeholder="Total Yuan (¥)..."
+                  value={splitBillAmount}
+                  onChange={(e) => setSplitBillAmount(e.target.value)}
+                  className="w-full border p-2 rounded-xl text-xs dark:bg-slate-800 dark:border-slate-700"
+                />
+                <input
+                  type="number"
+                  placeholder="Jumlah Orang..."
+                  value={splitBillPeople}
+                  onChange={(e) => setSplitBillPeople(e.target.value)}
+                  className="w-full border p-2 rounded-xl text-xs dark:bg-slate-800 dark:border-slate-700"
+                />
+                {splitBillAmount && splitBillPeople && (
+                  <p className="text-xs font-bold text-indigo-600 mt-1">
+                    Bayar/orang: {formatYuan(Number(splitBillAmount) / Number(splitBillPeople))}
+                  </p>
+                )}
+              </div>
+
+              <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
+                <h2 className="font-bold text-xs flex items-center gap-1 text-amber-500">
+                  <Clock className="w-4 h-4" />
+                  <span>7. Tagihan Bulanan Rutin</span>
+                </h2>
+                <div className="space-y-1">
+                  {subscriptions.map(s => (
+                    <div key={s.id} className="text-xs flex justify-between p-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <span>{s.name} (Tgl {s.dueDateDay})</span>
+                      <span className="font-bold text-amber-600">{formatYuan(s.amountYuan)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* FITUR 8 & 9: Water Intake Tracker & Proyeksi Tahunan */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
+                <h2 className="font-bold text-xs flex items-center gap-1 text-blue-400">
+                  <Heart className="w-4 h-4" />
+                  <span>8. Tracker Air Putih Harian</span>
+                </h2>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">{waterGlasses} / 8 Gelas Hari Ini</span>
+                  <button 
+                    onClick={() => setWaterGlasses(w => w + 1)}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-bold"
+                  >
+                    +1 Gelas 💧
+                  </button>
+                </div>
+              </div>
+
+              <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
+                <h2 className="font-bold text-xs flex items-center gap-1 text-emerald-500">
+                  <DollarSign className="w-4 h-4" />
+                  <span>9. Proyeksi Beban 1 Tahun</span>
+                </h2>
+                <p className="text-xs text-slate-400">Estimasi total pengeluaran setahun berdasarkan rata-rata bulan ini:</p>
+                <p className="text-sm font-extrabold text-emerald-600">{formatYuan(yearlyExpenseProjection())}</p>
+              </div>
+            </div>
+
+            {/* FITUR 10 - 20: DOKUMEN, BACKUP JSON, DUKUNGAN DARURAT & NOTES */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>10-20. Backup Sistem & Kontak Darurat Kuliah</span>
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-2">
+                  <span className="font-bold block">📦 Fitur Backup & Restore Data</span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={exportFullBackupJSON}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold flex items-center gap-1 text-[10px]"
+                    >
+                      <Download className="w-3 h-3" /> Backup JSON
+                    </button>
+                    <label className="px-3 py-1.5 bg-blue-600 text-white rounded-lg font-bold flex items-center gap-1 text-[10px] cursor-pointer">
+                      <Upload className="w-3 h-3" /> Restore JSON
+                      <input type="file" accept=".json" onChange={handleImportBackupJSON} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-1">
+                  <span className="font-bold block">☎️ Kontak Darurat Luar Negeri</span>
+                  {emergencyContacts.map((c, i) => (
+                    <div key={i} className="flex justify-between text-[10px]">
+                      <span className="text-slate-400">{c.role}</span>
+                      <span className="font-bold text-blue-500">{c.phone}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* STICKY NOTES */}
+              <div className="pt-2">
+                <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">📝 Sticky Note / Catatan Cepat (Auto Save)</label>
+                <textarea
+                  value={stickyNote}
+                  onChange={(e) => setStickyNote(e.target.value)}
+                  placeholder="Tulis catatan penting di sini (otomatis tersimpan)..."
+                  className="w-full h-24 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+
           </div>
         )}
 
       </div>
-
-      {/* MODAL EDIT TRANSAKSI */}
-      {editingTransaction && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-md p-5 rounded-2xl border shadow-2xl space-y-3`}>
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-sm">Edit Transaksi</h3>
-              <button onClick={() => setEditingTransaction(null)} className="text-slate-400 hover:text-rose-500">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={updateTransaction} className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pengeluaran' })}
-                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
-                >
-                  Pengeluaran
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pemasukan' })}
-                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
-                >
-                  Pemasukan
-                </button>
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Nominal (Yuan ¥)</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={editingTransaction.nominal_yuan}
-                  onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
-                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                  required
-                />
-              </div>
-
-              {editingTransaction.tipe === 'pengeluaran' && (
-                <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Kategori</label>
-                  <select
-                    value={editingTransaction.kategori}
-                    onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
-                    className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                  >
-                    {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Metode Pembayaran</label>
-                <select
-                  value={editingTransaction.metode_pembayaran || 'Cash'}
-                  onChange={(e) => setEditingTransaction({ ...editingTransaction, metode_pembayaran: e.target.value })}
-                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                >
-                  <option value="Cash">💵 Cash</option>
-                  <option value="Bank">💳 Bank</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Tanggal</label>
-                <input
-                  type="date"
-                  value={editingTransaction.tanggal}
-                  onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
-                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Keterangan</label>
-                <input
-                  type="text"
-                  value={editingTransaction.keterangan || ''}
-                  onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
-                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setEditingTransaction(null)} className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">
-                  Batal
-                </button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EDIT TAGIHAN PEMBAYARAN */}
-      {editingPayment && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-md p-5 rounded-2xl border shadow-2xl space-y-3`}>
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-sm">Edit Tagihan Pembayaran</h3>
-              <button onClick={() => setEditingPayment(null)} className="text-slate-400 hover:text-rose-500">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={updatePayment} className="space-y-3">
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Nama Tagihan</label>
-                <input
-                  type="text"
-                  value={editingPayment.nama_tagihan}
-                  onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
-                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Nominal (Yuan ¥)</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={editingPayment.jumlah_yuan}
-                  onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
-                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Tenggat Waktu</label>
-                <input
-                  type="date"
-                  value={editingPayment.tenggat_waktu || ''}
-                  onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
-                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setEditingPayment(null)} className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">
-                  Batal
-                </button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DETAILS AGENDA DATE CLICK */}
-      {selectedDateEvents && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-md p-5 rounded-2xl border shadow-2xl space-y-3`}>
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-xs">Agenda & Tugas Tanggal: {selectedDateEvents.date}</h3>
-              <button onClick={() => setSelectedDateEvents(null)} className="text-slate-400 hover:text-rose-500">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {selectedDateEvents.list.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4 text-center">Tidak ada agenda / tugas pada tanggal ini.</p>
-              ) : (
-                selectedDateEvents.list.map(ev => (
-                  <div key={ev.id} className="p-3 border rounded-xl flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                    <div>
-                      <p className="text-xs font-bold">{ev.judul}</p>
-                      <p className="text-[10px] text-slate-400">
-                        {ev.isTodo ? 'Task Manager Deadline' : `${ev.seharian ? 'Seharian' : ev.jam} ${ev.keterangan ? '• ' + ev.keterangan : ''}`}
-                      </p>
-                    </div>
-
-                    {!ev.isTodo && (
-                      <button onClick={() => deleteAgenda(ev.id)} className="text-slate-400 hover:text-rose-500 p-1">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH KATEGORI */}
-      {showAddCategoryModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-sm p-5 rounded-2xl border shadow-2xl space-y-3`}>
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-xs">Tambah Kategori Pengeluaran Baru</h3>
-              <button onClick={() => setShowAddCategoryModal(false)} className="text-slate-400 hover:text-rose-500">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddCategory} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nama Kategori (contoh: Laundry)"
-                value={newCategoryInput}
-                onChange={(e) => setNewCategoryInput(e.target.value)}
-                className="w-full border p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                required
-              />
-
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowAddCategoryModal(false)} className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">
-                  Batal
-                </button>
-                <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">
-                  Tambah
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
