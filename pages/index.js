@@ -4,7 +4,7 @@ import {
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
   Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote,
-  Search, Download, AlertTriangle, PieChart, Timer, Target
+  Search, Download, AlertTriangle, Target, Settings
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -54,18 +54,24 @@ export default function App() {
   const fullscreenRef = useRef(null);
 
   // Kategori Pengeluaran
-  const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
+  const [expenseCategories, setExpenseCategories] = useState([
+    'Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'
+  ]);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
 
-  // States Keuangan & Fitur Baru (Search, Filter Kategori, Target Anggaran)
+  // States Keuangan & Fitur Baru
   const [transactions, setTransactions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [filterMonthMutasi, setFilterMonthMutasi] = useState('');
   const [filterCategoryMutasi, setFilterCategoryMutasi] = useState('');
   const [searchMutasi, setSearchMutasi] = useState('');
   const [showFilterSort, setShowFilterSort] = useState(false);
-  const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState(3000); // Batas anggaran bulanan (dalam Yuan)
+  const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState(3000); 
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [tempBudget, setTempBudget] = useState(3000);
 
-  // State Fitur Baru: Filter Prioritas Todo
+  // State Fitur Prioritas Todo
   const [todoFilterPriority, setTodoFilterPriority] = useState('all');
 
   const [financeForm, setFinanceForm] = useState({
@@ -250,7 +256,6 @@ export default function App() {
     await supabase.from('transaksi').delete().eq('id', id);
   }
 
-  // Ekspor Mutasi ke CSV
   const exportTransactionsToCSV = () => {
     if (filteredMutasiTransactions.length === 0) {
       alert('Tidak ada transaksi untuk diekspor!');
@@ -395,6 +400,19 @@ export default function App() {
     await supabase.from('todo_tugas').delete().eq('id', id);
   }
 
+  const handleAddCategory = (e) => {
+    e.preventDefault();
+    if (!newCategoryInput.trim()) return;
+    if (expenseCategories.includes(newCategoryInput.trim())) {
+      alert('Kategori sudah ada!');
+      return;
+    }
+    setExpenseCategories([...expenseCategories, newCategoryInput.trim()]);
+    setFinanceForm({ ...financeForm, kategori: newCategoryInput.trim() });
+    setNewCategoryInput('');
+    setShowAddCategoryModal(false);
+  };
+
   const getAutoPriority = (dueDateStr) => {
     if (!dueDateStr) return { label: 'Rendah', code: 'low', badgeColor: 'bg-slate-100 text-slate-600', blockBg: 'bg-slate-50 border-slate-100' };
     const todayObj = new Date();
@@ -411,7 +429,7 @@ export default function App() {
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const formatIDR = (val) => `Rp ${Math.round(Number(val || 0) * kursRate).toLocaleString('id-ID')}`;
 
-  // Logika Keuangan & Sisa Saldo
+  // Logika Keuangan
   const totalIncomeAllTime = transactions.filter(t => t.tipe === 'pemasukan').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalExpenseAllTime = transactions.filter(t => t.tipe === 'pengeluaran').reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
   const totalRemainingBalanceYuan = totalIncomeAllTime - totalExpenseAllTime;
@@ -441,7 +459,6 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
-  // LOGIKA FITUR BARU: Top Category Expense
   const getTopExpenseCategory = () => {
     const categoryTotals = {};
     currentMonthTransactions
@@ -466,7 +483,6 @@ export default function App() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 7);
 
-  // Filter & Pencarian Mutasi
   const filteredMutasiTransactions = transactions.filter(t => {
     let matchesMonth = true;
     if (filterMonthMutasi) {
@@ -593,8 +609,7 @@ export default function App() {
     setSelectedDateEvents({ date: dateStr, list: dayEvents });
   };
 
-  // Percent Budget Used
-  const budgetPercentage = Math.min(Math.round((monthExpenseYuan / monthlyBudgetLimit) * 100), 100);
+  const budgetPercentage = Math.min(Math.round((monthExpenseYuan / (monthlyBudgetLimit || 1)) * 100), 100);
 
   const renderCalendar = () => (
     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 ${isFullscreen ? 'p-3 h-full flex flex-col justify-between' : 'p-4 space-y-3'}`}>
@@ -762,7 +777,7 @@ export default function App() {
               </div>
             )}
 
-            {/* FITUR BARU: Widget Budget Tracker & Top Expense Banner */}
+            {/* Widget Budget Tracker & Top Expense Banner */}
             {!isFullscreen && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 space-y-2">
@@ -771,9 +786,32 @@ export default function App() {
                       <Target className="w-4 h-4 text-blue-600" />
                       Status Anggaran Bulanan
                     </span>
-                    <span className="font-semibold text-slate-500">
-                      {formatYuan(monthExpenseYuan)} / {formatYuan(monthlyBudgetLimit)} ({budgetPercentage}%)
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {editingBudget ? (
+                        <div className="flex items-center gap-1">
+                          <input 
+                            type="number" 
+                            value={tempBudget} 
+                            onChange={(e) => setTempBudget(Number(e.target.value))}
+                            className="w-20 border rounded px-1 py-0.5 text-xs"
+                          />
+                          <button 
+                            onClick={() => { setMonthlyBudgetLimit(tempBudget); setEditingBudget(false); }}
+                            className="bg-emerald-600 text-white px-1.5 py-0.5 text-[10px] rounded font-bold"
+                          >
+                            OK
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => { setTempBudget(monthlyBudgetLimit); setEditingBudget(true); }}
+                          className="font-semibold text-slate-500 hover:text-blue-600 flex items-center gap-1"
+                        >
+                          {formatYuan(monthExpenseYuan)} / {formatYuan(monthlyBudgetLimit)} ({budgetPercentage}%)
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
                     <div 
@@ -1074,7 +1112,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* FITUR BARU: Countdown Event/Ujian Terdekat Widget */}
+                {/* Countdown Event/Ujian Terdekat Widget */}
                 {upcomingEvents.length > 0 && (
                   <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md space-y-2 flex justify-between items-center">
                     <div>
@@ -1179,7 +1217,6 @@ export default function App() {
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-700">Daftar Tugas & PR</h2>
                 <div className="flex items-center gap-1 text-[10px]">
-                  {/* FITUR BARU: Filter Prioritas */}
                   {['all', 'high', 'medium', 'low'].map(p => (
                     <button
                       key={p}
@@ -1349,13 +1386,23 @@ export default function App() {
               </div>
 
               {financeForm.tipe === 'pengeluaran' && (
-                <select
-                  value={financeForm.kategori}
-                  onChange={(e) => setFinanceForm({ ...financeForm, kategori: e.target.value })}
-                  className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
-                >
-                  {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={financeForm.kategori}
+                    onChange={(e) => setFinanceForm({ ...financeForm, kategori: e.target.value })}
+                    className="flex-1 border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                  >
+                    {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategoryModal(true)}
+                    className="px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200"
+                    title="Tambah Kategori"
+                  >
+                    + Baru
+                  </button>
+                </div>
               )}
 
               <input
@@ -1885,6 +1932,53 @@ export default function App() {
                     className="w-1/2 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md"
                   >
                     Simpan Perubahan
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL TAMBAH KATEGORI BARU */}
+        {showAddCategoryModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-sm text-slate-800">Tambah Kategori Pengeluaran Baru</h3>
+                <button 
+                  onClick={() => setShowAddCategoryModal(false)} 
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddCategory} className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nama Kategori</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Hiburan, Kesehatan..."
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategoryModal(false)}
+                    className="w-1/2 bg-slate-100 text-slate-600 py-2 rounded-xl font-bold text-xs"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md"
+                  >
+                    Tambah
                   </button>
                 </div>
               </form>
