@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { 
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
-  Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote
+  Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote,
+  Search, Download, AlertTriangle
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -55,11 +56,14 @@ export default function App() {
   // Kategori Pengeluaran
   const expenseCategories = ['Makan', 'Minum', 'Kuota', 'Jajan', 'Belanja', 'Transportasi', 'Biaya Kuliah', 'Lain-lain'];
 
-  // States Keuangan
+  // States Keuangan & Fitur Baru (Search, Filter Kategori, Target Anggaran)
   const [transactions, setTransactions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [filterMonthMutasi, setFilterMonthMutasi] = useState('');
+  const [filterCategoryMutasi, setFilterCategoryMutasi] = useState('');
+  const [searchMutasi, setSearchMutasi] = useState('');
   const [showFilterSort, setShowFilterSort] = useState(false);
+  const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState(3000); // Batas anggaran bulanan (dalam Yuan)
 
   const [financeForm, setFinanceForm] = useState({
     tipe: 'pengeluaran',
@@ -126,7 +130,6 @@ export default function App() {
         year: 'numeric',
       });
 
-      // Format jam dengan pemisah titik dua (00:00:00)
       const formattedTime = timeFormatter.format(now).replace(/\./g, ':');
 
       setCstTimeString(formattedTime);
@@ -243,6 +246,34 @@ export default function App() {
     if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) return;
     await supabase.from('transaksi').delete().eq('id', id);
   }
+
+  // FITUR BARU: Ekspor Mutasi ke CSV
+  const exportTransactionsToCSV = () => {
+    if (filteredMutasiTransactions.length === 0) {
+      alert('Tidak ada transaksi untuk diekspor!');
+      return;
+    }
+
+    const headers = ['Tanggal,Tipe,Kategori,Metode Pembayaran,Nominal Yuan,Nominal IDR,Keterangan'];
+    const rows = filteredMutasiTransactions.map(t => [
+      `"${t.tanggal}"`,
+      `"${t.tipe}"`,
+      `"${t.kategori}"`,
+      `"${t.metode_pembayaran || 'Cash'}"`,
+      t.nominal_yuan,
+      t.nominal_idr,
+      `"${(t.keterangan || '').replace(/"/g, '""')}"`
+    ].join(','));
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `mutasi_transaksi_${filterMonthMutasi || 'terakhir'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   async function fetchEvents() {
     const { data } = await supabase.from('agenda_kuliah').select('*').order('tanggal', { ascending: true });
@@ -411,13 +442,28 @@ export default function App() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 7);
 
+  // LOGIKA FITUR BARU: Filter & Pencarian Mutasi
   const filteredMutasiTransactions = transactions.filter(t => {
+    let matchesMonth = true;
     if (filterMonthMutasi) {
-      return t.tanggal.startsWith(filterMonthMutasi);
+      matchesMonth = t.tanggal.startsWith(filterMonthMutasi);
     } else {
       const tDate = new Date(t.tanggal);
-      return tDate >= sevenDaysAgo && tDate <= now;
+      matchesMonth = tDate >= sevenDaysAgo && tDate <= now;
     }
+
+    let matchesCategory = true;
+    if (filterCategoryMutasi) {
+      matchesCategory = t.kategori === filterCategoryMutasi;
+    }
+
+    let matchesSearch = true;
+    if (searchMutasi) {
+      const q = searchMutasi.toLowerCase();
+      matchesSearch = (t.keterangan || '').toLowerCase().includes(q) || (t.kategori || '').toLowerCase().includes(q);
+    }
+
+    return matchesMonth && matchesCategory && matchesSearch;
   });
 
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
@@ -679,6 +725,15 @@ export default function App() {
         {/* MAIN DASHBOARD */}
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
+            
+            {/* FITUR BARU: Peringatan Pengeluaran jika melebihi batas bulanan */}
+            {monthExpenseYuan > monthlyBudgetLimit && (
+              <div className="bg-rose-500 text-white p-3 rounded-2xl flex items-center gap-2 text-xs font-bold shadow-md animate-pulse">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                <span>Peringatan: Pengeluaran bulan ini ({formatYuan(monthExpenseYuan)}) telah melebihi batas anggaran ({formatYuan(monthlyBudgetLimit)})!</span>
+              </div>
+            )}
+
             {isFullscreen ? (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1243,11 +1298,25 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  {filterMonthMutasi && (
+                  {/* FITUR BARU: Tombol Ekspor CSV */}
+                  <button
+                    onClick={exportTransactionsToCSV}
+                    className="p-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 transition flex items-center gap-1 text-[10px] font-bold"
+                    title="Ekspor CSV"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Ekspor</span>
+                  </button>
+
+                  {(filterMonthMutasi || filterCategoryMutasi || searchMutasi) && (
                     <button 
-                      onClick={() => setFilterMonthMutasi('')}
+                      onClick={() => {
+                        setFilterMonthMutasi('');
+                        setFilterCategoryMutasi('');
+                        setSearchMutasi('');
+                      }}
                       className="p-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] flex items-center gap-1"
-                      title="Reset ke 1 Minggu Terakhir"
+                      title="Reset Filter"
                     >
                       <RefreshCw className="w-3 h-3" />
                       <span>Reset</span>
@@ -1257,21 +1326,33 @@ export default function App() {
                   <button 
                     onClick={() => setShowFilterSort(!showFilterSort)}
                     className={`p-1.5 rounded-xl border transition ${
-                      showFilterSort || filterMonthMutasi 
+                      showFilterSort || filterMonthMutasi || filterCategoryMutasi || searchMutasi
                         ? 'bg-blue-50 border-blue-300 text-blue-600' 
                         : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                     }`}
-                    title="Sort berdasarkan Bulan"
+                    title="Sort & Filter"
                   >
                     <Filter className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
+              {/* FITUR BARU: Pencarian Cepat */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari transaksi / keterangan..."
+                  value={searchMutasi}
+                  onChange={(e) => setSearchMutasi(e.target.value)}
+                  className="w-full border border-slate-200 pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 focus:bg-white"
+                />
+              </div>
+
               {showFilterSort && (
-                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-600 text-[11px]">Sort Berdasarkan Bulan:</span>
+                    <span className="font-bold text-slate-600 text-[11px]">Filter Lanjutan:</span>
                     <button 
                       onClick={() => setShowFilterSort(false)}
                       className="text-slate-400 hover:text-slate-600"
@@ -1279,16 +1360,28 @@ export default function App() {
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="month"
-                      value={filterMonthMutasi}
-                      onChange={(e) => {
-                        setFilterMonthMutasi(e.target.value);
-                        setShowFilterSort(false);
-                      }}
-                      className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-400 block mb-1">Bulan</label>
+                      <input
+                        type="month"
+                        value={filterMonthMutasi}
+                        onChange={(e) => setFilterMonthMutasi(e.target.value)}
+                        className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 block mb-1">Kategori</label>
+                      <select
+                        value={filterCategoryMutasi}
+                        onChange={(e) => setFilterCategoryMutasi(e.target.value)}
+                        className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white"
+                      >
+                        <option value="">Semua Kategori</option>
+                        <option value="Pemasukan">Pemasukan</option>
+                        {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
