@@ -4,7 +4,7 @@ import {
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
   Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote,
-  Search, Download, AlertTriangle, Target, Settings
+  Search, Download, AlertTriangle, Target
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -60,7 +60,7 @@ export default function App() {
   const [newCategoryInput, setNewCategoryInput] = useState('');
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
 
-  // States Keuangan & Fitur Baru
+  // States Keuangan
   const [transactions, setTransactions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [filterMonthMutasi, setFilterMonthMutasi] = useState('');
