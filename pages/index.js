@@ -5,7 +5,7 @@ import {
   Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
   Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote,
   Search, Download, AlertTriangle, Target, Calculator, Moon, Sun,
-  Pin, StickyNote, PieChart, CheckCircle2, ArrowUpDown, TrendingUp
+  Pin, StickyNote, PieChart, CheckCircle2
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -49,7 +49,7 @@ export default function App() {
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
 
-  // Fitur 5: Dark Mode State
+  // Dark Mode State
   const [darkMode, setDarkMode] = useState(false);
 
   // State Jam Live CST & Fullscreen
@@ -70,21 +70,21 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [filterMonthMutasi, setFilterMonthMutasi] = useState('');
   const [filterCategoryMutasi, setFilterCategoryMutasi] = useState('');
-  const [filterPaymentMethodMutasi, setFilterPaymentMethodMutasi] = useState(''); // Fitur 13
+  const [filterPaymentMethodMutasi, setFilterPaymentMethodMutasi] = useState('');
   const [searchMutasi, setSearchMutasi] = useState('');
-  const [sortMutasiOrder, setSortMutasiOrder] = useState('date-desc'); // Fitur 15
+  const [sortMutasiOrder, setSortMutasiOrder] = useState('date-desc');
   const [showFilterSort, setShowFilterSort] = useState(false);
   const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState(3000); 
-  const [dailyBudgetLimit, setDailyBudgetLimit] = useState(100); // Fitur 14
+  const [dailyBudgetLimit] = useState(100);
   const [editingBudget, setEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(3000);
 
-  // Fitur 9: Pinned Transactions State
+  // Pinned Transactions State
   const [pinnedTxIds, setPinnedTxIds] = useState([]);
 
   // State Fitur Prioritas & Search Todo
   const [todoFilterPriority, setTodoFilterPriority] = useState('all');
-  const [searchTodo, setSearchTodo] = useState(''); // Fitur 3
+  const [searchTodo, setSearchTodo] = useState('');
 
   const [financeForm, setFinanceForm] = useState({
     tipe: 'pengeluaran',
@@ -100,7 +100,7 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
-  const [searchAgenda, setSearchAgenda] = useState(''); // Fitur 10
+  const [searchAgenda, setSearchAgenda] = useState('');
 
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
@@ -131,11 +131,11 @@ export default function App() {
     tenggat_waktu: new Date().toISOString().split('T')[0]
   });
 
-  // Fitur 2: Kalkulator Quick State
+  // Kalkulator Quick State
   const [calcYuanInput, setCalcYuanInput] = useState('');
   const [calcIdrInput, setCalcIdrInput] = useState('');
 
-  // Fitur 12: Sticky Notes State
+  // Sticky Notes State
   const [stickyNote, setStickyNote] = useState(() => localStorage.getItem('app_sticky_note') || '');
 
   useEffect(() => {
@@ -1318,10 +1318,10 @@ export default function App() {
               <div className="flex justify-between items-center gap-2 flex-wrap">
                 <h2 className="font-bold text-xs">Daftar Tugas & PR</h2>
                 <div className="flex items-center gap-1 text-[10px]">
-                  <button onClick={exportTodosToCSV} className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg font-bold flex items-center gap-1 mr-2" title="Fitur 4: Export CSV">
+                  <button onClick={exportTodosToCSV} className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg font-bold flex items-center gap-1 mr-2" title="Export CSV">
                     <Download className="w-3 h-3" /> Export
                   </button>
-                  <button onClick={markAllTodosDone} className="p-1.5 bg-blue-100 text-blue-800 rounded-lg font-bold flex items-center gap-1 mr-2" title="Fitur 16: Mark All Done">
+                  <button onClick={markAllTodosDone} className="p-1.5 bg-blue-100 text-blue-800 rounded-lg font-bold flex items-center gap-1 mr-2" title="Mark All Done">
                     <CheckCircle2 className="w-3 h-3" /> Semua Selesai
                   </button>
                   {['all', 'high', 'medium', 'low'].map(p => (
@@ -1472,7 +1472,7 @@ export default function App() {
                     <p className="text-[10px] text-slate-400 mt-0.5">{formatIDR(totalBankBalanceYuan)}</p>
                   </div>
                   <p className="text-[9px] text-slate-500 border-t border-slate-700/60 mt-2 pt-1">
-                    Bulan Ini: <span className={monthBankIncome >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{formatYuan(monthBankBalanceYuan)}</span>
+                    Bulan Ini: <span className={monthBankBalanceYuan >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{formatYuan(monthBankBalanceYuan)}</span>
                   </p>
                 </div>
               </div>
@@ -2028,7 +2028,7 @@ export default function App() {
         {activeTab === 'tools' && !isFullscreen && (
           <div className="space-y-4">
             
-            {/* Fitur 2: Kalkulator Konversi Cepat Yuan <-> IDR */}
+            {/* Kalkulator Konversi Cepat Yuan <-> IDR */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
               <h2 className="font-bold text-xs flex items-center gap-1.5">
                 <Calculator className="w-4 h-4 text-blue-500" />
@@ -2070,74 +2070,33 @@ export default function App() {
               </div>
             </div>
 
-            {/* Fitur 12: Sticky Notes Memo */}
+            {/* Sticky Notes */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
               <h2 className="font-bold text-xs flex items-center gap-1.5">
                 <StickyNote className="w-4 h-4 text-amber-500" />
-                <span>Sticky Notes / Catatan Memo Cepat</span>
+                <span>Catatan Cepat / Sticky Notes</span>
               </h2>
               <textarea
                 value={stickyNote}
                 onChange={(e) => setStickyNote(e.target.value)}
-                placeholder="Tulis catatan penting, daftar belanja, memo seminar, dll di sini (otomatis tersimpan)..."
-                rows={5}
-                className="w-full border border-slate-200 dark:border-slate-700 p-3 rounded-xl text-xs bg-amber-50/50 dark:bg-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-amber-400 outline-none"
+                placeholder="Tulis catatan penting atau ingatan belanja di sini..."
+                rows={4}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-amber-50/40 dark:bg-slate-800 dark:text-white resize-none"
               ></textarea>
-              <span className="text-[9px] text-slate-400 block text-right">*Tersimpan secara lokal di browser Anda.</span>
+              <span className="text-[9px] text-slate-400 block text-right">Tersimpan secara otomatis di browser</span>
             </div>
-
           </div>
         )}
 
       </div>
 
-      {/* MODAL TAMBAH KATEGORI */}
-      {showAddCategoryModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl`}>
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-xs">Tambah Kategori Baru</h3>
-              <button onClick={() => setShowAddCategoryModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={handleAddCategory} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nama Kategori (ex: Hiburan)"
-                value={newCategoryInput}
-                onChange={(e) => setNewCategoryInput(e.target.value)}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                autoFocus
-                required
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddCategoryModal(false)}
-                  className="w-1/2 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700"
-                >
-                  Simpan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* MODAL EDIT TRANSAKSI */}
       {editingTransaction && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl`}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-md p-5 rounded-2xl border shadow-2xl space-y-3`}>
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-xs">Edit Transaksi</h3>
-              <button onClick={() => setEditingTransaction(null)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-bold text-sm">Edit Transaksi</h3>
+              <button onClick={() => setEditingTransaction(null)} className="text-slate-400 hover:text-rose-500">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -2147,94 +2106,81 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pengeluaran' })}
-                  className={`py-2 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
+                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
                 >
                   Pengeluaran
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pemasukan' })}
-                  className={`py-2 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
+                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
                 >
                   Pemasukan
                 </button>
               </div>
 
               <div>
-                <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Metode Pembayaran</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Cash' })}
-                    className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
-                      (editingTransaction.metode_pembayaran || 'Cash') === 'Cash' 
-                        ? 'bg-slate-800 text-white border-slate-800' 
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    💵 Cash
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Bank' })}
-                    className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
-                      editingTransaction.metode_pembayaran === 'Bank' 
-                        ? 'bg-blue-600 text-white border-blue-600' 
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    💳 Bank
-                  </button>
-                </div>
+                <label className="text-[10px] text-slate-400 block mb-1">Nominal (Yuan ¥)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={editingTransaction.nominal_yuan}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
+                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                  required
+                />
               </div>
 
               {editingTransaction.tipe === 'pengeluaran' && (
-                <select
-                  value={editingTransaction.kategori}
-                  onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
-                  className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                >
-                  {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Kategori</label>
+                  <select
+                    value={editingTransaction.kategori}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
+                    className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                  >
+                    {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
               )}
 
-              <input
-                type="number"
-                step="any"
-                placeholder="Nominal Yuan"
-                value={editingTransaction.nominal_yuan}
-                onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                required
-              />
-
-              <input
-                type="date"
-                value={editingTransaction.tanggal}
-                onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-              />
-
-              <input
-                type="text"
-                placeholder="Keterangan..."
-                value={editingTransaction.keterangan || ''}
-                onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-              />
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingTransaction(null)}
-                  className="w-1/2 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Metode Pembayaran</label>
+                <select
+                  value={editingTransaction.metode_pembayaran || 'Cash'}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, metode_pembayaran: e.target.value })}
+                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
                 >
+                  <option value="Cash">💵 Cash</option>
+                  <option value="Bank">💳 Bank</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Tanggal</label>
+                <input
+                  type="date"
+                  value={editingTransaction.tanggal}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
+                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Keterangan</label>
+                <input
+                  type="text"
+                  value={editingTransaction.keterangan || ''}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
+                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingTransaction(null)} className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">
                   Batal
                 </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700"
-                >
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">
                   Simpan Perubahan
                 </button>
               </div>
@@ -2245,57 +2191,54 @@ export default function App() {
 
       {/* MODAL EDIT TAGIHAN PEMBAYARAN */}
       {editingPayment && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl`}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-md p-5 rounded-2xl border shadow-2xl space-y-3`}>
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-xs">Edit Tagihan Kuliah</h3>
-              <button onClick={() => setEditingPayment(null)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="font-bold text-sm">Edit Tagihan Pembayaran</h3>
+              <button onClick={() => setEditingPayment(null)} className="text-slate-400 hover:text-rose-500">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={updatePayment} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nama Tagihan"
-                value={editingPayment.nama_tagihan}
-                onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                required
-              />
-
-              <input
-                type="number"
-                step="any"
-                placeholder="Jumlah (¥ Yuan)"
-                value={editingPayment.jumlah_yuan}
-                onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                required
-              />
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Nama Tagihan</label>
+                <input
+                  type="text"
+                  value={editingPayment.nama_tagihan}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
+                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                  required
+                />
+              </div>
 
               <div>
-                <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tenggat Waktu</label>
+                <label className="text-[10px] text-slate-400 block mb-1">Nominal (Yuan ¥)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={editingPayment.jumlah_yuan}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
+                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">Tenggat Waktu</label>
                 <input
                   type="date"
                   value={editingPayment.tenggat_waktu || ''}
                   onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
-                  className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  className="w-full border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingPayment(null)}
-                  className="w-1/2 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
-                >
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingPayment(null)} className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">
                   Batal
                 </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700"
-                >
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">
                   Simpan Perubahan
                 </button>
               </div>
@@ -2304,35 +2247,32 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL RINCIAN TANGGAL KALENDER */}
+      {/* MODAL DETAILS AGENDA DATE CLICK */}
       {selectedDateEvents && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl`}>
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-              <h3 className="font-bold text-xs">Agenda & Tugas ({selectedDateEvents.date})</h3>
-              <button onClick={() => setSelectedDateEvents(null)} className="text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-md p-5 rounded-2xl border shadow-2xl space-y-3`}>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-xs">Agenda & Tugas Tanggal: {selectedDateEvents.date}</h3>
+              <button onClick={() => setSelectedDateEvents(null)} className="text-slate-400 hover:text-rose-500">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
               {selectedDateEvents.list.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">Tidak ada agenda / tugas di tanggal ini.</p>
+                <p className="text-xs text-slate-400 py-4 text-center">Tidak ada agenda / tugas pada tanggal ini.</p>
               ) : (
                 selectedDateEvents.list.map(ev => (
-                  <div key={ev.id} className="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
+                  <div key={ev.id} className="p-3 border rounded-xl flex justify-between items-center bg-slate-50 dark:bg-slate-800">
                     <div>
-                      <p className="font-bold">{ev.judul}</p>
-                      {!ev.isTodo && (
-                        <p className="text-[10px] text-slate-400">
-                          {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
-                        </p>
-                      )}
-                      {ev.keterangan && <p className="text-[10px] text-slate-400 mt-0.5">{ev.keterangan}</p>}
+                      <p className="text-xs font-bold">{ev.judul}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {ev.isTodo ? 'Task Manager Deadline' : `${ev.seharian ? 'Seharian' : ev.jam} ${ev.keterangan ? '• ' + ev.keterangan : ''}`}
+                      </p>
                     </div>
 
                     {!ev.isTodo && (
-                      <button onClick={() => deleteAgenda(ev.id)} className="p-1 text-slate-300 hover:text-rose-600">
+                      <button onClick={() => deleteAgenda(ev.id)} className="text-slate-400 hover:text-rose-500 p-1">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -2340,17 +2280,43 @@ export default function App() {
                 ))
               )}
             </div>
-
-            <button
-              onClick={() => setSelectedDateEvents(null)}
-              className="w-full py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
-            >
-              Tutup
-            </button>
           </div>
         </div>
       )}
 
+      {/* MODAL TAMBAH KATEGORI */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800'} w-full max-w-sm p-5 rounded-2xl border shadow-2xl space-y-3`}>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-xs">Tambah Kategori Pengeluaran Baru</h3>
+              <button onClick={() => setShowAddCategoryModal(false)} className="text-slate-400 hover:text-rose-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCategory} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Nama Kategori (contoh: Laundry)"
+                value={newCategoryInput}
+                onChange={(e) => setNewCategoryInput(e.target.value)}
+                className="w-full border p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                required
+              />
+
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowAddCategoryModal(false)} className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800">
+                  Batal
+                </button>
+                <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">
+                  Tambah
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
