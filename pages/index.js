@@ -135,13 +135,23 @@ export default function App() {
   const [calcYuanInput, setCalcYuanInput] = useState('');
   const [calcIdrInput, setCalcIdrInput] = useState('');
 
-  // Sticky Notes State
-  const [stickyNote, setStickyNote] = useState(() => localStorage.getItem('app_sticky_note') || '');
+ // Sticky Notes State
+  const [stickyNote, setStickyNote] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('app_sticky_note', stickyNote);
-  }, [stickyNote]);
+    // Ambil data dari localStorage setelah komponen dimuat di browser
+    const savedNote = localStorage.getItem('app_sticky_note');
+    if (savedNote) {
+      setStickyNote(savedNote);
+    }
+  }, []);
 
+  useEffect(() => {
+    // Simpan ke localStorage hanya jika berjalan di browser
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('app_sticky_note', stickyNote);
+    }
+  }, [stickyNote]);
   // Clock CST
   useEffect(() => {
     const updateCSTClock = () => {
