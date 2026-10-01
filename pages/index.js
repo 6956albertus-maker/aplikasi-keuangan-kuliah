@@ -4,7 +4,8 @@ import {
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
   Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote,
-  Search, Download, AlertTriangle, Target
+  Search, Download, AlertTriangle, Target, Calculator, Moon, Sun,
+  Pin, StickyNote, PieChart, CheckCircle2, ArrowUpDown, TrendingUp
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -12,23 +13,24 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { Line, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend
 );
 
-// Environment Variable Handling untuk kompatibilitas Next.js / Create React App / Vite
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 
@@ -46,6 +48,9 @@ export default function App() {
   const [kursRate, setKursRate] = useState(2200);
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
+
+  // Fitur 5: Dark Mode State
+  const [darkMode, setDarkMode] = useState(false);
 
   // State Jam Live CST & Fullscreen
   const [cstTimeString, setCstTimeString] = useState('');
@@ -65,14 +70,21 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [filterMonthMutasi, setFilterMonthMutasi] = useState('');
   const [filterCategoryMutasi, setFilterCategoryMutasi] = useState('');
+  const [filterPaymentMethodMutasi, setFilterPaymentMethodMutasi] = useState(''); // Fitur 13
   const [searchMutasi, setSearchMutasi] = useState('');
+  const [sortMutasiOrder, setSortMutasiOrder] = useState('date-desc'); // Fitur 15
   const [showFilterSort, setShowFilterSort] = useState(false);
   const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState(3000); 
+  const [dailyBudgetLimit, setDailyBudgetLimit] = useState(100); // Fitur 14
   const [editingBudget, setEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(3000);
 
-  // State Fitur Prioritas Todo
+  // Fitur 9: Pinned Transactions State
+  const [pinnedTxIds, setPinnedTxIds] = useState([]);
+
+  // State Fitur Prioritas & Search Todo
   const [todoFilterPriority, setTodoFilterPriority] = useState('all');
+  const [searchTodo, setSearchTodo] = useState(''); // Fitur 3
 
   const [financeForm, setFinanceForm] = useState({
     tipe: 'pengeluaran',
@@ -88,6 +100,7 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDateEvents, setSelectedDateEvents] = useState(null);
+  const [searchAgenda, setSearchAgenda] = useState(''); // Fitur 10
 
   const [agendaForm, setAgendaForm] = useState({
     judul: '',
@@ -118,36 +131,42 @@ export default function App() {
     tenggat_waktu: new Date().toISOString().split('T')[0]
   });
 
-  // Effect Jam Live Zona Waktu China (Asia/Shanghai - CST)
+  // Fitur 2: Kalkulator Quick State
+  const [calcYuanInput, setCalcYuanInput] = useState('');
+  const [calcIdrInput, setCalcIdrInput] = useState('');
+
+  // Fitur 7: Savings Target State
+  const [savingsList, setSavingsList] = useState([
+    { id: 1, nama: 'Laptop Baru', target: 5000, terkumpul: 1800 },
+    { id: 2, nama: 'Tiket Pulang Indo', target: 3500, terkumpul: 2100 }
+  ]);
+  const [newSaving, setNewSaving] = useState({ nama: '', target: '', terkumpul: '' });
+
+  // Fitur 12: Sticky Notes State
+  const [stickyNote, setStickyNote] = useState(() => localStorage.getItem('app_sticky_note') || '');
+
+  useEffect(() => {
+    localStorage.setItem('app_sticky_note', stickyNote);
+  }, [stickyNote]);
+
+  // Clock CST
   useEffect(() => {
     const updateCSTClock = () => {
       const now = new Date();
-
       const timeFormatter = new Intl.DateTimeFormat('id-ID', {
         timeZone: 'Asia/Shanghai',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
       });
-
       const dateFormatter = new Intl.DateTimeFormat('id-ID', {
         timeZone: 'Asia/Shanghai',
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
       });
-
-      const formattedTime = timeFormatter.format(now).replace(/\./g, ':');
-
-      setCstTimeString(formattedTime);
+      setCstTimeString(timeFormatter.format(now).replace(/\./g, ':'));
       setCstDateString(dateFormatter.format(now));
     };
 
     updateCSTClock();
     const timer = setInterval(updateCSTClock, 1000);
-
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
@@ -186,7 +205,7 @@ export default function App() {
     }
   };
 
-  // --- SUPABASE API CALLS ---
+  // --- API CALLS ---
   async function fetchKurs() {
     const { data } = await supabase.from('pengaturan').select('value').eq('key', 'kurs_yuan').single();
     if (data) { setKursRate(Number(data.value)); setTempKurs(Number(data.value)); }
@@ -205,20 +224,21 @@ export default function App() {
     if (data) setTransactions(data);
   }
 
-  async function addTransaction(e) {
-    e.preventDefault();
-    if (!financeForm.nominalYuan) return;
-    const yuan = Number(financeForm.nominalYuan);
+  async function addTransaction(e, customPayload = null) {
+    if (e) e.preventDefault();
+    const target = customPayload || financeForm;
+    if (!target.nominalYuan) return;
+    const yuan = Number(target.nominalYuan);
     const idr = yuan * kursRate;
 
     await supabase.from('transaksi').insert([{
-      tipe: financeForm.tipe,
-      kategori: financeForm.tipe === 'pemasukan' ? 'Pemasukan' : financeForm.kategori,
-      metode_pembayaran: financeForm.metode_pembayaran || 'Cash',
+      tipe: target.tipe,
+      kategori: target.tipe === 'pemasukan' ? 'Pemasukan' : target.kategori,
+      metode_pembayaran: target.metode_pembayaran || 'Cash',
       nominal_yuan: yuan,
       nominal_idr: idr,
-      tanggal: financeForm.tanggal,
-      keterangan: financeForm.keterangan
+      tanggal: target.tanggal,
+      keterangan: target.keterangan
     }]);
 
     setFinanceForm({
@@ -230,6 +250,18 @@ export default function App() {
       keterangan: ''
     });
   }
+
+  // Fitur 1: Quick Expense Preset Handler
+  const handleQuickPreset = (kategori, nominal, ket) => {
+    addTransaction(null, {
+      tipe: 'pengeluaran',
+      kategori: kategori,
+      metode_pembayaran: 'Cash',
+      nominalYuan: nominal,
+      tanggal: new Date().toISOString().split('T')[0],
+      keterangan: ket
+    });
+  };
 
   async function updateTransaction(e) {
     e.preventDefault();
@@ -278,6 +310,26 @@ export default function App() {
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     link.setAttribute('download', `mutasi_transaksi_${filterMonthMutasi || 'terakhir'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Fitur 4: Export Todos to CSV
+  const exportTodosToCSV = () => {
+    if (todos.length === 0) return alert('Daftar tugas kosong!');
+    const headers = ['Judul,Tenggat Waktu,Status'];
+    const rows = todos.map(t => [
+      `"${t.judul.replace(/"/g, '""')}"`,
+      `"${t.tenggat_waktu}"`,
+      `"${t.selesai ? 'Selesai' : 'Belum Selesai'}"`
+    ].join(','));
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `todo_tugas_kuliah.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -395,6 +447,16 @@ export default function App() {
     await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
   }
 
+  // Fitur 16: Mark All Todos Done
+  async function markAllTodosDone() {
+    if (!window.confirm('Tandai semua tugas sebagai selesai?')) return;
+    const uncompleted = todos.filter(t => !t.selesai);
+    for (let t of uncompleted) {
+      await supabase.from('todo_tugas').update({ selesai: true }).eq('id', t.id);
+    }
+    fetchTodos();
+  }
+
   async function deleteTodo(id) {
     if (!window.confirm('Hapus tugas ini dari To-Do list?')) return;
     await supabase.from('todo_tugas').delete().eq('id', id);
@@ -411,6 +473,14 @@ export default function App() {
     setFinanceForm({ ...financeForm, kategori: newCategoryInput.trim() });
     setNewCategoryInput('');
     setShowAddCategoryModal(false);
+  };
+
+  const togglePinTx = (id) => {
+    if (pinnedTxIds.includes(id)) {
+      setPinnedTxIds(pinnedTxIds.filter(pId => pId !== id));
+    } else {
+      setPinnedTxIds([...pinnedTxIds, id]);
+    }
   };
 
   const getAutoPriority = (dueDateStr) => {
@@ -459,6 +529,17 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
+  // Fitur 8: Daily Average Expense
+  const todayDateObj = new Date();
+  const currentDayOfMonth = todayDateObj.getDate() || 1;
+  const dailyAverageExpense = monthExpenseYuan / currentDayOfMonth;
+
+  // Fitur 14: Today Expense Total
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayExpenseYuan = transactions
+    .filter(t => t.tanggal === todayStr && t.tipe === 'pengeluaran')
+    .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
+
   const getTopExpenseCategory = () => {
     const categoryTotals = {};
     currentMonthTransactions
@@ -483,6 +564,7 @@ export default function App() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 7);
 
+  // Fitur 13 & 15: Enhanced Filter & Sort Mutasi
   const filteredMutasiTransactions = transactions.filter(t => {
     let matchesMonth = true;
     if (filterMonthMutasi) {
@@ -497,18 +579,36 @@ export default function App() {
       matchesCategory = t.kategori === filterCategoryMutasi;
     }
 
+    let matchesMethod = true;
+    if (filterPaymentMethodMutasi) {
+      matchesMethod = (t.metode_pembayaran || 'Cash') === filterPaymentMethodMutasi;
+    }
+
     let matchesSearch = true;
     if (searchMutasi) {
       const q = searchMutasi.toLowerCase();
       matchesSearch = (t.keterangan || '').toLowerCase().includes(q) || (t.kategori || '').toLowerCase().includes(q);
     }
 
-    return matchesMonth && matchesCategory && matchesSearch;
+    return matchesMonth && matchesCategory && matchesMethod && matchesSearch;
+  }).sort((a, b) => {
+    // Pinned always on top
+    const isAPinned = pinnedTxIds.includes(a.id);
+    const isBPinned = pinnedTxIds.includes(b.id);
+    if (isAPinned && !isBPinned) return -1;
+    if (!isAPinned && isBPinned) return 1;
+
+    if (sortMutasiOrder === 'date-asc') return new Date(a.tanggal) - new Date(b.tanggal);
+    if (sortMutasiOrder === 'amount-desc') return b.nominal_yuan - a.nominal_yuan;
+    if (sortMutasiOrder === 'amount-asc') return a.nominal_yuan - b.nominal_yuan;
+    return new Date(b.tanggal) - new Date(a.tanggal); // default date-desc
   });
 
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
+  // Fitur 17: Payment Progress
+  const paymentProgressPct = totalPaymentYuan > 0 ? Math.round((paidPaymentYuan / totalPaymentYuan) * 100) : 0;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -529,6 +629,18 @@ export default function App() {
     })
     .filter(ev => ev.eventEndDateTime > now)
     .sort((a, b) => a.eventStartDateTime - b.eventStartDateTime);
+
+  // Fitur 18: Today's Schedule
+  const todaySchedule = events.filter(ev => {
+    return ev.tanggal <= todayStr && (ev.tanggal_selesai || ev.tanggal) >= todayStr;
+  });
+
+  // Fitur 11: Urgent Deadlines (<24 Hours)
+  const urgentTodos = todos.filter(t => {
+    if (t.selesai) return false;
+    const diff = new Date(t.tenggat_waktu) - new Date();
+    return diff >= 0 && diff <= (24 * 60 * 60 * 1000);
+  });
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
   
@@ -564,6 +676,25 @@ export default function App() {
       { label: 'Pemasukan (¥)', data: incomeDataByMonth, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3 },
       { label: 'Pengeluaran (¥)', data: expenseDataByMonth, borderColor: '#f43f5e', backgroundColor: '#f43f5e', tension: 0.3 },
     ],
+  };
+
+  // Fitur 6: Doughnut Chart Data for Categories
+  const categoryTotalsArr = expenseCategories.map(cat => {
+    return currentMonthTransactions
+      .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
+      .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
+  });
+
+  const doughnutData = {
+    labels: expenseCategories,
+    datasets: [
+      {
+        data: categoryTotalsArr,
+        backgroundColor: [
+          '#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'
+        ]
+      }
+    ]
   };
 
   const chartOptions = {
@@ -612,24 +743,24 @@ export default function App() {
   const budgetPercentage = Math.min(Math.round((monthExpenseYuan / (monthlyBudgetLimit || 1)) * 100), 100);
 
   const renderCalendar = () => (
-    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 ${isFullscreen ? 'p-3 h-full flex flex-col justify-between' : 'p-4 space-y-3'}`}>
+    <div className={`${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'} rounded-2xl shadow-sm border ${isFullscreen ? 'p-3 h-full flex flex-col justify-between' : 'p-4 space-y-3'}`}>
       <div className="flex justify-between items-center">
-        <h2 className={`${isFullscreen ? 'text-[11px]' : 'text-xs'} font-bold text-slate-900 flex items-center gap-1`}>
+        <h2 className={`${isFullscreen ? 'text-[11px]' : 'text-xs'} font-bold flex items-center gap-1`}>
           <span>📅</span> Kalender Agenda & Tugas
         </h2>
         <div className="flex items-center gap-1">
           <button 
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold px-2"
+            className="p-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-[10px] font-bold px-2 text-slate-700 dark:text-slate-200"
           >
             &lt;
           </button>
-          <span className="text-[10px] font-semibold text-slate-700 min-w-[70px] text-center">
+          <span className="text-[10px] font-semibold min-w-[70px] text-center">
             {currentMonth.toLocaleString('id-ID', { month: 'short', year: 'numeric' })}
           </span>
           <button 
             onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold px-2"
+            className="p-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-[10px] font-bold px-2 text-slate-700 dark:text-slate-200"
           >
             &gt;
           </button>
@@ -642,7 +773,7 @@ export default function App() {
 
       <div className={`grid grid-cols-7 gap-1 ${isFullscreen ? 'flex-1 grid-rows-5' : ''}`}>
         {[...Array(firstDayOfMonth)].map((_, i) => (
-          <div key={`empty-${i}`} className="bg-slate-50/50 rounded-lg"></div>
+          <div key={`empty-${i}`} className="bg-slate-50/50 dark:bg-slate-900/50 rounded-lg"></div>
         ))}
         {[...Array(daysInMonth)].map((_, i) => {
           const day = i + 1;
@@ -653,11 +784,11 @@ export default function App() {
             <div 
               key={day} 
               onClick={() => handleDateClick(dateStr)}
-              className={`p-1 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg flex flex-col justify-between cursor-pointer transition overflow-hidden group ${
-                isFullscreen ? 'h-full' : 'h-11'
-              }`}
+              className={`p-1 border rounded-lg flex flex-col justify-between cursor-pointer transition overflow-hidden group ${
+                darkMode ? 'bg-slate-900/40 border-slate-700 hover:bg-slate-700' : 'bg-slate-50 hover:bg-blue-50 border-slate-100'
+              } ${isFullscreen ? 'h-full' : 'h-11'}`}
             >
-              <span className="text-[9px] font-bold text-slate-600 group-hover:text-blue-600">{day}</span>
+              <span className="text-[9px] font-bold text-slate-500 group-hover:text-blue-500">{day}</span>
               <div className="space-y-0.5 overflow-hidden">
                 {dayEvents.slice(0, 2).map((ev) => (
                   <div 
@@ -682,9 +813,9 @@ export default function App() {
   return (
     <div 
       ref={fullscreenRef} 
-      className={`min-h-screen bg-slate-50 text-slate-800 font-sans ${
-        isFullscreen ? 'h-screen overflow-hidden p-3 flex flex-col justify-between' : 'pb-20'
-      }`}
+      className={`min-h-screen font-sans transition-colors duration-200 ${
+        darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'
+      } ${isFullscreen ? 'h-screen overflow-hidden p-3 flex flex-col justify-between' : 'pb-20'}`}
     >
       {isFullscreen && (
         <button
@@ -699,28 +830,37 @@ export default function App() {
       <div className={`${isFullscreen ? 'h-full flex flex-col justify-between gap-2 max-w-full' : 'max-w-4xl mx-auto p-4 space-y-5'}`}>
         
         {/* HEADER APLIKASI */}
-        <header className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center gap-3">
+        <header className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl shadow-sm border flex justify-between items-center gap-3`}>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Student Manager</h1>
-            <p className="text-xs text-slate-500">Keuangan, Kuliah & Pembayaran</p>
+            <h1 className="text-xl font-bold">Student Manager Pro</h1>
+            <p className="text-xs text-slate-400">Keuangan, Kuliah, Pembayaran & Task Manager</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-slate-100 p-1.5 rounded-xl text-right border border-slate-200">
+          <div className="flex items-center gap-2">
+            {/* Fitur 5: Dark Mode Toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`p-2 rounded-xl border transition ${darkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-slate-100 border-slate-200 text-slate-600'}`}
+              title="Toggle Dark Mode"
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            <div className={`p-1.5 rounded-xl text-right border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
               <div className="flex items-center gap-1 justify-end">
-                <span className="text-[10px] text-slate-500">1 RMB =</span>
+                <span className="text-[10px] text-slate-400">1 RMB =</span>
                 {editingKurs ? (
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
                       value={tempKurs}
                       onChange={(e) => setTempKurs(e.target.value)}
-                      className="w-16 bg-white border border-slate-300 text-xs rounded px-1"
+                      className="w-16 bg-white dark:bg-slate-900 border text-xs rounded px-1 dark:text-white"
                     />
                     <button onClick={updateKurs} className="text-[10px] bg-emerald-600 px-1.5 py-0.5 text-white font-bold rounded">OK</button>
                   </div>
                 ) : (
-                  <button onClick={() => setEditingKurs(true)} className="flex items-center gap-1 font-bold text-blue-600 text-xs">
+                  <button onClick={() => setEditingKurs(true)} className="flex items-center gap-1 font-bold text-blue-500 text-xs">
                     <span>Rp {kursRate.toLocaleString('id-ID')}</span>
                     <Edit2 className="w-3 h-3 text-slate-400" />
                   </button>
@@ -738,15 +878,29 @@ export default function App() {
           </div>
         </header>
 
+        {/* Fitur 11: Urgent Deadline Alert Banner */}
+        {urgentTodos.length > 0 && !isFullscreen && (
+          <div className="bg-amber-500 text-white p-3 rounded-2xl flex items-center justify-between text-xs font-bold shadow-md animate-pulse">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+              <span>Peringatan Deadline Urgent (&lt;24 Jam): Ada {urgentTodos.length} tugas yang hampir jatuh tempo!</span>
+            </div>
+            <button onClick={() => setActiveTab('todo')} className="bg-white text-amber-900 px-2 py-1 rounded-lg text-[10px] uppercase font-black">
+              Cek Tugas
+            </button>
+          </div>
+        )}
+
         {/* TAB NAVIGATION */}
         {!isFullscreen && (
-          <nav className="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
+          <nav className="flex space-x-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
             {[
               { id: 'dashboard', label: 'Utama', icon: LayoutDashboard },
               { id: 'todo', label: 'To Do Tugas', icon: CheckSquare },
               { id: 'keuangan', label: 'Keuangan', icon: Wallet },
               { id: 'kuliah', label: 'Kuliah', icon: CalendarIcon },
-              { id: 'pembayaran', label: 'Pembayaran', icon: GraduationCap }
+              { id: 'pembayaran', label: 'Pembayaran', icon: GraduationCap },
+              { id: 'tools', label: 'Fitur Tambahan', icon: Calculator }
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -754,7 +908,9 @@ export default function App() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
-                    activeTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200'
+                    activeTab === tab.id 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : darkMode ? 'bg-slate-900 text-slate-300 border border-slate-800' : 'bg-white text-slate-600 border border-slate-200'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -769,7 +925,7 @@ export default function App() {
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
             
-            {/* Peringatan Pengeluaran jika melebihi batas bulanan */}
+            {/* Peringatan Pengeluaran jika melebihi batas bulanan / harian */}
             {monthExpenseYuan > monthlyBudgetLimit && (
               <div className="bg-rose-500 text-white p-3 rounded-2xl flex items-center gap-2 text-xs font-bold shadow-md animate-pulse">
                 <AlertTriangle className="w-5 h-5 flex-shrink-0" />
@@ -777,13 +933,20 @@ export default function App() {
               </div>
             )}
 
-            {/* Widget Budget Tracker & Top Expense Banner */}
+            {todayExpenseYuan > dailyBudgetLimit && (
+              <div className="bg-orange-500 text-white p-2.5 rounded-2xl flex items-center gap-2 text-xs font-bold shadow-md">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>Pengeluaran Hari Ini ({formatYuan(todayExpenseYuan)}) Melebihi Batas Harian ({formatYuan(dailyBudgetLimit)})!</span>
+              </div>
+            )}
+
+            {/* Widget Budget Tracker, Daily Average & Top Expense Banner */}
             {!isFullscreen && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3.5 rounded-2xl border shadow-sm md:col-span-2 space-y-2`}>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                      <Target className="w-4 h-4 text-blue-600" />
+                    <span className="font-bold flex items-center gap-1.5">
+                      <Target className="w-4 h-4 text-blue-500" />
                       Status Anggaran Bulanan
                     </span>
                     <div className="flex items-center gap-2">
@@ -793,7 +956,7 @@ export default function App() {
                             type="number" 
                             value={tempBudget} 
                             onChange={(e) => setTempBudget(Number(e.target.value))}
-                            className="w-20 border rounded px-1 py-0.5 text-xs"
+                            className="w-20 border rounded px-1 py-0.5 text-xs text-black"
                           />
                           <button 
                             onClick={() => { setMonthlyBudgetLimit(tempBudget); setEditingBudget(false); }}
@@ -805,7 +968,7 @@ export default function App() {
                       ) : (
                         <button 
                           onClick={() => { setTempBudget(monthlyBudgetLimit); setEditingBudget(true); }}
-                          className="font-semibold text-slate-500 hover:text-blue-600 flex items-center gap-1"
+                          className="font-semibold text-slate-400 hover:text-blue-500 flex items-center gap-1"
                         >
                           {formatYuan(monthExpenseYuan)} / {formatYuan(monthlyBudgetLimit)} ({budgetPercentage}%)
                           <Edit2 className="w-3 h-3" />
@@ -813,13 +976,22 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden">
                     <div 
                       className={`h-full transition-all duration-500 rounded-full ${
                         budgetPercentage > 90 ? 'bg-rose-500' : budgetPercentage > 75 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
                       style={{ width: `${budgetPercentage}%` }}
                     ></div>
+                  </div>
+                </div>
+
+                {/* Fitur 8: Daily Average Card */}
+                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3.5 rounded-2xl border shadow-sm flex flex-col justify-between`}>
+                  <span className="text-[10px] text-slate-400 font-semibold block uppercase">Rata-Rata Harian (Bulan Ini)</span>
+                  <div>
+                    <span className="font-extrabold text-sm block text-blue-500">{formatYuan(dailyAverageExpense)}</span>
+                    <span className="text-[9px] text-slate-400">{formatIDR(dailyAverageExpense)} / hari</span>
                   </div>
                 </div>
 
@@ -832,6 +1004,17 @@ export default function App() {
                     <span className="font-extrabold text-amber-400 text-sm block">{formatYuan(topExpense.amount)}</span>
                     <span className="text-[9px] text-indigo-300">{formatIDR(topExpense.amount)}</span>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fitur 18: Today Schedule Banner */}
+            {!isFullscreen && todaySchedule.length > 0 && (
+              <div className={`${darkMode ? 'bg-slate-900 border-blue-900' : 'bg-blue-50 border-blue-200'} p-3 rounded-2xl border flex items-center justify-between text-xs`}>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <span className="font-bold">Jadwal Hari Ini:</span>
+                  <span>{todaySchedule.map(s => `${s.judul} (${s.seharian ? 'Seharian' : s.jam})`).join(', ')}</span>
                 </div>
               </div>
             )}
@@ -897,30 +1080,13 @@ export default function App() {
                         <p className="text-[8px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                       </div>
                     </div>
-
-                    <div className="pt-2 border-t border-slate-800">
-                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 text-[9px] text-center">
-                        {expenseCategories.map(cat => {
-                          const total = currentMonthTransactions
-                            .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
-                            .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
-                          return (
-                            <div key={cat} className="bg-slate-800/90 p-1 rounded-lg border border-slate-700/50 truncate">
-                              <span className="block text-slate-400 font-medium truncate">{cat}</span>
-                              <span className="font-bold text-rose-300 text-[10px] block">{formatYuan(total)}</span>
-                              <span className="text-[8px] text-slate-400 block">{formatIDR(total)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 overflow-hidden">
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
+                  <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full overflow-hidden">
                     <div className="flex justify-between items-center mb-2">
-                      <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <h2 className="font-bold text-xs flex items-center gap-1.5">
                         <ListTodo className="w-4 h-4 text-amber-600" />
                         <span>Daftar Tugas Mendatang</span>
                       </h2>
@@ -946,9 +1112,9 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full overflow-hidden">
+                  <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full overflow-hidden">
                     <div className="flex justify-between items-center mb-2">
-                      <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <h2 className="font-bold text-xs flex items-center gap-1.5">
                         <Clock className="w-4 h-4 text-blue-600" />
                         <span>Agenda Kuliah Terdekat</span>
                       </h2>
@@ -979,9 +1145,9 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
-                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
+                  <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full">
                     <div className="flex justify-between items-center mb-1">
-                      <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
+                      <h2 className="font-bold text-xs">Grafik Keuangan Bulanan</h2>
                       <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
                     </div>
                     <div className="flex-1 min-h-[100px] flex items-center justify-center">
@@ -1057,32 +1223,26 @@ export default function App() {
                       <p className="text-[9px] text-slate-400">{formatIDR(monthNonCollegeExpenseYuan)}</p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="pt-2 border-t border-slate-800">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                      {expenseCategories.map(cat => {
-                        const total = currentMonthTransactions
-                          .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
-                          .reduce((sum, t) => sum + Number(t.nominal_yuan), 0);
-                        return (
-                          <div key={cat} className="bg-slate-800/90 p-2 rounded-xl border border-slate-700/50">
-                            <span className="block text-slate-400 font-medium text-xs">{cat}</span>
-                            <span className="font-bold text-rose-300 text-xs block">{formatYuan(total)}</span>
-                            <span className="text-[9px] text-slate-400 block font-semibold">{formatIDR(total)}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                {/* Fitur 6: Doughnut Chart Visualisasi Kategori */}
+                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+                  <h2 className="font-bold text-xs flex items-center gap-1.5">
+                    <PieChart className="w-4 h-4 text-purple-500" />
+                    <span>Proporsi Pengeluaran per Kategori Bulan Ini</span>
+                  </h2>
+                  <div className="h-48 flex items-center justify-center">
+                    <Doughnut data={doughnutData} options={{ maintainAspectRatio: false }} />
                   </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
                   <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <h2 className="font-bold text-xs flex items-center gap-1.5">
                       <ListTodo className="w-4 h-4 text-amber-600" />
                       <span>Daftar Tugas Mendatang</span>
                     </h2>
-                    <button onClick={() => setActiveTab('todo')} className="text-[10px] font-bold text-blue-600 hover:underline">
+                    <button onClick={() => setActiveTab('todo')} className="text-[10px] font-bold text-blue-500 hover:underline">
                       Lihat Semua ({todos.filter(t => !t.selesai).length})
                     </button>
                   </div>
@@ -1131,42 +1291,9 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
                   <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-blue-600" />
-                      <span>Agenda Kuliah Terdekat</span>
-                    </h2>
-                    <span className="text-[10px] text-slate-400">Mendatang</span>
-                  </div>
-
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {upcomingEvents.length === 0 ? (
-                      <p className="text-xs text-slate-400 py-3 text-center">Belum ada agenda terdekat.</p>
-                    ) : (
-                      upcomingEvents.map(ev => {
-                        const isWithin24Hours = ev.diffHours >= 0 && ev.diffHours <= 24;
-                        return (
-                          <div key={ev.id} className={`p-2.5 rounded-xl border flex justify-between items-center ${isWithin24Hours ? 'bg-amber-100/70 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-100 text-slate-800'}`}>
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-1">
-                                <p className="font-bold text-xs">{ev.judul}</p>
-                                {isWithin24Hours && <span className="text-[8px] bg-amber-500 text-white font-bold px-1 py-0.2 rounded">&lt; 24j</span>}
-                              </div>
-                              <p className="text-[10px] text-slate-500">
-                                {ev.tanggal} • {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                  <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-xs text-slate-800">Grafik Keuangan Bulanan</h2>
+                    <h2 className="font-bold text-xs">Grafik Keuangan Bulanan</h2>
                     <span className="text-[10px] text-slate-400 font-medium">Yuan (¥)</span>
                   </div>
                   <div className="h-44 flex items-center justify-center">
@@ -1183,9 +1310,9 @@ export default function App() {
         {/* TAB TO DO LIST TUGAS */}
         {activeTab === 'todo' && !isFullscreen && (
           <div className="space-y-4">
-            <form onSubmit={addTodo} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-blue-600" />
+            <form onSubmit={addTodo} className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h3 className="text-xs font-bold flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-blue-500" />
                 <span>Tambah Tugas Baru</span>
               </h3>
 
@@ -1194,7 +1321,7 @@ export default function App() {
                 placeholder="Nama Tugas/Praktikum..."
                 value={todoForm.judul}
                 onChange={(e) => setTodoForm({ ...todoForm, judul: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 required
               />
 
@@ -1204,7 +1331,7 @@ export default function App() {
                   type="date"
                   value={todoForm.tenggat_waktu}
                   onChange={(e) => setTodoForm({ ...todoForm, tenggat_waktu: e.target.value })}
-                  className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 />
               </div>
 
@@ -1213,10 +1340,16 @@ export default function App() {
               </button>
             </form>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <h2 className="font-bold text-xs text-slate-700">Daftar Tugas & PR</h2>
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <div className="flex justify-between items-center gap-2 flex-wrap">
+                <h2 className="font-bold text-xs">Daftar Tugas & PR</h2>
                 <div className="flex items-center gap-1 text-[10px]">
+                  <button onClick={exportTodosToCSV} className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg font-bold flex items-center gap-1 mr-2" title="Fitur 4: Export CSV">
+                    <Download className="w-3 h-3" /> Export
+                  </button>
+                  <button onClick={markAllTodosDone} className="p-1.5 bg-blue-100 text-blue-800 rounded-lg font-bold flex items-center gap-1 mr-2" title="Fitur 16: Mark All Done">
+                    <CheckCircle2 className="w-3 h-3" /> Semua Selesai
+                  </button>
                   {['all', 'high', 'medium', 'low'].map(p => (
                     <button
                       key={p}
@@ -1224,7 +1357,7 @@ export default function App() {
                       className={`px-2 py-0.5 rounded-md font-bold uppercase transition ${
                         todoFilterPriority === p 
                           ? 'bg-blue-600 text-white' 
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'
                       }`}
                     >
                       {p === 'all' ? 'Semua' : p}
@@ -1233,19 +1366,32 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Fitur 3: Search Todo Input */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari tugas..."
+                  value={searchTodo}
+                  onChange={(e) => setSearchTodo(e.target.value)}
+                  className="w-full border border-slate-200 dark:border-slate-700 pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
               <div className="space-y-2">
                 {todos
                   .filter(item => {
-                    if (todoFilterPriority === 'all') return true;
+                    const matchesSearch = item.judul.toLowerCase().includes(searchTodo.toLowerCase());
+                    if (todoFilterPriority === 'all') return matchesSearch;
                     const p = getAutoPriority(item.tenggat_waktu);
-                    return p.code === todoFilterPriority;
+                    return p.code === todoFilterPriority && matchesSearch;
                   })
                   .map((item) => {
                     const isOverdue = new Date(item.tenggat_waktu) < today && !item.selesai;
                     const priority = getAutoPriority(item.tenggat_waktu);
 
                     return (
-                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center ${item.selesai ? 'bg-slate-50 opacity-60' : priority.blockBg}`}>
+                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center ${item.selesai ? 'bg-slate-50 dark:bg-slate-800/40 opacity-60' : priority.blockBg}`}>
                         <div className="flex items-center gap-2.5">
                           <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
                             {item.selesai ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4 text-slate-300" />}
@@ -1279,6 +1425,29 @@ export default function App() {
         {/* TAB KEUANGAN */}
         {activeTab === 'keuangan' && !isFullscreen && (
           <div className="space-y-4">
+            
+            {/* Fitur 1: Quick Expense Presets */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3 rounded-2xl border shadow-sm space-y-1.5`}>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">⚡ Quick Expense Presets (1-Klik)</span>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {[
+                  { label: '🍚 Makan ¥15', cat: 'Makan', amount: 15, ket: 'Makan Siang/Malam' },
+                  { label: '🧋 Minum ¥8', cat: 'Minum', amount: 8, ket: 'Beli Minuman/Kopi' },
+                  { label: '🍿 Jajan ¥10', cat: 'Jajan', amount: 10, ket: 'Cemilan' },
+                  { label: '🚌 Bus ¥2', cat: 'Transportasi', amount: 2, ket: 'Naik Bus/Metro' },
+                  { label: '📲 Kuota ¥50', cat: 'Kuota', amount: 50, ket: 'Isi Paket Data' },
+                ].map((p, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleQuickPreset(p.cat, p.amount, p.ket)}
+                    className="px-3 py-1.5 bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-100 rounded-xl text-xs font-bold border border-blue-200 dark:border-slate-700 whitespace-nowrap transition"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm border border-slate-800 space-y-3">
               <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold text-slate-300">Ringkasan Sisa Saldo Real-Time</span>
@@ -1337,21 +1506,21 @@ export default function App() {
               </div>
             </div>
 
-            <form onSubmit={addTransaction} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <h2 className="font-bold text-xs text-slate-700">Catat Transaksi</h2>
+            <form onSubmit={addTransaction} className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h2 className="font-bold text-xs">Catat Transaksi Baru</h2>
               
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setFinanceForm({ ...financeForm, tipe: 'pengeluaran' })}
-                  className={`py-2 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pengeluaran' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-600'}`}
+                  className={`py-2 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pengeluaran' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                 >
                   Pengeluaran
                 </button>
                 <button
                   type="button"
                   onClick={() => setFinanceForm({ ...financeForm, tipe: 'pemasukan' })}
-                  className={`py-2 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pemasukan' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 text-slate-600'}`}
+                  className={`py-2 rounded-xl text-xs font-bold border ${financeForm.tipe === 'pemasukan' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                 >
                   Pemasukan
                 </button>
@@ -1366,7 +1535,7 @@ export default function App() {
                     className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
                       financeForm.metode_pembayaran === 'Cash' 
                         ? 'bg-slate-800 text-white border-slate-800' 
-                        : 'bg-slate-50 text-slate-600 border-slate-200'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     💵 Cash
@@ -1377,7 +1546,7 @@ export default function App() {
                     className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
                       financeForm.metode_pembayaran === 'Bank' 
                         ? 'bg-blue-600 text-white border-blue-600' 
-                        : 'bg-slate-50 text-slate-600 border-slate-200'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     💳 Bank
@@ -1390,14 +1559,14 @@ export default function App() {
                   <select
                     value={financeForm.kategori}
                     onChange={(e) => setFinanceForm({ ...financeForm, kategori: e.target.value })}
-                    className="flex-1 border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    className="flex-1 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                   >
                     {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
                   </select>
                   <button
                     type="button"
                     onClick={() => setShowAddCategoryModal(true)}
-                    className="px-3 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200"
+                    className="px-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200"
                     title="Tambah Kategori"
                   >
                     + Baru
@@ -1411,7 +1580,7 @@ export default function App() {
                 placeholder="Nominal (¥ Yuan)"
                 value={financeForm.nominalYuan}
                 onChange={(e) => setFinanceForm({ ...financeForm, nominalYuan: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 required
               />
 
@@ -1419,7 +1588,7 @@ export default function App() {
                 type="date"
                 value={financeForm.tanggal}
                 onChange={(e) => setFinanceForm({ ...financeForm, tanggal: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
               />
 
               <input
@@ -1427,7 +1596,7 @@ export default function App() {
                 placeholder="Keterangan..."
                 value={financeForm.keterangan}
                 onChange={(e) => setFinanceForm({ ...financeForm, keterangan: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
               />
 
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
@@ -1435,10 +1604,13 @@ export default function App() {
               </button>
             </form>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
               <div className="flex justify-between items-center relative">
                 <div>
-                  <h2 className="font-bold text-xs text-slate-700">Riwayat Mutasi</h2>
+                  {/* Fitur 20: Counter Transaksi */}
+                  <h2 className="font-bold text-xs flex items-center gap-1.5">
+                    Riwayat Mutasi <span className="bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">{filteredMutasiTransactions.length} Total</span>
+                  </h2>
                   <p className="text-[10px] text-slate-400">
                     {filterMonthMutasi 
                       ? `Menampilkan bulan: ${filterMonthMutasi}` 
@@ -1449,21 +1621,22 @@ export default function App() {
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={exportTransactionsToCSV}
-                    className="p-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 transition flex items-center gap-1 text-[10px] font-bold"
+                    className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 transition flex items-center gap-1 text-[10px] font-bold"
                     title="Ekspor CSV"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Ekspor</span>
                   </button>
 
-                  {(filterMonthMutasi || filterCategoryMutasi || searchMutasi) && (
+                  {(filterMonthMutasi || filterCategoryMutasi || filterPaymentMethodMutasi || searchMutasi) && (
                     <button 
                       onClick={() => {
                         setFilterMonthMutasi('');
                         setFilterCategoryMutasi('');
+                        setFilterPaymentMethodMutasi('');
                         setSearchMutasi('');
                       }}
-                      className="p-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 text-[10px] flex items-center gap-1"
+                      className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 text-[10px] flex items-center gap-1"
                       title="Reset Filter"
                     >
                       <RefreshCw className="w-3 h-3" />
@@ -1474,11 +1647,11 @@ export default function App() {
                   <button 
                     onClick={() => setShowFilterSort(!showFilterSort)}
                     className={`p-1.5 rounded-xl border transition ${
-                      showFilterSort || filterMonthMutasi || filterCategoryMutasi || searchMutasi
-                        ? 'bg-blue-50 border-blue-300 text-blue-600' 
-                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                      showFilterSort || filterMonthMutasi || filterCategoryMutasi || filterPaymentMethodMutasi || searchMutasi
+                        ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-300 text-blue-600' 
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100'
                     }`}
-                    title="Sort & Filter"
+                    title="Sort & Filter Lanjutan"
                   >
                     <Filter className="w-3.5 h-3.5" />
                   </button>
@@ -1492,29 +1665,27 @@ export default function App() {
                   placeholder="Cari transaksi / keterangan..."
                   value={searchMutasi}
                   onChange={(e) => setSearchMutasi(e.target.value)}
-                  className="w-full border border-slate-200 pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 focus:bg-white"
+                  className="w-full border border-slate-200 dark:border-slate-700 pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 />
               </div>
 
+              {/* Fitur 13 & 15: Filter & Sorting Lanjutan */}
               {showFilterSort && (
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-600 text-[11px]">Filter Lanjutan:</span>
-                    <button 
-                      onClick={() => setShowFilterSort(false)}
-                      className="text-slate-400 hover:text-slate-600"
-                    >
+                    <span className="font-bold text-[11px]">Filter & Sorting Lanjutan:</span>
+                    <button onClick={() => setShowFilterSort(false)} className="text-slate-400">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                       <label className="text-[10px] text-slate-400 block mb-1">Bulan</label>
                       <input
                         type="month"
                         value={filterMonthMutasi}
                         onChange={(e) => setFilterMonthMutasi(e.target.value)}
-                        className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white"
+                        className="w-full border p-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 dark:border-slate-700"
                       />
                     </div>
                     <div>
@@ -1522,63 +1693,93 @@ export default function App() {
                       <select
                         value={filterCategoryMutasi}
                         onChange={(e) => setFilterCategoryMutasi(e.target.value)}
-                        className="w-full border border-slate-200 p-1.5 rounded-lg text-xs bg-white"
+                        className="w-full border p-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 dark:border-slate-700"
                       >
                         <option value="">Semua Kategori</option>
                         <option value="Pemasukan">Pemasukan</option>
                         {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 block mb-1">Metode</label>
+                      <select
+                        value={filterPaymentMethodMutasi}
+                        onChange={(e) => setFilterPaymentMethodMutasi(e.target.value)}
+                        className="w-full border p-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 dark:border-slate-700"
+                      >
+                        <option value="">Semua Metode</option>
+                        <option value="Cash">💵 Cash</option>
+                        <option value="Bank">💳 Bank</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 block mb-1">Urutan</label>
+                      <select
+                        value={sortMutasiOrder}
+                        onChange={(e) => setSortMutasiOrder(e.target.value)}
+                        className="w-full border p-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 dark:border-slate-700"
+                      >
+                        <option value="date-desc">Terbaru</option>
+                        <option value="date-asc">Terlama</option>
+                        <option value="amount-desc">Nominal Terbesar</option>
+                        <option value="amount-asc">Nominal Terkecil</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredMutasiTransactions.length === 0 ? (
                   <p className="text-xs text-slate-400 py-4 text-center">Tidak ada riwayat transaksi pada periode ini.</p>
                 ) : (
-                  filteredMutasiTransactions.map(t => (
-                    <div key={t.id} className="py-2.5 flex justify-between items-center text-xs">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-slate-800">{t.keterangan || t.kategori}</p>
-                          <span className={`text-[8px] px-1.5 py-0.2 rounded font-semibold ${
-                            t.metode_pembayaran === 'Bank' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {t.metode_pembayaran === 'Bank' ? '💳 Bank' : '💵 Cash'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
-                          </p>
-                          <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
+                  filteredMutasiTransactions.map(t => {
+                    const isPinned = pinnedTxIds.includes(t.id);
+                    return (
+                      <div key={t.id} className={`py-2.5 flex justify-between items-center text-xs ${isPinned ? 'bg-amber-50/50 dark:bg-amber-950/20 px-2 rounded-lg' : ''}`}>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            {/* Fitur 9: Pin Button */}
+                            <button onClick={() => togglePinTx(t.id)} title={isPinned ? 'Unpin' : 'Pin Transaksi'}>
+                              <Pin className={`w-3 h-3 ${isPinned ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
+                            </button>
+                            <p className="font-bold">{t.keterangan || t.kategori}</p>
+                            <span className={`text-[8px] px-1.5 py-0.2 rounded font-semibold ${
+                              t.metode_pembayaran === 'Bank' 
+                                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300' 
+                                : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'
+                            }`}>
+                              {t.metode_pembayaran === 'Bank' ? '💳 Bank' : '💵 Cash'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400">{t.tanggal} • {t.kategori}</p>
                         </div>
 
-                        <button 
-                          onClick={() => setEditingTransaction(t)} 
-                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit Transaksi"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <p className={`font-bold ${t.tipe === 'pemasukan' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {t.tipe === 'pemasukan' ? '+' : '-'} {formatYuan(t.nominal_yuan)}
+                            </p>
+                            <p className="text-[10px] text-slate-400">{formatIDR(t.nominal_yuan)}</p>
+                          </div>
 
-                        <button 
-                          onClick={() => deleteTransaction(t.id)} 
-                          className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                          title="Hapus Transaksi"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                          <button 
+                            onClick={() => setEditingTransaction(t)} 
+                            className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button 
+                            onClick={() => deleteTransaction(t.id)} 
+                            className="p-1 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -1590,9 +1791,33 @@ export default function App() {
           <div className="space-y-4">
             {renderCalendar()}
 
-            <form onSubmit={addAgenda} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-blue-600" />
+            {/* Fitur 10: Search Agenda */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3 rounded-2xl border shadow-sm`}>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari jadwal / agenda kuliah..."
+                  value={searchAgenda}
+                  onChange={(e) => setSearchAgenda(e.target.value)}
+                  className="w-full border border-slate-200 dark:border-slate-700 pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              {searchAgenda && (
+                <div className="mt-2 space-y-1">
+                  {events.filter(e => e.judul.toLowerCase().includes(searchAgenda.toLowerCase())).map(ev => (
+                    <div key={ev.id} className="text-xs p-2 bg-slate-100 dark:bg-slate-800 rounded-lg flex justify-between">
+                      <span className="font-bold">{ev.judul}</span>
+                      <span className="text-slate-400">{ev.tanggal} ({ev.jam})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={addAgenda} className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-5 rounded-2xl border shadow-sm space-y-3`}>
+              <h3 className="text-xs font-bold flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-blue-500" />
                 <span>Tambah Agenda Baru</span>
               </h3>
 
@@ -1601,7 +1826,7 @@ export default function App() {
                 placeholder="Judul agenda/tugas"
                 value={agendaForm.judul}
                 onChange={(e) => setAgendaForm({ ...agendaForm, judul: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 required
               />
 
@@ -1619,7 +1844,7 @@ export default function App() {
                         tanggal_selesai: prev.tanggal_selesai < startDate ? startDate : prev.tanggal_selesai
                       }));
                     }}
-                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
                 <div>
@@ -1629,7 +1854,7 @@ export default function App() {
                     min={agendaForm.tanggal}
                     value={agendaForm.tanggal_selesai}
                     onChange={(e) => setAgendaForm({ ...agendaForm, tanggal_selesai: e.target.value })}
-                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
               </div>
@@ -1642,7 +1867,7 @@ export default function App() {
                   onChange={(e) => setAgendaForm({ ...agendaForm, seharian: e.target.checked })}
                   className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
                 />
-                <label htmlFor="seharian" className="text-xs font-semibold text-slate-600 cursor-pointer select-none">
+                <label htmlFor="seharian" className="text-xs font-semibold cursor-pointer select-none">
                   Seharian (24 Jam)
                 </label>
               </div>
@@ -1655,7 +1880,7 @@ export default function App() {
                       type="time"
                       value={agendaForm.jam}
                       onChange={(e) => setAgendaForm({ ...agendaForm, jam: e.target.value })}
-                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                      className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                     />
                   </div>
                   <div>
@@ -1664,7 +1889,7 @@ export default function App() {
                       type="time"
                       value={agendaForm.jam_selesai}
                       onChange={(e) => setAgendaForm({ ...agendaForm, jam_selesai: e.target.value })}
-                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                      className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                     />
                   </div>
                 </div>
@@ -1675,7 +1900,7 @@ export default function App() {
                 placeholder="Keterangan tambahan (opsional)"
                 value={agendaForm.keterangan}
                 onChange={(e) => setAgendaForm({ ...agendaForm, keterangan: e.target.value })}
-                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
               />
 
               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md transition">
@@ -1688,8 +1913,20 @@ export default function App() {
         {/* TAB PEMBAYARAN KULIAH */}
         {activeTab === 'pembayaran' && !isFullscreen && (
           <div className="space-y-4">
-            <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg space-y-2">
+            <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg space-y-3">
               <span className="text-xs text-slate-400">Total Ringkasan Pembayaran Kuliah</span>
+              
+              {/* Fitur 17: Payment Bar Indicator */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] text-slate-300 font-bold">
+                  <span>Progres Kelunasan Tagihan</span>
+                  <span>{paymentProgressPct}% Lunas</span>
+                </div>
+                <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${paymentProgressPct}%` }}></div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
                 <div>
                   <p className="text-xs text-emerald-400">Lunas</p>
@@ -1709,16 +1946,16 @@ export default function App() {
                 <button
                   key={thn}
                   onClick={() => setSelectedPaymentYear(thn)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border ${selectedPaymentYear === thn ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200'}`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border ${selectedPaymentYear === thn ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white text-slate-600 border-slate-200'}`}
                 >
                   {thn}
                 </button>
               ))}
             </div>
 
-            <form onSubmit={addPayment} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5 text-blue-600" />
+            <form onSubmit={addPayment} className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h3 className="text-xs font-bold flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5 text-blue-500" />
                 <span>Tambah Tagihan ({selectedPaymentYear})</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1727,7 +1964,7 @@ export default function App() {
                   placeholder="Nama Tagihan (ex: Asuransi / MCU)"
                   value={newPaymentForm.nama_tagihan}
                   onChange={(e) => setNewPaymentForm({ ...newPaymentForm, nama_tagihan: e.target.value })}
-                  className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                   required
                 />
                 <input
@@ -1736,7 +1973,7 @@ export default function App() {
                   placeholder="Nominal (¥ Yuan)"
                   value={newPaymentForm.jumlah_yuan}
                   onChange={(e) => setNewPaymentForm({ ...newPaymentForm, jumlah_yuan: e.target.value })}
-                  className="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                   required
                 />
               </div>
@@ -1745,7 +1982,7 @@ export default function App() {
                   type="date"
                   value={newPaymentForm.tenggat_waktu}
                   onChange={(e) => setNewPaymentForm({ ...newPaymentForm, tenggat_waktu: e.target.value })}
-                  className="w-1/2 border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                  className="w-1/2 border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 />
                 <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl text-xs font-bold shadow-md transition">
                   Simpan Tagihan
@@ -1753,8 +1990,8 @@ export default function App() {
               </div>
             </form>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
-              <div className="p-3 bg-slate-50 font-bold text-xs text-slate-700">
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} rounded-2xl border shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800`}>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 font-bold text-xs">
                 Rincian Tagihan - {selectedPaymentYear}
               </div>
 
@@ -1762,11 +1999,11 @@ export default function App() {
                 <p className="text-xs text-slate-400 p-4 text-center">Belum ada tagihan untuk {selectedPaymentYear}.</p>
               ) : (
                 payments.filter(p => p.kategori_tahun === selectedPaymentYear).map(item => (
-                  <div key={item.id} className="p-3.5 space-y-2 group hover:bg-slate-50/50 transition">
+                  <div key={item.id} className="p-3.5 space-y-2 group">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-bold text-xs text-slate-800">{item.nama_tagihan}</p>
-                        <p className="text-xs font-bold text-blue-600">{formatYuan(item.jumlah_yuan)}</p>
+                        <p className="font-bold text-xs">{item.nama_tagihan}</p>
+                        <p className="text-xs font-bold text-blue-500">{formatYuan(item.jumlah_yuan)}</p>
                         <p className="text-[10px] text-slate-400">Prakiraan: {formatIDR(item.jumlah_yuan)}</p>
                       </div>
 
@@ -1780,23 +2017,21 @@ export default function App() {
 
                         <button
                           onClick={() => setEditingPayment(item)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit Tagihan"
+                          className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
 
                         <button
                           onClick={() => deletePayment(item.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                          title="Hapus Tagihan"
+                          className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl text-[10px] text-slate-500">
+                    <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2 rounded-xl text-[10px] text-slate-400">
                       <span>Tenggat Waktu:</span>
                       {editingDueDateId === item.id ? (
                         <div className="flex items-center gap-1">
@@ -1804,12 +2039,12 @@ export default function App() {
                             type="date"
                             value={tempDueDate}
                             onChange={(e) => setTempDueDate(e.target.value)}
-                            className="border border-slate-300 rounded px-1 text-[10px]"
+                            className="border rounded px-1 text-[10px] text-black"
                           />
                           <button onClick={() => saveDueDate(item.id)} className="bg-blue-600 text-white px-2 py-0.5 rounded font-bold">Simpan</button>
                         </div>
                       ) : (
-                        <button onClick={() => { setEditingDueDateId(item.id); setTempDueDate(item.tenggat_waktu || ''); }} className="font-semibold text-blue-600 flex items-center gap-1">
+                        <button onClick={() => { setEditingDueDateId(item.id); setTempDueDate(item.tenggat_waktu || ''); }} className="font-semibold text-blue-500 flex items-center gap-1">
                           {item.tenggat_waktu || 'Set Tanggal'}
                           <Edit2 className="w-2.5 h-2.5" />
                         </button>
@@ -1822,16 +2057,149 @@ export default function App() {
           </div>
         )}
 
+        {/* TAB FITUR TAMBAHAN (TOOLS & UTILITIES) */}
+        {activeTab === 'tools' && !isFullscreen && (
+          <div className="space-y-4">
+            
+            {/* Fitur 2: Kalkulator Quick Converter RMB -> IDR */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5">
+                <Calculator className="w-4 h-4 text-emerald-500" />
+                <span>Kalkulator Konversi RMB ↔ IDR Instant</span>
+              </h2>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Nominal RMB (¥)</label>
+                  <input
+                    type="number"
+                    placeholder="Masukan RMB..."
+                    value={calcYuanInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCalcYuanInput(val);
+                      setCalcIdrInput(val ? (Number(val) * kursRate).toString() : '');
+                    }}
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 block mb-1">Nominal IDR (Rp)</label>
+                  <input
+                    type="number"
+                    placeholder="Masukan IDR..."
+                    value={calcIdrInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCalcIdrInput(val);
+                      setCalcYuanInput(val ? (Number(val) / kursRate).toFixed(2) : '');
+                    }}
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Fitur 7: Savings Target / Tabungan Tracker */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+                <span>Target Tabungan & Keinginan</span>
+              </h2>
+
+              <div className="space-y-2">
+                {savingsList.map((item) => {
+                  const pct = Math.min(100, Math.round((item.terkumpul / item.target) * 100));
+                  return (
+                    <div key={item.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1.5 border border-slate-100 dark:border-slate-700">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>{item.nama}</span>
+                        <span className="text-blue-500">{formatYuan(item.terkumpul)} / {formatYuan(item.target)} ({pct}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                        <div className="bg-blue-600 h-full transition-all" style={{ width: `${pct}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!newSaving.nama || !newSaving.target) return;
+                setSavingsList([...savingsList, {
+                  id: Date.now(),
+                  nama: newSaving.nama,
+                  target: Number(newSaving.target),
+                  terkumpul: Number(newSaving.terkumpul || 0)
+                }]);
+                setNewSaving({ nama: '', target: '', terkumpul: '' });
+              }} className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <input
+                  type="text"
+                  placeholder="Nama Barang..."
+                  value={newSaving.nama}
+                  onChange={(e) => setNewSaving({ ...newSaving, nama: e.target.value })}
+                  className="border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Target (¥)..."
+                  value={newSaving.target}
+                  onChange={(e) => setNewSaving({ ...newSaving, target: e.target.value })}
+                  className="border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
+                  required
+                />
+                <button type="submit" className="bg-blue-600 text-white rounded-xl font-bold text-xs">
+                  + Target
+                </button>
+              </form>
+            </div>
+
+            {/* Fitur 12: Sticky Notes Tempat Coretan Catatan Cepat */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5">
+                <StickyNote className="w-4 h-4 text-amber-500" />
+                <span>Sticky Notes (Catatan Tempel Cepat)</span>
+              </h2>
+              <textarea
+                value={stickyNote}
+                onChange={(e) => setStickyNote(e.target.value)}
+                placeholder="Tulis info penting di sini (No rekening, PIN, Memo kilat)... Otomatis tersimpan!"
+                rows={4}
+                className="w-full border border-slate-200 dark:border-slate-700 p-3 rounded-xl text-xs bg-amber-50/50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
+              />
+            </div>
+
+            {/* Fitur 19: Semester Tracker Visual */}
+            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
+              <h2 className="font-bold text-xs flex items-center gap-1.5">
+                <GraduationCap className="w-4 h-4 text-emerald-500" />
+                <span>Progres Perkuliahan / Semester</span>
+              </h2>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Semester Berjalan</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200">Semester 2 dari 8</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full" style={{ width: '25%' }}></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )}
+
         {/* MODAL EDIT TRANSAKSI */}
         {editingTransaction && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-bold text-sm text-slate-800">Edit Laporan Transaksi</h3>
-                <button 
-                  onClick={() => setEditingTransaction(null)} 
-                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
-                >
+            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-bold text-sm">Edit Laporan Transaksi</h3>
+                <button onClick={() => setEditingTransaction(null)} className="p-1 text-slate-400">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1880,7 +2248,7 @@ export default function App() {
                     <select
                       value={editingTransaction.kategori}
                       onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
-                      className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                      className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                     >
                       {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
                     </select>
@@ -1894,7 +2262,7 @@ export default function App() {
                     step="any"
                     value={editingTransaction.nominal_yuan}
                     onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
-                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                     required
                   />
                 </div>
@@ -1905,7 +2273,7 @@ export default function App() {
                     type="date"
                     value={editingTransaction.tanggal}
                     onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
-                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                   />
                 </div>
 
@@ -1915,7 +2283,7 @@ export default function App() {
                     type="text"
                     value={editingTransaction.keterangan || ''}
                     onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
-                    className="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                   />
                 </div>
 
@@ -1942,13 +2310,10 @@ export default function App() {
         {/* MODAL TAMBAH KATEGORI BARU */}
         {showAddCategoryModal && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-bold text-sm text-slate-800">Tambah Kategori Pengeluaran Baru</h3>
-                <button 
-                  onClick={() => setShowAddCategoryModal(false)} 
-                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
-                >
+            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-bold text-sm">Tambah Kategori Pengeluaran Baru</h3>
+                <button onClick={() => setShowAddCategoryModal(false)} className="p-1 text-slate-400">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1961,7 +2326,7 @@ export default function App() {
                     placeholder="Contoh: Hiburan, Kesehatan..."
                     value={newCategoryInput}
                     onChange={(e) => setNewCategoryInput(e.target.value)}
-                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                     required
                   />
                 </div>
@@ -1989,15 +2354,12 @@ export default function App() {
         {/* MODAL DETAILS AGENDA */}
         {selectedDateEvents && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-bold text-sm text-slate-800">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-bold text-sm">
                   Agenda Tanggal: {selectedDateEvents.date}
                 </h3>
-                <button 
-                  onClick={() => setSelectedDateEvents(null)} 
-                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
-                >
+                <button onClick={() => setSelectedDateEvents(null)} className="p-1 text-slate-400">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2007,22 +2369,21 @@ export default function App() {
                   <p className="text-xs text-slate-400 text-center py-4">Tidak ada agenda pada tanggal ini.</p>
                 ) : (
                   selectedDateEvents.list.map((ev) => (
-                    <div key={ev.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-start">
+                    <div key={ev.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-start">
                       <div className="space-y-1">
-                        <p className="font-bold text-xs text-slate-800">{ev.judul}</p>
-                        <p className="text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+                        <p className="font-bold text-xs">{ev.judul}</p>
+                        <p className="text-[10px] text-blue-500 font-semibold flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
                         </p>
                         {ev.keterangan && (
-                          <p className="text-[10px] text-slate-500">{ev.keterangan}</p>
+                          <p className="text-[10px] text-slate-400">{ev.keterangan}</p>
                         )}
                       </div>
                       {!ev.isTodo && (
                         <button 
                           onClick={() => deleteAgenda(ev.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                          title="Hapus Agenda"
+                          className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -2034,7 +2395,7 @@ export default function App() {
 
               <button
                 onClick={() => setSelectedDateEvents(null)}
-                className="w-full bg-slate-100 text-slate-700 py-2 rounded-xl font-bold text-xs"
+                className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 rounded-xl font-bold text-xs"
               >
                 Tutup
               </button>
@@ -2045,13 +2406,10 @@ export default function App() {
         {/* MODAL EDIT PEMBAYARAN */}
         {editingPayment && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-bold text-sm text-slate-800">Edit Tagihan</h3>
-                <button 
-                  onClick={() => setEditingPayment(null)} 
-                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
-                >
+            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="font-bold text-sm">Edit Tagihan</h3>
+                <button onClick={() => setEditingPayment(null)} className="p-1 text-slate-400">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2063,7 +2421,7 @@ export default function App() {
                     type="text"
                     value={editingPayment.nama_tagihan}
                     onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
-                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                     required
                   />
                 </div>
@@ -2075,7 +2433,7 @@ export default function App() {
                     step="any"
                     value={editingPayment.jumlah_yuan}
                     onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
-                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                     required
                   />
                 </div>
@@ -2086,7 +2444,7 @@ export default function App() {
                     type="date"
                     value={editingPayment.tenggat_waktu || ''}
                     onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
-                    className="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
                   />
                 </div>
 
