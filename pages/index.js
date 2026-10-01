@@ -46,8 +46,9 @@ export default function App() {
   const [editingKurs, setEditingKurs] = useState(false);
   const [tempKurs, setTempKurs] = useState(2200);
 
-  // State Jam Live & Fullscreen
-  const [currentTime, setCurrentTime] = useState(new Date());
+  // State Jam Live CST & Fullscreen
+  const [cstTimeString, setCstTimeString] = useState('');
+  const [cstDateString, setCstDateString] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenRef = useRef(null);
 
@@ -104,10 +105,40 @@ export default function App() {
     tenggat_waktu: new Date().toISOString().split('T')[0]
   });
 
+  // Effect Jam Live Zona Waktu China (Asia/Shanghai - CST)
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const updateCSTClock = () => {
+      const now = new Date();
+
+      const timeFormatter = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Shanghai',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+
+      const dateFormatter = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Shanghai',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+
+      // Format jam dengan pemisah titik dua (00:00:00)
+      const formattedTime = timeFormatter.format(now).replace(/\./g, ':');
+
+      setCstTimeString(formattedTime);
+      setCstDateString(dateFormatter.format(now));
+    };
+
+    updateCSTClock();
+    const timer = setInterval(updateCSTClock, 1000);
+
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+
     return () => {
       clearInterval(timer);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
@@ -654,10 +685,10 @@ export default function App() {
                   <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">WAKTU REALTIME</span>
                     <p className="text-5xl md:text-6xl font-mono font-black text-amber-300 tracking-tight my-1">
-                      {currentTime.toLocaleTimeString('id-ID')}
+                      {cstTimeString || '00:00:00'} <span className="text-xl text-amber-400 font-bold">+CST</span>
                     </p>
                     <p className="text-sm md:text-base text-slate-200 font-semibold">
-                      {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      {cstDateString}
                     </p>
                   </div>
 
@@ -808,10 +839,10 @@ export default function App() {
                 <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 flex flex-col justify-center items-center text-center">
                   <span className="text-[10px] text-amber-400 font-bold tracking-widest uppercase mb-1">WAKTU REALTIME</span>
                   <p className="text-3xl md:text-4xl font-mono font-black text-amber-300 tracking-tight my-1">
-                    {currentTime.toLocaleTimeString('id-ID')}
+                    {cstTimeString || '00:00:00'} <span className="text-lg text-amber-400 font-bold">+CST</span>
                   </p>
                   <p className="text-xs md:text-sm text-slate-200 font-semibold">
-                    {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    {cstDateString}
                   </p>
                 </div>
 
