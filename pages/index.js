@@ -4,7 +4,7 @@ import {
   Wallet, Calendar as CalendarIcon, GraduationCap, LayoutDashboard, 
   Clock, Edit2, X, Trash2, Plus, CheckSquare, Square, ListTodo, 
   Maximize, Minimize, Filter, RefreshCw, CreditCard, Banknote,
-  Search, Download, AlertTriangle
+  Search, Download, AlertTriangle, PieChart, Timer, Target
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -64,6 +64,9 @@ export default function App() {
   const [searchMutasi, setSearchMutasi] = useState('');
   const [showFilterSort, setShowFilterSort] = useState(false);
   const [monthlyBudgetLimit, setMonthlyBudgetLimit] = useState(3000); // Batas anggaran bulanan (dalam Yuan)
+
+  // State Fitur Baru: Filter Prioritas Todo
+  const [todoFilterPriority, setTodoFilterPriority] = useState('all');
 
   const [financeForm, setFinanceForm] = useState({
     tipe: 'pengeluaran',
@@ -247,7 +250,7 @@ export default function App() {
     await supabase.from('transaksi').delete().eq('id', id);
   }
 
-  // FITUR BARU: Ekspor Mutasi ke CSV
+  // Ekspor Mutasi ke CSV
   const exportTransactionsToCSV = () => {
     if (filteredMutasiTransactions.length === 0) {
       alert('Tidak ada transaksi untuk diekspor!');
@@ -393,16 +396,16 @@ export default function App() {
   }
 
   const getAutoPriority = (dueDateStr) => {
-    if (!dueDateStr) return { label: 'Rendah', badgeColor: 'bg-slate-100 text-slate-600', blockBg: 'bg-slate-50 border-slate-100' };
+    if (!dueDateStr) return { label: 'Rendah', code: 'low', badgeColor: 'bg-slate-100 text-slate-600', blockBg: 'bg-slate-50 border-slate-100' };
     const todayObj = new Date();
     todayObj.setHours(0, 0, 0, 0);
     const dueObj = new Date(dueDateStr);
     dueObj.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 1) return { label: 'Tinggi', badgeColor: 'bg-rose-500 text-white font-bold', blockBg: 'bg-rose-50/80 border-rose-200' };
-    if (diffDays <= 3) return { label: 'Sedang', badgeColor: 'bg-amber-500 text-white font-semibold', blockBg: 'bg-amber-50/80 border-amber-200' };
-    return { label: 'Rendah', badgeColor: 'bg-slate-200 text-slate-700', blockBg: 'bg-slate-50/50 border-slate-100' };
+    if (diffDays <= 1) return { label: 'Tinggi', code: 'high', badgeColor: 'bg-rose-500 text-white font-bold', blockBg: 'bg-rose-50/80 border-rose-200' };
+    if (diffDays <= 3) return { label: 'Sedang', code: 'medium', badgeColor: 'bg-amber-500 text-white font-semibold', blockBg: 'bg-amber-50/80 border-amber-200' };
+    return { label: 'Rendah', code: 'low', badgeColor: 'bg-slate-200 text-slate-700', blockBg: 'bg-slate-50/50 border-slate-100' };
   };
 
   const formatYuan = (val) => `¥ ${Number(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -438,11 +441,32 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
+  // LOGIKA FITUR BARU: Top Category Expense
+  const getTopExpenseCategory = () => {
+    const categoryTotals = {};
+    currentMonthTransactions
+      .filter(t => t.tipe === 'pengeluaran')
+      .forEach(t => {
+        categoryTotals[t.kategori] = (categoryTotals[t.kategori] || 0) + Number(t.nominal_yuan);
+      });
+    
+    let topCat = '-';
+    let maxAmount = 0;
+    Object.entries(categoryTotals).forEach(([cat, amount]) => {
+      if (amount > maxAmount) {
+        maxAmount = amount;
+        topCat = cat;
+      }
+    });
+    return { name: topCat, amount: maxAmount };
+  };
+  const topExpense = getTopExpenseCategory();
+
   const now = new Date();
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 7);
 
-  // LOGIKA FITUR BARU: Filter & Pencarian Mutasi
+  // Filter & Pencarian Mutasi
   const filteredMutasiTransactions = transactions.filter(t => {
     let matchesMonth = true;
     if (filterMonthMutasi) {
@@ -483,8 +507,9 @@ export default function App() {
       const eventStartDateTime = new Date(`${ev.tanggal}T${startTimeStr}`);
       const diffMs = eventStartDateTime - now;
       const diffHours = diffMs / (1000 * 60 * 60);
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-      return { ...ev, eventEndDateTime, eventStartDateTime, diffHours };
+      return { ...ev, eventEndDateTime, eventStartDateTime, diffHours, diffDays };
     })
     .filter(ev => ev.eventEndDateTime > now)
     .sort((a, b) => a.eventStartDateTime - b.eventStartDateTime);
@@ -567,6 +592,9 @@ export default function App() {
     const dayEvents = getEventsForDate(dateStr);
     setSelectedDateEvents({ date: dateStr, list: dayEvents });
   };
+
+  // Percent Budget Used
+  const budgetPercentage = Math.min(Math.round((monthExpenseYuan / monthlyBudgetLimit) * 100), 100);
 
   const renderCalendar = () => (
     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 ${isFullscreen ? 'p-3 h-full flex flex-col justify-between' : 'p-4 space-y-3'}`}>
@@ -726,11 +754,47 @@ export default function App() {
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
             
-            {/* FITUR BARU: Peringatan Pengeluaran jika melebihi batas bulanan */}
+            {/* Peringatan Pengeluaran jika melebihi batas bulanan */}
             {monthExpenseYuan > monthlyBudgetLimit && (
               <div className="bg-rose-500 text-white p-3 rounded-2xl flex items-center gap-2 text-xs font-bold shadow-md animate-pulse">
                 <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                 <span>Peringatan: Pengeluaran bulan ini ({formatYuan(monthExpenseYuan)}) telah melebihi batas anggaran ({formatYuan(monthlyBudgetLimit)})!</span>
+              </div>
+            )}
+
+            {/* FITUR BARU: Widget Budget Tracker & Top Expense Banner */}
+            {!isFullscreen && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <Target className="w-4 h-4 text-blue-600" />
+                      Status Anggaran Bulanan
+                    </span>
+                    <span className="font-semibold text-slate-500">
+                      {formatYuan(monthExpenseYuan)} / {formatYuan(monthlyBudgetLimit)} ({budgetPercentage}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        budgetPercentage > 90 ? 'bg-rose-500' : budgetPercentage > 75 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${budgetPercentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-3.5 rounded-2xl border border-indigo-700 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-indigo-300 font-semibold block uppercase">Pengeluaran Terbesar</span>
+                    <span className="font-extrabold text-sm text-indigo-100">{topExpense.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-extrabold text-amber-400 text-sm block">{formatYuan(topExpense.amount)}</span>
+                    <span className="text-[9px] text-indigo-300">{formatIDR(topExpense.amount)}</span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1010,6 +1074,25 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* FITUR BARU: Countdown Event/Ujian Terdekat Widget */}
+                {upcomingEvents.length > 0 && (
+                  <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md space-y-2 flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] bg-white/20 text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider inline-block mb-1">
+                        Countdown Event Terdekat
+                      </span>
+                      <h3 className="font-bold text-sm">{upcomingEvents[0].judul}</h3>
+                      <p className="text-[11px] text-blue-100">{upcomingEvents[0].tanggal} • {upcomingEvents[0].jam || 'Seharian'}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-black block tracking-tight">
+                        {upcomingEvents[0].diffDays <= 0 ? 'Hari Ini!' : `${upcomingEvents[0].diffDays} Hari`}
+                      </span>
+                      <span className="text-[9px] text-blue-100">Lagi</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                   <div className="flex justify-between items-center">
                     <h2 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
@@ -1095,43 +1178,62 @@ export default function App() {
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <h2 className="font-bold text-xs text-slate-700">Daftar Tugas & PR</h2>
-                <span className="text-[10px] text-slate-400 font-semibold">
-                  {todos.filter(t => t.selesai).length} / {todos.length} Selesai
-                </span>
+                <div className="flex items-center gap-1 text-[10px]">
+                  {/* FITUR BARU: Filter Prioritas */}
+                  {['all', 'high', 'medium', 'low'].map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setTodoFilterPriority(p)}
+                      className={`px-2 py-0.5 rounded-md font-bold uppercase transition ${
+                        todoFilterPriority === p 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      {p === 'all' ? 'Semua' : p}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">
-                {todos.map((item) => {
-                  const isOverdue = new Date(item.tenggat_waktu) < today && !item.selesai;
-                  const priority = getAutoPriority(item.tenggat_waktu);
+                {todos
+                  .filter(item => {
+                    if (todoFilterPriority === 'all') return true;
+                    const p = getAutoPriority(item.tenggat_waktu);
+                    return p.code === todoFilterPriority;
+                  })
+                  .map((item) => {
+                    const isOverdue = new Date(item.tenggat_waktu) < today && !item.selesai;
+                    const priority = getAutoPriority(item.tenggat_waktu);
 
-                  return (
-                    <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center ${item.selesai ? 'bg-slate-50 opacity-60' : priority.blockBg}`}>
-                      <div className="flex items-center gap-2.5">
-                        <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
-                          {item.selesai ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4 text-slate-300" />}
-                        </button>
-                        <div>
-                          <p className={`text-xs font-bold ${item.selesai ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-                            {item.judul}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className={`text-[8px] px-1.5 py-0.2 rounded ${priority.badgeColor}`}>
-                              Prioritas {priority.label}
-                            </span>
-                            <span className={`text-[9.5px] ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
-                              Tenggat: {item.tenggat_waktu}
-                            </span>
+                    return (
+                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center ${item.selesai ? 'bg-slate-50 opacity-60' : priority.blockBg}`}>
+                        <div className="flex items-center gap-2.5">
+                          <button onClick={() => toggleTodoStatus(item.id, item.selesai)}>
+                            {item.selesai ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4 text-slate-300" />}
+                          </button>
+                          <div>
+                            <p className={`text-xs font-bold ${item.selesai ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                              {item.judul}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`text-[8px] px-1.5 py-0.2 rounded ${priority.badgeColor}`}>
+                                Prioritas {priority.label}
+                              </span>
+                              <span className={`text-[9.5px] ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                                Tenggat: {item.tenggat_waktu}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <button onClick={() => deleteTodo(item.id)} className="p-1 text-slate-300 hover:text-rose-600">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
+                        <button onClick={() => deleteTodo(item.id)} className="p-1 text-slate-300 hover:text-rose-600">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           </div>
@@ -1192,7 +1294,7 @@ export default function App() {
                     <p className="text-[10px] text-slate-400 mt-0.5">{formatIDR(totalBankBalanceYuan)}</p>
                   </div>
                   <p className="text-[9px] text-slate-500 border-t border-slate-700/60 mt-2 pt-1">
-                    Bulan Ini: <span className={monthBankBalanceYuan >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{formatYuan(monthBankBalanceYuan)}</span>
+                    Bulan Ini: <span className={monthBankIncome >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{formatYuan(monthBankBalanceYuan)}</span>
                   </p>
                 </div>
               </div>
@@ -1298,7 +1400,6 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  {/* FITUR BARU: Tombol Ekspor CSV */}
                   <button
                     onClick={exportTransactionsToCSV}
                     className="p-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 transition flex items-center gap-1 text-[10px] font-bold"
@@ -1337,7 +1438,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* FITUR BARU: Pencarian Cepat */}
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                 <input
