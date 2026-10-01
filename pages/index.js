@@ -483,6 +483,34 @@ export default function App() {
     }
   };
 
+  const handleAddSaving = (e) => {
+    e.preventDefault();
+    if (!newSaving.nama || !newSaving.target) return;
+    const newObj = {
+      id: Date.now(),
+      nama: newSaving.nama,
+      target: Number(newSaving.target),
+      terkumpul: Number(newSaving.terkumpul || 0)
+    };
+    setSavingsList([...savingsList, newObj]);
+    setNewSaving({ nama: '', target: '', terkumpul: '' });
+  };
+
+  const updateSavingDeposit = (id, delta) => {
+    setSavingsList(savingsList.map(s => {
+      if (s.id === id) {
+        const updated = Math.max(0, s.terkumpul + delta);
+        return { ...s, terkumpul: updated };
+      }
+      return s;
+    }));
+  };
+
+  const deleteSaving = (id) => {
+    if (!window.confirm('Hapus target tabungan ini?')) return;
+    setSavingsList(savingsList.filter(s => s.id !== id));
+  };
+
   const getAutoPriority = (dueDateStr) => {
     if (!dueDateStr) return { label: 'Rendah', code: 'low', badgeColor: 'bg-slate-100 text-slate-600', blockBg: 'bg-slate-50 border-slate-100' };
     const todayObj = new Date();
@@ -2060,415 +2088,328 @@ export default function App() {
         {/* TAB FITUR TAMBAHAN (TOOLS & UTILITIES) */}
         {activeTab === 'tools' && !isFullscreen && (
           <div className="space-y-4">
-            
             {/* Fitur 2: Kalkulator Quick Converter RMB -> IDR */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
               <h2 className="font-bold text-xs flex items-center gap-1.5">
                 <Calculator className="w-4 h-4 text-emerald-500" />
-                <span>Kalkulator Konversi RMB ↔ IDR Instant</span>
+                <span>Kalkulator Konversi Cepat (RMB ↔ IDR)</span>
               </h2>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Nominal RMB (¥)</label>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">RMB (Yuan)</label>
                   <input
                     type="number"
-                    placeholder="Masukan RMB..."
+                    placeholder="Masukkan RMB..."
                     value={calcYuanInput}
                     onChange={(e) => {
                       const val = e.target.value;
                       setCalcYuanInput(val);
                       setCalcIdrInput(val ? (Number(val) * kursRate).toString() : '');
                     }}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-1">Nominal IDR (Rp)</label>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">Rupiah (IDR)</label>
                   <input
                     type="number"
-                    placeholder="Masukan IDR..."
+                    placeholder="Masukkan IDR..."
                     value={calcIdrInput}
                     onChange={(e) => {
                       const val = e.target.value;
                       setCalcIdrInput(val);
                       setCalcYuanInput(val ? (Number(val) / kursRate).toFixed(2) : '');
                     }}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
               </div>
+
+              <p className="text-[10px] text-slate-400 text-right">
+                Kurs Aktif: 1 RMB = Rp {kursRate.toLocaleString('id-ID')}
+              </p>
             </div>
 
-            {/* Fitur 7: Savings Target / Tabungan Tracker */}
+            {/* Fitur 7: Savings Target Tracker */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
               <h2 className="font-bold text-xs flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-blue-500" />
-                <span>Target Tabungan & Keinginan</span>
+                <span>Target Tabungan & Impian</span>
               </h2>
 
-              <div className="space-y-2">
-                {savingsList.map((item) => {
-                  const pct = Math.min(100, Math.round((item.terkumpul / item.target) * 100));
+              <form onSubmit={handleAddSaving} className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <input
+                  type="text"
+                  placeholder="Nama Target (ex: Laptop)"
+                  value={newSaving.nama}
+                  onChange={(e) => setNewSaving({ ...newSaving, nama: e.target.value })}
+                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Target (¥ RMB)"
+                  value={newSaving.target}
+                  onChange={(e) => setNewSaving({ ...newSaving, target: e.target.value })}
+                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Awal (¥ RMB)"
+                  value={newSaving.terkumpul}
+                  onChange={(e) => setNewSaving({ ...newSaving, terkumpul: e.target.value })}
+                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                />
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold py-2 transition">
+                  + Buat Target
+                </button>
+              </form>
+
+              <div className="space-y-3 pt-1">
+                {savingsList.map(s => {
+                  const pct = Math.min(100, Math.round((s.terkumpul / (s.target || 1)) * 100));
                   return (
-                    <div key={item.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1.5 border border-slate-100 dark:border-slate-700">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span>{item.nama}</span>
-                        <span className="text-blue-500">{formatYuan(item.terkumpul)} / {formatYuan(item.target)} ({pct}%)</span>
+                    <div key={s.id} className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2 bg-slate-50/50 dark:bg-slate-800/40">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold">{s.nama}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-blue-500">{formatYuan(s.terkumpul)} / {formatYuan(s.target)} ({pct}%)</span>
+                          <button onClick={() => deleteSaving(s.id)} className="text-slate-400 hover:text-rose-500">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
+
                       <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                        <div className="bg-blue-600 h-full transition-all" style={{ width: `${pct}%` }}></div>
+                        <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${pct}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-end gap-1.5 text-[10px]">
+                        <button onClick={() => updateSavingDeposit(s.id, 50)} className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded hover:bg-emerald-200">
+                          + ¥50
+                        </button>
+                        <button onClick={() => updateSavingDeposit(s.id, 100)} className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded hover:bg-emerald-200">
+                          + ¥100
+                        </button>
+                        <button onClick={() => updateSavingDeposit(s.id, -50)} className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded hover:bg-rose-200">
+                          - ¥50
+                        </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
-
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (!newSaving.nama || !newSaving.target) return;
-                setSavingsList([...savingsList, {
-                  id: Date.now(),
-                  nama: newSaving.nama,
-                  target: Number(newSaving.target),
-                  terkumpul: Number(newSaving.terkumpul || 0)
-                }]);
-                setNewSaving({ nama: '', target: '', terkumpul: '' });
-              }} className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <input
-                  type="text"
-                  placeholder="Nama Barang..."
-                  value={newSaving.nama}
-                  onChange={(e) => setNewSaving({ ...newSaving, nama: e.target.value })}
-                  className="border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                  required
-                />
-                <input
-                  type="number"
-                  placeholder="Target (¥)..."
-                  value={newSaving.target}
-                  onChange={(e) => setNewSaving({ ...newSaving, target: e.target.value })}
-                  className="border p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:border-slate-700"
-                  required
-                />
-                <button type="submit" className="bg-blue-600 text-white rounded-xl font-bold text-xs">
-                  + Target
-                </button>
-              </form>
             </div>
 
-            {/* Fitur 12: Sticky Notes Tempat Coretan Catatan Cepat */}
+            {/* Fitur 12: Sticky Notes */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
               <h2 className="font-bold text-xs flex items-center gap-1.5">
                 <StickyNote className="w-4 h-4 text-amber-500" />
-                <span>Sticky Notes (Catatan Tempel Cepat)</span>
+                <span>Catatan Cepat (Sticky Note)</span>
               </h2>
               <textarea
                 value={stickyNote}
                 onChange={(e) => setStickyNote(e.target.value)}
-                placeholder="Tulis info penting di sini (No rekening, PIN, Memo kilat)... Otomatis tersimpan!"
+                placeholder="Tulis catatan penting, nomor kontak, atau pengingat cepat di sini (tersimpan otomatis)..."
                 rows={4}
-                className="w-full border border-slate-200 dark:border-slate-700 p-3 rounded-xl text-xs bg-amber-50/50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-amber-50/50 dark:bg-slate-800 dark:text-white"
               />
-            </div>
-
-            {/* Fitur 19: Semester Tracker Visual */}
-            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
-              <h2 className="font-bold text-xs flex items-center gap-1.5">
-                <GraduationCap className="w-4 h-4 text-emerald-500" />
-                <span>Progres Perkuliahan / Semester</span>
-              </h2>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>Semester Berjalan</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200">Semester 2 dari 8</span>
-                </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full" style={{ width: '25%' }}></div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* MODAL EDIT TRANSAKSI */}
-        {editingTransaction && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="font-bold text-sm">Edit Laporan Transaksi</h3>
-                <button onClick={() => setEditingTransaction(null)} className="p-1 text-slate-400">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={updateTransaction} className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pengeluaran' })}
-                    className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white' : 'bg-slate-50'}`}
-                  >
-                    Pengeluaran
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pemasukan' })}
-                    className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white' : 'bg-slate-50'}`}
-                  >
-                    Pemasukan
-                  </button>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Metode Pembayaran</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Cash' })}
-                      className={`py-1 rounded-lg text-xs font-semibold border ${editingTransaction.metode_pembayaran === 'Cash' ? 'bg-slate-800 text-white' : 'bg-slate-50'}`}
-                    >
-                      💵 Cash
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Bank' })}
-                      className={`py-1 rounded-lg text-xs font-semibold border ${editingTransaction.metode_pembayaran === 'Bank' ? 'bg-blue-600 text-white' : 'bg-slate-50'}`}
-                    >
-                      💳 Bank
-                    </button>
-                  </div>
-                </div>
-
-                {editingTransaction.tipe === 'pengeluaran' && (
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Kategori</label>
-                    <select
-                      value={editingTransaction.kategori}
-                      onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
-                      className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                    >
-                      {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
-                    </select>
-                  </div>
-                )}
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nominal (¥ Yuan)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editingTransaction.nominal_yuan}
-                    onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tanggal</label>
-                  <input
-                    type="date"
-                    value={editingTransaction.tanggal}
-                    onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Keterangan</label>
-                  <input
-                    type="text"
-                    value={editingTransaction.keterangan || ''}
-                    onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingTransaction(null)}
-                    className="w-1/2 bg-slate-100 text-slate-600 py-2 rounded-xl font-bold text-xs"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-1/2 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md"
-                  >
-                    Simpan Perubahan
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL TAMBAH KATEGORI BARU */}
-        {showAddCategoryModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="font-bold text-sm">Tambah Kategori Pengeluaran Baru</h3>
-                <button onClick={() => setShowAddCategoryModal(false)} className="p-1 text-slate-400">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddCategory} className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nama Kategori</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Hiburan, Kesehatan..."
-                    value={newCategoryInput}
-                    onChange={(e) => setNewCategoryInput(e.target.value)}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCategoryModal(false)}
-                    className="w-1/2 bg-slate-100 text-slate-600 py-2 rounded-xl font-bold text-xs"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-1/2 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs shadow-md"
-                  >
-                    Tambah
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL DETAILS AGENDA */}
-        {selectedDateEvents && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="font-bold text-sm">
-                  Agenda Tanggal: {selectedDateEvents.date}
-                </h3>
-                <button onClick={() => setSelectedDateEvents(null)} className="p-1 text-slate-400">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {selectedDateEvents.list.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-4">Tidak ada agenda pada tanggal ini.</p>
-                ) : (
-                  selectedDateEvents.list.map((ev) => (
-                    <div key={ev.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-start">
-                      <div className="space-y-1">
-                        <p className="font-bold text-xs">{ev.judul}</p>
-                        <p className="text-[10px] text-blue-500 font-semibold flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
-                        </p>
-                        {ev.keterangan && (
-                          <p className="text-[10px] text-slate-400">{ev.keterangan}</p>
-                        )}
-                      </div>
-                      {!ev.isTodo && (
-                        <button 
-                          onClick={() => deleteAgenda(ev.id)}
-                          className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <button
-                onClick={() => setSelectedDateEvents(null)}
-                className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 rounded-xl font-bold text-xs"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL EDIT PEMBAYARAN */}
-        {editingPayment && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="font-bold text-sm">Edit Tagihan</h3>
-                <button onClick={() => setEditingPayment(null)} className="p-1 text-slate-400">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={updatePayment} className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nama Tagihan</label>
-                  <input
-                    type="text"
-                    value={editingPayment.nama_tagihan}
-                    onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Nominal Yuan (¥)</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={editingPayment.jumlah_yuan}
-                    onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tenggat Waktu</label>
-                  <input
-                    type="date"
-                    value={editingPayment.tenggat_waktu || ''}
-                    onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800"
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingPayment(null)}
-                    className="w-1/2 bg-slate-100 text-slate-600 py-2.5 rounded-xl font-bold text-xs"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-1/2 bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md"
-                  >
-                    Simpan Perubahan
-                  </button>
-                </div>
-              </form>
             </div>
           </div>
         )}
 
       </div>
+
+      {/* MODAL EDIT TRANSAKSI */}
+      {editingTransaction && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-md space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-bold text-xs">Edit Transaksi</h3>
+              <button onClick={() => setEditingTransaction(null)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={updateTransaction} className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pengeluaran' })}
+                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
+                >
+                  Pengeluaran
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pemasukan' })}
+                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
+                >
+                  Pemasukan
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Metode Pembayaran</label>
+                <select
+                  value={editingTransaction.metode_pembayaran || 'Cash'}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, metode_pembayaran: e.target.value })}
+                  className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="Cash">💵 Cash</option>
+                  <option value="Bank">💳 Bank</option>
+                </select>
+              </div>
+
+              {editingTransaction.tipe === 'pengeluaran' && (
+                <select
+                  value={editingTransaction.kategori}
+                  onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
+                  className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                >
+                  {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              )}
+
+              <input
+                type="number"
+                step="any"
+                value={editingTransaction.nominal_yuan}
+                onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                placeholder="Nominal (¥ Yuan)"
+                required
+              />
+
+              <input
+                type="date"
+                value={editingTransaction.tanggal}
+                onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+              />
+
+              <input
+                type="text"
+                value={editingTransaction.keterangan || ''}
+                onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                placeholder="Keterangan..."
+              />
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-bold text-xs shadow-md">
+                Simpan Perubahan
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDIT PEMBAYARAN KULIAH */}
+      {editingPayment && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-md space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-bold text-xs">Edit Tagihan Kuliah</h3>
+              <button onClick={() => setEditingPayment(null)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={updatePayment} className="space-y-3">
+              <input
+                type="text"
+                value={editingPayment.nama_tagihan}
+                onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                required
+              />
+
+              <input
+                type="number"
+                step="any"
+                value={editingPayment.jumlah_yuan}
+                onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                required
+              />
+
+              <input
+                type="date"
+                value={editingPayment.tenggat_waktu || ''}
+                onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+              />
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-bold text-xs shadow-md">
+                Simpan Perubahan
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TAMBAH KATEGORI BARU */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-sm space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-bold text-xs">Tambah Kategori Pengeluaran</h3>
+              <button onClick={() => setShowAddCategoryModal(false)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <form onSubmit={handleAddCategory} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Nama Kategori Baru..."
+                value={newCategoryInput}
+                onChange={(e) => setNewCategoryInput(e.target.value)}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                required
+              />
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-bold text-xs shadow-md">
+                + Tambah Kategori
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETAIL AGENDA HARI TERPILIH */}
+      {selectedDateEvents && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-md space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="font-bold text-xs">Agenda & Tugas - {selectedDateEvents.date}</h3>
+              <button onClick={() => setSelectedDateEvents(null)}><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {selectedDateEvents.list.length === 0 ? (
+                <p className="text-xs text-slate-400 py-3 text-center">Tidak ada agenda / tugas pada tanggal ini.</p>
+              ) : (
+                selectedDateEvents.list.map((ev) => (
+                  <div key={ev.id} className="p-2.5 border rounded-xl flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                    <div>
+                      <p className="font-bold text-xs">{ev.judul}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                      </p>
+                      {ev.keterangan && <p className="text-[10px] text-slate-500 mt-0.5">{ev.keterangan}</p>}
+                    </div>
+
+                    {!ev.isTodo && (
+                      <button onClick={() => deleteAgenda(ev.id)} className="p-1 text-slate-400 hover:text-rose-600">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
