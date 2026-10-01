@@ -135,13 +135,6 @@ export default function App() {
   const [calcYuanInput, setCalcYuanInput] = useState('');
   const [calcIdrInput, setCalcIdrInput] = useState('');
 
-  // Fitur 7: Savings Target State
-  const [savingsList, setSavingsList] = useState([
-    { id: 1, nama: 'Laptop Baru', target: 5000, terkumpul: 1800 },
-    { id: 2, nama: 'Tiket Pulang Indo', target: 3500, terkumpul: 2100 }
-  ]);
-  const [newSaving, setNewSaving] = useState({ nama: '', target: '', terkumpul: '' });
-
   // Fitur 12: Sticky Notes State
   const [stickyNote, setStickyNote] = useState(() => localStorage.getItem('app_sticky_note') || '');
 
@@ -251,7 +244,6 @@ export default function App() {
     });
   }
 
-  // Fitur 1: Quick Expense Preset Handler
   const handleQuickPreset = (kategori, nominal, ket) => {
     addTransaction(null, {
       tipe: 'pengeluaran',
@@ -315,7 +307,6 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  // Fitur 4: Export Todos to CSV
   const exportTodosToCSV = () => {
     if (todos.length === 0) return alert('Daftar tugas kosong!');
     const headers = ['Judul,Tenggat Waktu,Status'];
@@ -447,7 +438,6 @@ export default function App() {
     await supabase.from('todo_tugas').update({ selesai: !currentStatus }).eq('id', id);
   }
 
-  // Fitur 16: Mark All Todos Done
   async function markAllTodosDone() {
     if (!window.confirm('Tandai semua tugas sebagai selesai?')) return;
     const uncompleted = todos.filter(t => !t.selesai);
@@ -481,34 +471,6 @@ export default function App() {
     } else {
       setPinnedTxIds([...pinnedTxIds, id]);
     }
-  };
-
-  const handleAddSaving = (e) => {
-    e.preventDefault();
-    if (!newSaving.nama || !newSaving.target) return;
-    const newObj = {
-      id: Date.now(),
-      nama: newSaving.nama,
-      target: Number(newSaving.target),
-      terkumpul: Number(newSaving.terkumpul || 0)
-    };
-    setSavingsList([...savingsList, newObj]);
-    setNewSaving({ nama: '', target: '', terkumpul: '' });
-  };
-
-  const updateSavingDeposit = (id, delta) => {
-    setSavingsList(savingsList.map(s => {
-      if (s.id === id) {
-        const updated = Math.max(0, s.terkumpul + delta);
-        return { ...s, terkumpul: updated };
-      }
-      return s;
-    }));
-  };
-
-  const deleteSaving = (id) => {
-    if (!window.confirm('Hapus target tabungan ini?')) return;
-    setSavingsList(savingsList.filter(s => s.id !== id));
   };
 
   const getAutoPriority = (dueDateStr) => {
@@ -557,12 +519,10 @@ export default function App() {
     .filter(t => t.tipe === 'pengeluaran' && t.kategori !== 'Biaya Kuliah')
     .reduce((acc, curr) => acc + Number(curr.nominal_yuan), 0);
 
-  // Fitur 8: Daily Average Expense
   const todayDateObj = new Date();
   const currentDayOfMonth = todayDateObj.getDate() || 1;
   const dailyAverageExpense = monthExpenseYuan / currentDayOfMonth;
 
-  // Fitur 14: Today Expense Total
   const todayStr = new Date().toISOString().split('T')[0];
   const todayExpenseYuan = transactions
     .filter(t => t.tanggal === todayStr && t.tipe === 'pengeluaran')
@@ -592,7 +552,6 @@ export default function App() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(now.getDate() - 7);
 
-  // Fitur 13 & 15: Enhanced Filter & Sort Mutasi
   const filteredMutasiTransactions = transactions.filter(t => {
     let matchesMonth = true;
     if (filterMonthMutasi) {
@@ -620,7 +579,6 @@ export default function App() {
 
     return matchesMonth && matchesCategory && matchesMethod && matchesSearch;
   }).sort((a, b) => {
-    // Pinned always on top
     const isAPinned = pinnedTxIds.includes(a.id);
     const isBPinned = pinnedTxIds.includes(b.id);
     if (isAPinned && !isBPinned) return -1;
@@ -629,13 +587,12 @@ export default function App() {
     if (sortMutasiOrder === 'date-asc') return new Date(a.tanggal) - new Date(b.tanggal);
     if (sortMutasiOrder === 'amount-desc') return b.nominal_yuan - a.nominal_yuan;
     if (sortMutasiOrder === 'amount-asc') return a.nominal_yuan - b.nominal_yuan;
-    return new Date(b.tanggal) - new Date(a.tanggal); // default date-desc
+    return new Date(b.tanggal) - new Date(a.tanggal);
   });
 
   const totalPaymentYuan = payments.reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const paidPaymentYuan = payments.filter(p => p.sudah_dibayar).reduce((acc, curr) => acc + Number(curr.jumlah_yuan), 0);
   const unpaidPaymentYuan = totalPaymentYuan - paidPaymentYuan;
-  // Fitur 17: Payment Progress
   const paymentProgressPct = totalPaymentYuan > 0 ? Math.round((paidPaymentYuan / totalPaymentYuan) * 100) : 0;
 
   const today = new Date();
@@ -658,12 +615,10 @@ export default function App() {
     .filter(ev => ev.eventEndDateTime > now)
     .sort((a, b) => a.eventStartDateTime - b.eventStartDateTime);
 
-  // Fitur 18: Today's Schedule
   const todaySchedule = events.filter(ev => {
     return ev.tanggal <= todayStr && (ev.tanggal_selesai || ev.tanggal) >= todayStr;
   });
 
-  // Fitur 11: Urgent Deadlines (<24 Hours)
   const urgentTodos = todos.filter(t => {
     if (t.selesai) return false;
     const diff = new Date(t.tenggat_waktu) - new Date();
@@ -706,7 +661,6 @@ export default function App() {
     ],
   };
 
-  // Fitur 6: Doughnut Chart Data for Categories
   const categoryTotalsArr = expenseCategories.map(cat => {
     return currentMonthTransactions
       .filter(t => t.tipe === 'pengeluaran' && t.kategori === cat)
@@ -865,7 +819,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Fitur 5: Dark Mode Toggle */}
             <button
               onClick={() => setDarkMode(!darkMode)}
               className={`p-2 rounded-xl border transition ${darkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-slate-100 border-slate-200 text-slate-600'}`}
@@ -906,7 +859,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Fitur 11: Urgent Deadline Alert Banner */}
         {urgentTodos.length > 0 && !isFullscreen && (
           <div className="bg-amber-500 text-white p-3 rounded-2xl flex items-center justify-between text-xs font-bold shadow-md animate-pulse">
             <div className="flex items-center gap-2">
@@ -953,7 +905,6 @@ export default function App() {
         {(activeTab === 'dashboard' || isFullscreen) && (
           <div className={`${isFullscreen ? 'flex-1 flex flex-col justify-between gap-2 overflow-hidden' : 'space-y-4'}`}>
             
-            {/* Peringatan Pengeluaran jika melebihi batas bulanan / harian */}
             {monthExpenseYuan > monthlyBudgetLimit && (
               <div className="bg-rose-500 text-white p-3 rounded-2xl flex items-center gap-2 text-xs font-bold shadow-md animate-pulse">
                 <AlertTriangle className="w-5 h-5 flex-shrink-0" />
@@ -968,7 +919,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Widget Budget Tracker, Daily Average & Top Expense Banner */}
             {!isFullscreen && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3.5 rounded-2xl border shadow-sm md:col-span-2 space-y-2`}>
@@ -1014,7 +964,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Fitur 8: Daily Average Card */}
                 <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3.5 rounded-2xl border shadow-sm flex flex-col justify-between`}>
                   <span className="text-[10px] text-slate-400 font-semibold block uppercase">Rata-Rata Harian (Bulan Ini)</span>
                   <div>
@@ -1036,7 +985,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Fitur 18: Today Schedule Banner */}
             {!isFullscreen && todaySchedule.length > 0 && (
               <div className={`${darkMode ? 'bg-slate-900 border-blue-900' : 'bg-blue-50 border-blue-200'} p-3 rounded-2xl border flex items-center justify-between text-xs`}>
                 <div className="flex items-center gap-2">
@@ -1253,7 +1201,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Fitur 6: Doughnut Chart Visualisasi Kategori */}
                 <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
                   <h2 className="font-bold text-xs flex items-center gap-1.5">
                     <PieChart className="w-4 h-4 text-purple-500" />
@@ -1300,7 +1247,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Countdown Event/Ujian Terdekat Widget */}
                 {upcomingEvents.length > 0 && (
                   <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 rounded-2xl shadow-md space-y-2 flex justify-between items-center">
                     <div>
@@ -1394,7 +1340,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Fitur 3: Search Todo Input */}
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                 <input
@@ -1454,7 +1399,6 @@ export default function App() {
         {activeTab === 'keuangan' && !isFullscreen && (
           <div className="space-y-4">
             
-            {/* Fitur 1: Quick Expense Presets */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3 rounded-2xl border shadow-sm space-y-1.5`}>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">⚡ Quick Expense Presets (1-Klik)</span>
               <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1635,7 +1579,6 @@ export default function App() {
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
               <div className="flex justify-between items-center relative">
                 <div>
-                  {/* Fitur 20: Counter Transaksi */}
                   <h2 className="font-bold text-xs flex items-center gap-1.5">
                     Riwayat Mutasi <span className="bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">{filteredMutasiTransactions.length} Total</span>
                   </h2>
@@ -1697,7 +1640,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Fitur 13 & 15: Filter & Sorting Lanjutan */}
               {showFilterSort && (
                 <div className="p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
@@ -1767,7 +1709,6 @@ export default function App() {
                       <div key={t.id} className={`py-2.5 flex justify-between items-center text-xs ${isPinned ? 'bg-amber-50/50 dark:bg-amber-950/20 px-2 rounded-lg' : ''}`}>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            {/* Fitur 9: Pin Button */}
                             <button onClick={() => togglePinTx(t.id)} title={isPinned ? 'Unpin' : 'Pin Transaksi'}>
                               <Pin className={`w-3 h-3 ${isPinned ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}`} />
                             </button>
@@ -1819,7 +1760,6 @@ export default function App() {
           <div className="space-y-4">
             {renderCalendar()}
 
-            {/* Fitur 10: Search Agenda */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-3 rounded-2xl border shadow-sm`}>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
@@ -1944,7 +1884,6 @@ export default function App() {
             <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-lg space-y-3">
               <span className="text-xs text-slate-400">Total Ringkasan Pembayaran Kuliah</span>
               
-              {/* Fitur 17: Payment Bar Indicator */}
               <div className="space-y-1">
                 <div className="flex justify-between text-[10px] text-slate-300 font-bold">
                   <span>Progres Kelunasan Tagihan</span>
@@ -2088,148 +2027,119 @@ export default function App() {
         {/* TAB FITUR TAMBAHAN (TOOLS & UTILITIES) */}
         {activeTab === 'tools' && !isFullscreen && (
           <div className="space-y-4">
-            {/* Fitur 2: Kalkulator Quick Converter RMB -> IDR */}
+            
+            {/* Fitur 2: Kalkulator Konversi Cepat Yuan <-> IDR */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
               <h2 className="font-bold text-xs flex items-center gap-1.5">
-                <Calculator className="w-4 h-4 text-emerald-500" />
-                <span>Kalkulator Konversi Cepat (RMB ↔ IDR)</span>
+                <Calculator className="w-4 h-4 text-blue-500" />
+                <span>Kalkulator Konversi Kurs Instant (1 RMB = Rp {kursRate.toLocaleString('id-ID')})</span>
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">RMB (Yuan)</label>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Yuan (¥ RMB)</label>
                   <input
                     type="number"
-                    placeholder="Masukkan RMB..."
+                    placeholder="Masukkan jumlah Yuan..."
                     value={calcYuanInput}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      setCalcYuanInput(val);
-                      setCalcIdrInput(val ? (Number(val) * kursRate).toString() : '');
+                      const v = e.target.value;
+                      setCalcYuanInput(v);
+                      if (v !== '') setCalcIdrInput(Math.round(Number(v) * kursRate));
+                      else setCalcIdrInput('');
                     }}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">Rupiah (IDR)</label>
+                  <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Rupiah (Rp IDR)</label>
                   <input
                     type="number"
-                    placeholder="Masukkan IDR..."
+                    placeholder="Masukkan jumlah Rupiah..."
                     value={calcIdrInput}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      setCalcIdrInput(val);
-                      setCalcYuanInput(val ? (Number(val) / kursRate).toFixed(2) : '');
+                      const v = e.target.value;
+                      setCalcIdrInput(v);
+                      if (v !== '' && kursRate > 0) setCalcYuanInput((Number(v) / kursRate).toFixed(2));
+                      else setCalcYuanInput('');
                     }}
-                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                    className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white font-bold"
                   />
                 </div>
               </div>
-
-              <p className="text-[10px] text-slate-400 text-right">
-                Kurs Aktif: 1 RMB = Rp {kursRate.toLocaleString('id-ID')}
-              </p>
             </div>
 
-            {/* Fitur 7: Savings Target Tracker */}
-            <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-3`}>
-              <h2 className="font-bold text-xs flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-blue-500" />
-                <span>Target Tabungan & Impian</span>
-              </h2>
-
-              <form onSubmit={handleAddSaving} className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                <input
-                  type="text"
-                  placeholder="Nama Target (ex: Laptop)"
-                  value={newSaving.nama}
-                  onChange={(e) => setNewSaving({ ...newSaving, nama: e.target.value })}
-                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                  required
-                />
-                <input
-                  type="number"
-                  placeholder="Target (¥ RMB)"
-                  value={newSaving.target}
-                  onChange={(e) => setNewSaving({ ...newSaving, target: e.target.value })}
-                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                  required
-                />
-                <input
-                  type="number"
-                  placeholder="Awal (¥ RMB)"
-                  value={newSaving.terkumpul}
-                  onChange={(e) => setNewSaving({ ...newSaving, terkumpul: e.target.value })}
-                  className="border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                />
-                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold py-2 transition">
-                  + Buat Target
-                </button>
-              </form>
-
-              <div className="space-y-3 pt-1">
-                {savingsList.map(s => {
-                  const pct = Math.min(100, Math.round((s.terkumpul / (s.target || 1)) * 100));
-                  return (
-                    <div key={s.id} className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2 bg-slate-50/50 dark:bg-slate-800/40">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold">{s.nama}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-blue-500">{formatYuan(s.terkumpul)} / {formatYuan(s.target)} ({pct}%)</span>
-                          <button onClick={() => deleteSaving(s.id)} className="text-slate-400 hover:text-rose-500">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                        <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${pct}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-end gap-1.5 text-[10px]">
-                        <button onClick={() => updateSavingDeposit(s.id, 50)} className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded hover:bg-emerald-200">
-                          + ¥50
-                        </button>
-                        <button onClick={() => updateSavingDeposit(s.id, 100)} className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded hover:bg-emerald-200">
-                          + ¥100
-                        </button>
-                        <button onClick={() => updateSavingDeposit(s.id, -50)} className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded hover:bg-rose-200">
-                          - ¥50
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Fitur 12: Sticky Notes */}
+            {/* Fitur 12: Sticky Notes Memo */}
             <div className={`${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} p-4 rounded-2xl border shadow-sm space-y-2`}>
               <h2 className="font-bold text-xs flex items-center gap-1.5">
                 <StickyNote className="w-4 h-4 text-amber-500" />
-                <span>Catatan Cepat (Sticky Note)</span>
+                <span>Sticky Notes / Catatan Memo Cepat</span>
               </h2>
               <textarea
                 value={stickyNote}
                 onChange={(e) => setStickyNote(e.target.value)}
-                placeholder="Tulis catatan penting, nomor kontak, atau pengingat cepat di sini (tersimpan otomatis)..."
-                rows={4}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-amber-50/50 dark:bg-slate-800 dark:text-white"
-              />
+                placeholder="Tulis catatan penting, daftar belanja, memo seminar, dll di sini (otomatis tersimpan)..."
+                rows={5}
+                className="w-full border border-slate-200 dark:border-slate-700 p-3 rounded-xl text-xs bg-amber-50/50 dark:bg-slate-800 dark:text-slate-100 focus:ring-1 focus:ring-amber-400 outline-none"
+              ></textarea>
+              <span className="text-[9px] text-slate-400 block text-right">*Tersimpan secara lokal di browser Anda.</span>
             </div>
+
           </div>
         )}
 
       </div>
 
+      {/* MODAL TAMBAH KATEGORI */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-xs">Tambah Kategori Baru</h3>
+              <button onClick={() => setShowAddCategoryModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleAddCategory} className="space-y-3">
+              <input
+                type="text"
+                placeholder="Nama Kategori (ex: Hiburan)"
+                value={newCategoryInput}
+                onChange={(e) => setNewCategoryInput(e.target.value)}
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                autoFocus
+                required
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategoryModal(false)}
+                  className="w-1/2 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700"
+                >
+                  Simpan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL EDIT TRANSAKSI */}
       {editingTransaction && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-md space-y-3 shadow-2xl`}>
-            <div className="flex justify-between items-center border-b pb-2">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center">
               <h3 className="font-bold text-xs">Edit Transaksi</h3>
-              <button onClick={() => setEditingTransaction(null)}><X className="w-4 h-4" /></button>
+              <button onClick={() => setEditingTransaction(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <form onSubmit={updateTransaction} className="space-y-3">
@@ -2237,14 +2147,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pengeluaran' })}
-                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
+                  className={`py-2 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pengeluaran' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                 >
                   Pengeluaran
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingTransaction({ ...editingTransaction, tipe: 'pemasukan' })}
-                  className={`py-1.5 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}
+                  className={`py-2 rounded-xl text-xs font-bold border ${editingTransaction.tipe === 'pemasukan' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}
                 >
                   Pemasukan
                 </button>
@@ -2252,21 +2162,37 @@ export default function App() {
 
               <div>
                 <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Metode Pembayaran</label>
-                <select
-                  value={editingTransaction.metode_pembayaran || 'Cash'}
-                  onChange={(e) => setEditingTransaction({ ...editingTransaction, metode_pembayaran: e.target.value })}
-                  className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                >
-                  <option value="Cash">💵 Cash</option>
-                  <option value="Bank">💳 Bank</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Cash' })}
+                    className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
+                      (editingTransaction.metode_pembayaran || 'Cash') === 'Cash' 
+                        ? 'bg-slate-800 text-white border-slate-800' 
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    💵 Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTransaction({ ...editingTransaction, metode_pembayaran: 'Bank' })}
+                    className={`py-1.5 rounded-xl text-xs font-semibold border transition ${
+                      editingTransaction.metode_pembayaran === 'Bank' 
+                        ? 'bg-blue-600 text-white border-blue-600' 
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    💳 Bank
+                  </button>
+                </div>
               </div>
 
               {editingTransaction.tipe === 'pengeluaran' && (
                 <select
                   value={editingTransaction.kategori}
                   onChange={(e) => setEditingTransaction({ ...editingTransaction, kategori: e.target.value })}
-                  className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                  className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 >
                   {expenseCategories.map(k => <option key={k} value={k}>{k}</option>)}
                 </select>
@@ -2275,10 +2201,10 @@ export default function App() {
               <input
                 type="number"
                 step="any"
+                placeholder="Nominal Yuan"
                 value={editingTransaction.nominal_yuan}
                 onChange={(e) => setEditingTransaction({ ...editingTransaction, nominal_yuan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                placeholder="Nominal (¥ Yuan)"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 required
               />
 
@@ -2286,119 +2212,127 @@ export default function App() {
                 type="date"
                 value={editingTransaction.tanggal}
                 onChange={(e) => setEditingTransaction({ ...editingTransaction, tanggal: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
               />
 
               <input
                 type="text"
+                placeholder="Keterangan..."
                 value={editingTransaction.keterangan || ''}
                 onChange={(e) => setEditingTransaction({ ...editingTransaction, keterangan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                placeholder="Keterangan..."
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
               />
 
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-bold text-xs shadow-md">
-                Simpan Perubahan
-              </button>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTransaction(null)}
+                  className="w-1/2 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL EDIT PEMBAYARAN KULIAH */}
+      {/* MODAL EDIT TAGIHAN PEMBAYARAN */}
       {editingPayment && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-md space-y-3 shadow-2xl`}>
-            <div className="flex justify-between items-center border-b pb-2">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-md w-full space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center">
               <h3 className="font-bold text-xs">Edit Tagihan Kuliah</h3>
-              <button onClick={() => setEditingPayment(null)}><X className="w-4 h-4" /></button>
+              <button onClick={() => setEditingPayment(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <form onSubmit={updatePayment} className="space-y-3">
               <input
                 type="text"
+                placeholder="Nama Tagihan"
                 value={editingPayment.nama_tagihan}
                 onChange={(e) => setEditingPayment({ ...editingPayment, nama_tagihan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 required
               />
 
               <input
                 type="number"
                 step="any"
+                placeholder="Jumlah (¥ Yuan)"
                 value={editingPayment.jumlah_yuan}
                 onChange={(e) => setEditingPayment({ ...editingPayment, jumlah_yuan: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-                required
-              />
-
-              <input
-                type="date"
-                value={editingPayment.tenggat_waktu || ''}
-                onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
-                className="w-full border border-slate-200 dark:border-slate-700 p-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
-              />
-
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-bold text-xs shadow-md">
-                Simpan Perubahan
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH KATEGORI BARU */}
-      {showAddCategoryModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-sm space-y-3 shadow-2xl`}>
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-xs">Tambah Kategori Pengeluaran</h3>
-              <button onClick={() => setShowAddCategoryModal(false)}><X className="w-4 h-4" /></button>
-            </div>
-
-            <form onSubmit={handleAddCategory} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Nama Kategori Baru..."
-                value={newCategoryInput}
-                onChange={(e) => setNewCategoryInput(e.target.value)}
                 className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
                 required
               />
 
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl font-bold text-xs shadow-md">
-                + Tambah Kategori
-              </button>
+              <div>
+                <label className="text-[10px] font-semibold text-slate-400 mb-1 block">Tenggat Waktu</label>
+                <input
+                  type="date"
+                  value={editingPayment.tenggat_waktu || ''}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, tenggat_waktu: e.target.value })}
+                  className="w-full border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPayment(null)}
+                  className="w-1/2 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-blue-700"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL DETAIL AGENDA HARI TERPILIH */}
+      {/* MODAL RINCIAN TANGGAL KALENDER */}
       {selectedDateEvents && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className={`${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'} p-5 rounded-2xl w-full max-w-md space-y-3 shadow-2xl`}>
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-xs">Agenda & Tugas - {selectedDateEvents.date}</h3>
-              <button onClick={() => setSelectedDateEvents(null)}><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`${darkMode ? 'bg-slate-900 text-white border-slate-800' : 'bg-white text-slate-800 border-slate-200'} border p-5 rounded-2xl max-w-sm w-full space-y-3 shadow-2xl`}>
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+              <h3 className="font-bold text-xs">Agenda & Tugas ({selectedDateEvents.date})</h3>
+              <button onClick={() => setSelectedDateEvents(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {selectedDateEvents.list.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">Tidak ada agenda / tugas pada tanggal ini.</p>
+                <p className="text-xs text-slate-400 py-3 text-center">Tidak ada agenda / tugas di tanggal ini.</p>
               ) : (
-                selectedDateEvents.list.map((ev) => (
-                  <div key={ev.id} className="p-2.5 border rounded-xl flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                selectedDateEvents.list.map(ev => (
+                  <div key={ev.id} className="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs">
                     <div>
-                      <p className="font-bold text-xs">{ev.judul}</p>
-                      <p className="text-[10px] text-slate-400">
-                        {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
-                      </p>
-                      {ev.keterangan && <p className="text-[10px] text-slate-500 mt-0.5">{ev.keterangan}</p>}
+                      <p className="font-bold">{ev.judul}</p>
+                      {!ev.isTodo && (
+                        <p className="text-[10px] text-slate-400">
+                          {ev.seharian ? 'Seharian (24 Jam)' : `${ev.jam || '-'} - ${ev.jam_selesai || '-'}`}
+                        </p>
+                      )}
+                      {ev.keterangan && <p className="text-[10px] text-slate-400 mt-0.5">{ev.keterangan}</p>}
                     </div>
 
                     {!ev.isTodo && (
-                      <button onClick={() => deleteAgenda(ev.id)} className="p-1 text-slate-400 hover:text-rose-600">
+                      <button onClick={() => deleteAgenda(ev.id)} className="p-1 text-slate-300 hover:text-rose-600">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -2406,6 +2340,13 @@ export default function App() {
                 ))
               )}
             </div>
+
+            <button
+              onClick={() => setSelectedDateEvents(null)}
+              className="w-full py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold"
+            >
+              Tutup
+            </button>
           </div>
         </div>
       )}
