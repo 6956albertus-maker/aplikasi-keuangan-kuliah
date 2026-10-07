@@ -11,17 +11,15 @@ import {
   Plus,
 } from 'lucide-react';
 
-// Client & Utility
-import { supabase } from './lib/supabaseClient';
-import { formatYuan, formatIDR } from './lib/utils';
+// FIX PATH: Menambahkan ../src/ untuk mengarah ke folder src/lib
+import { supabase } from '../src/lib/supabaseClient';
+import { formatYuan, formatIDR } from '../src/lib/utils';
 
-// Custom Hooks
-import { useTransactions } from './hooks/useTransactions';
-
-// Components
-import PaymentTab from './components/PaymentTab';
-import ToolsTab from './components/ToolsTab';
-import AddCategoryModal from './components/AddCategoryModal';
+// FIX PATH: Mengarah ke folder hooks dan components di root
+import { useTransactions } from '../hooks/useTransactions';
+import PaymentTab from '../components/PaymentTab';
+import ToolsTab from '../components/ToolsTab';
+import AddCategoryModal from '../components/AddCategoryModal';
 
 export default function Home() {
   // --- STATE UTAMA & TAMPILAN ---
