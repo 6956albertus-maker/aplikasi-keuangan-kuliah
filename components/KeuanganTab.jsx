@@ -25,7 +25,7 @@ export default function KeuanganTab({
   // State Modal Edit
   const [editingTx, setEditingTx] = useState(null);
 
-  // State Toggle Panel Filter
+  // State Toggle Panel Filter Melayang (Popout)
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // State Navigasi Bulan & Tahun Kalender
@@ -108,6 +108,7 @@ export default function KeuanganTab({
   const handleApplyFilter = () => {
     setAppliedStart(rangeStart);
     setAppliedEnd(rangeEnd || rangeStart);
+    setIsFilterOpen(false); // Otomatis tutup popup setelah dikonfirmasi
   };
 
   const handleResetFilter = () => {
@@ -149,7 +150,7 @@ export default function KeuanganTab({
       {/* RIWAYAT TRANSAKSI KEUANGAN */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         {/* HEADER & TOGGLE FILTER */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 relative">
           <div>
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
               Riwayat Transaksi Keuangan
@@ -161,136 +162,139 @@ export default function KeuanganTab({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition ${
-              isFilterOpen || appliedStart
-                ? 'bg-purple-600/20 border-purple-500 text-purple-300'
-                : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Filter className="w-3.5 h-3.5" />
-            <span>Filter Transaksi</span>
-            {appliedStart && (
-              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
-            )}
-          </button>
-        </div>
+          {/* WAPPER TOMBOL + POPOUT KALENDER */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition ${
+                isFilterOpen || appliedStart
+                  ? 'bg-purple-600/20 border-purple-500 text-purple-300'
+                  : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>Filter Transaksi</span>
+              {appliedStart && (
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+              )}
+            </button>
 
-        {/* PANEL KALENDER RENTANG TANGGAL */}
-        {isFilterOpen && (
-          <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-4 max-w-sm">
-            {/* Header Kalender */}
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={prevMonth}
-                className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white transition"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-xs font-bold text-white">
-                {monthNames[currentMonth]} {currentYear}
-              </span>
-              <button
-                type="button"
-                onClick={nextMonth}
-                className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white transition"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Nama Hari */}
-            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500">
-              <span>Min</span>
-              <span>Sen</span>
-              <span>Sel</span>
-              <span>Rab</span>
-              <span>Kam</span>
-              <span>Jum</span>
-              <span>Sab</span>
-            </div>
-
-            {/* Grid Tanggal */}
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: firstDayIndex }).map((_, idx) => (
-                <div key={`empty-${idx}`} />
-              ))}
-
-              {Array.from({ length: daysInMonth }).map((_, idx) => {
-                const day = idx + 1;
-                const dateStr = formatDateString(currentYear, currentMonth, day);
-
-                const isStart = rangeStart === dateStr;
-                const isEnd = rangeEnd === dateStr;
-                const isInRange =
-                  rangeStart &&
-                  rangeEnd &&
-                  dateStr > rangeStart &&
-                  dateStr < rangeEnd;
-
-                let btnStyle = 'bg-slate-900 text-slate-300 hover:bg-slate-700';
-
-                if (isStart || isEnd) {
-                  btnStyle = 'bg-purple-600 text-white font-bold ring-2 ring-purple-400';
-                } else if (isInRange) {
-                  btnStyle = 'bg-purple-900/50 text-purple-200 border border-purple-500/30';
-                }
-
-                return (
+            {/* PANEL KALENDER MELAYANG (POPOUT / ABSOLUTE) */}
+            {isFilterOpen && (
+              <div className="absolute right-0 top-12 z-40 w-80 p-4 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md space-y-4">
+                {/* Header Kalender */}
+                <div className="flex items-center justify-between">
                   <button
-                    key={day}
                     type="button"
-                    onClick={() => handleDateClick(day)}
-                    className={`py-2 text-xs rounded-lg transition-all flex items-center justify-center ${btnStyle}`}
+                    onClick={prevMonth}
+                    className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
                   >
-                    {day}
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
-                );
-              })}
-            </div>
+                  <span className="text-xs font-bold text-white">
+                    {monthNames[currentMonth]} {currentYear}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={nextMonth}
+                    className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
 
-            {/* Status Rentang */}
-            <div className="text-[11px] text-slate-400 bg-slate-900/80 p-2 rounded-xl flex justify-around">
-              <div>
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Awal:</span>
-                <span className="font-semibold text-purple-300">{rangeStart || '-'}</span>
+                {/* Nama Hari */}
+                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500">
+                  <span>Min</span>
+                  <span>Sen</span>
+                  <span>Sel</span>
+                  <span>Rab</span>
+                  <span>Kam</span>
+                  <span>Jum</span>
+                  <span>Sab</span>
+                </div>
+
+                {/* Grid Tanggal */}
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: firstDayIndex }).map((_, idx) => (
+                    <div key={`empty-${idx}`} />
+                  ))}
+
+                  {Array.from({ length: daysInMonth }).map((_, idx) => {
+                    const day = idx + 1;
+                    const dateStr = formatDateString(currentYear, currentMonth, day);
+
+                    const isStart = rangeStart === dateStr;
+                    const isEnd = rangeEnd === dateStr;
+                    const isInRange =
+                      rangeStart &&
+                      rangeEnd &&
+                      dateStr > rangeStart &&
+                      dateStr < rangeEnd;
+
+                    let btnStyle = 'bg-slate-800/80 text-slate-300 hover:bg-slate-700';
+
+                    if (isStart || isEnd) {
+                      btnStyle = 'bg-purple-600 text-white font-bold ring-2 ring-purple-400';
+                    } else if (isInRange) {
+                      btnStyle = 'bg-purple-900/50 text-purple-200 border border-purple-500/30';
+                    }
+
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleDateClick(day)}
+                        className={`py-2 text-xs rounded-lg transition-all flex items-center justify-center ${btnStyle}`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Status Rentang */}
+                <div className="text-[11px] text-slate-400 bg-slate-800/80 p-2 rounded-xl flex justify-around">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">Awal:</span>
+                    <span className="font-semibold text-purple-300">{rangeStart || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">Akhir:</span>
+                    <span className="font-semibold text-purple-300">{rangeEnd || rangeStart || '-'}</span>
+                  </div>
+                </div>
+
+                {/* Tombol Aksion Filter */}
+                <div className="flex justify-end items-center gap-2 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={handleResetFilter}
+                    className="px-3 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-rose-300 text-xs font-bold flex items-center gap-1.5 transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Reset
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleApplyFilter}
+                    disabled={!rangeStart}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg ${
+                      rangeStart
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                        : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Konfirmasi Filter
+                  </button>
+                </div>
               </div>
-              <div>
-                <span className="text-[9px] uppercase font-bold text-slate-500 block">Akhir:</span>
-                <span className="font-semibold text-purple-300">{rangeEnd || rangeStart || '-'}</span>
-              </div>
-            </div>
-
-            {/* Tombol Aksion Filter */}
-            <div className="flex justify-end items-center gap-2 pt-2 border-t border-slate-700/50">
-              <button
-                type="button"
-                onClick={handleResetFilter}
-                className="px-3 py-2 rounded-xl bg-slate-900 text-slate-400 hover:text-rose-300 text-xs font-bold flex items-center gap-1.5 transition"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset / Batal
-              </button>
-
-              <button
-                type="button"
-                onClick={handleApplyFilter}
-                disabled={!rangeStart}
-                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg ${
-                  rangeStart
-                    ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                    : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                }`}
-              >
-                <Check className="w-3.5 h-3.5" />
-                Konfirmasi Filter
-              </button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* DAFTAR TRANSAKSI */}
         <div className="space-y-3">
