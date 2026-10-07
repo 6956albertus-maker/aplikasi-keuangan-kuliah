@@ -23,15 +23,14 @@ const EXPENSE_CATEGORIES = [
 ];
 
 export default function KeuanganTab({ transactions, addTransaction, deleteTransaction }) {
-  // State Form Input
-  const [txType, setTxType] = useState('pemasukan'); // 'pemasukan' | 'pengeluaran'
-  const [txAccount, setTxAccount] = useState('Tunai'); // 'Tunai' | 'Bank'
+  const [txType, setTxType] = useState('pemasukan');
+  const [txAccount, setTxAccount] = useState('Cash'); // Sesuaikan dengan nilai 'Cash' / 'Bank' dalam DB
   const [txCategory, setTxCategory] = useState('Makan');
   const [txAmount, setTxAmount] = useState('');
   const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
   const [txTitle, setTxTitle] = useState('');
 
-  // Kalkulasi Ringkasan Saldo
+  // Pengiraan Jumlah Baki
   const calculateTotals = () => {
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
@@ -39,9 +38,9 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
     let totalBank = 0;
 
     transactions.forEach((tx) => {
-      const amount = parseFloat(tx.jumlah_yuan) || 0;
+      const amount = parseFloat(tx.nominal_yuan) || 0;
       const isPemasukan = tx.tipe === 'pemasukan';
-      const isTunai = tx.akun === 'Tunai' || tx.kategori === 'Tunai';
+      const isTunai = tx.metode === 'Cash' || tx.metode === 'Tunai';
 
       if (isPemasukan) {
         totalPemasukan += amount;
@@ -59,15 +58,15 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
 
   const { totalPemasukan, totalPengeluaran, totalTunai, totalBank } = calculateTotals();
 
-  // Submit Handler
+  // Hantar Data mengikut kolum Supabase
   const handleCreateTransaction = async (e) => {
     e.preventDefault();
     if (!txTitle || !txAmount || !txDate) return;
 
     await addTransaction({
-      judul: txTitle,
-      jumlah_yuan: parseFloat(txAmount),
-      akun: txAccount,
+      keterangan: txTitle,
+      nominal_yuan: parseFloat(txAmount),
+      metode: txAccount,
       kategori: txType === 'pengeluaran' ? txCategory : 'Pemasukan',
       tipe: txType,
       tanggal: txDate,
@@ -79,9 +78,8 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
 
   return (
     <div className="space-y-6">
-      {/* 4 KARTU RINGKASAN KEUANGAN */}
+      {/* KARTU RINGKASAN */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Uang Tunai */}
         <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-900/30 via-emerald-950/20 to-slate-900/60 backdrop-blur-xl border border-emerald-500/30 shadow-xl">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-extrabold text-emerald-300">Uang Tunai</p>
@@ -91,7 +89,6 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           <p className="text-[9px] text-emerald-400/80 mt-0.5">{formatIDR(totalTunai)}</p>
         </div>
 
-        {/* Uang Bank */}
         <div className="p-4 rounded-3xl bg-gradient-to-br from-cyan-900/30 via-cyan-950/20 to-slate-900/60 backdrop-blur-xl border border-cyan-500/30 shadow-xl">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-extrabold text-cyan-300">Uang Bank</p>
@@ -101,7 +98,6 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           <p className="text-[9px] text-cyan-400/80 mt-0.5">{formatIDR(totalBank)}</p>
         </div>
 
-        {/* Total Pemasukan */}
         <div className="p-4 rounded-3xl bg-gradient-to-br from-indigo-900/30 via-indigo-950/20 to-slate-900/60 backdrop-blur-xl border border-indigo-500/30 shadow-xl">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-extrabold text-indigo-300">Total Pemasukan</p>
@@ -111,7 +107,6 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           <p className="text-[9px] text-indigo-300/80 mt-0.5">{formatIDR(totalPemasukan)}</p>
         </div>
 
-        {/* Total Pengeluaran */}
         <div className="p-4 rounded-3xl bg-gradient-to-br from-rose-900/30 via-rose-950/20 to-slate-900/60 backdrop-blur-xl border border-rose-500/30 shadow-xl">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-extrabold text-rose-300">Total Pengeluaran</p>
@@ -129,7 +124,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           <span>Tambah Catatan Transaksi</span>
         </h3>
 
-        {/* 1. Toggle Pemasukan / Pengeluaran */}
+        {/* Jenis Transaksi */}
         <div className="flex gap-3">
           <button
             type="button"
@@ -158,21 +153,21 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </button>
         </div>
 
-        {/* 2. Toggle Akun */}
+        {/* Metode / Akun */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-400">Metode / Akun</label>
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setTxAccount('Tunai')}
+              onClick={() => setTxAccount('Cash')}
               className={`flex-1 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center justify-center gap-2 border ${
-                txAccount === 'Tunai'
+                txAccount === 'Cash'
                   ? 'bg-purple-600 text-white border-purple-500 shadow-md'
                   : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
               }`}
             >
               <Banknote className="w-4 h-4" />
-              <span>Tunai</span>
+              <span>Tunai (Cash)</span>
             </button>
 
             <button
@@ -190,7 +185,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </div>
         </div>
 
-        {/* 3. Kategori Pengeluaran */}
+        {/* Kategori Pengeluaran */}
         {txType === 'pengeluaran' && (
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
@@ -216,7 +211,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </div>
         )}
 
-        {/* 4. Input Jumlah Yuan */}
+        {/* Jumlah Yuan */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-400">Jumlah Uang (Yuan)</label>
           <div className="relative">
@@ -237,7 +232,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </div>
         </div>
 
-        {/* 5. Input Tanggal */}
+        {/* Tanggal */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5" />
@@ -252,7 +247,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           />
         </div>
 
-        {/* 6. Input Keterangan */}
+        {/* Keterangan */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
             <FileText className="w-3.5 h-3.5" />
@@ -268,7 +263,75 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           />
         </div>
 
-        {/* Tombol Submit */}
         <button
           type="submit"
-          className={`w-full p-4 text-white
+          className={`w-full p-4 text-white rounded-2xl font-black hover:opacity-90 transition shadow-lg active:scale-[0.99] ${
+            txType === 'pemasukan'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-500/25'
+              : 'bg-gradient-to-r from-rose-600 to-pink-600 shadow-rose-500/25'
+          }`}
+        >
+          Simpan {txType === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'}
+        </button>
+      </form>
+
+      {/* RIWAYAT TRANSAKSI */}
+      <div className="p-6 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/20 dark:border-slate-800/60 shadow-xl space-y-4">
+        <h3 className="font-black text-xs uppercase tracking-wider text-slate-400">
+          Riwayat Transaksi Keuangan
+        </h3>
+
+        <div className="space-y-3">
+          {transactions.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-slate-300/30 dark:border-slate-800 rounded-2xl">
+              <p className="text-xs text-slate-400 font-medium">Belum ada transaksi yang dicatat. Mulai catat keuanganmu! 🚀</p>
+            </div>
+          ) : (
+            transactions.map((tx) => {
+              const isPemasukan = tx.tipe === 'pemasukan';
+              return (
+                <div
+                  key={tx.id}
+                  className="flex justify-between items-center p-4 rounded-2xl bg-white/60 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/30 hover:border-purple-500/50 transition group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-300 ${
+                        isPemasukan
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-rose-500/10 text-rose-400'
+                      }`}
+                    >
+                      {isPemasukan ? <ArrowUpCircle className="w-5 h-5" /> : <ArrowDownCircle className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-xs text-slate-100">{tx.keterangan}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {tx.tanggal || 'Hari ini'} • <span className="font-semibold text-purple-400">{tx.metode || 'Cash'}</span> • <span className="font-semibold text-pink-400">{tx.kategori || 'Umum'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className={`font-black text-xs ${isPemasukan ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isPemasukan ? '+' : '-'}{formatYuan(tx.nominal_yuan)}
+                      </p>
+                      <p className="text-[9px] text-slate-400">{formatIDR(tx.nominal_yuan)}</p>
+                    </div>
+                    <button
+                      onClick={() => deleteTransaction(tx.id)}
+                      className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
