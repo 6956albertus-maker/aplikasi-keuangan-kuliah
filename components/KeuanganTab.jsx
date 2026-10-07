@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
-// Senarai kategori khusus untuk Pengeluaran
 const KATEGORI_PENGELUARAN = [
   'Makan',
   'Minum',
@@ -28,38 +27,29 @@ const KATEGORI_PENGELUARAN = [
 ];
 
 export default function KeuanganTab({
-  transactions,
+  transactions = [],
   addTransaction,
   editTransaction,
   deleteTransaction,
 }) {
-  // State Form Input Transaksi Baru
-  const [tipe, setTipe] = useState('pengeluaran'); // 'pemasukan' atau 'pengeluaran'
+  const [tipe, setTipe] = useState('pengeluaran');
   const [keterangan, setKeterangan] = useState('');
   const [nominalYuan, setNominalYuan] = useState('');
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
-  const [metode, setMetode] = useState('Cash'); // 'Cash' atau 'Bank'
+  const [metode, setMetode] = useState('Cash');
   const [kategori, setKategori] = useState('Makan');
 
-  // State Modal Edit
   const [editingTx, setEditingTx] = useState(null);
-
-  // State Toggle Panel Filter Melayang (Popout)
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // State Navigasi Bulan & Tahun Kalendar
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
-  // Tanggal sementara di kalendar
-  const [rangeStart, setRangeStart] = useState(null); // YYYY-MM-DD
-  const [rangeEnd, setRangeEnd] = useState(null);   // YYYY-MM-DD
-
-  // Tanggal yang dikonfirmasi
+  const [rangeStart, setRangeStart] = useState(null);
+  const [rangeEnd, setRangeEnd] = useState(null);
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
 
-  // Data Kalendar
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
 
@@ -74,7 +64,6 @@ export default function KeuanganTab({
     return `${year}-${m}-${d}`;
   };
 
-  // Click handler untuk Kalendar
   const handleDateClick = (day) => {
     const selectedDateStr = formatDateString(currentYear, currentMonth, day);
 
@@ -91,7 +80,6 @@ export default function KeuanganTab({
     }
   };
 
-  // Submit Transaksi Baru
   const handleAddTransaction = (e) => {
     e.preventDefault();
     if (!keterangan || !nominalYuan) return;
@@ -107,12 +95,10 @@ export default function KeuanganTab({
       });
     }
 
-    // Reset Form
     setKeterangan('');
     setNominalYuan('');
   };
 
-  // Logika Filter & Sorting
   const displayedTransactions = useMemo(() => {
     const sorted = [...transactions].sort((a, b) => {
       const dateA = new Date(a.tanggal || 0);
@@ -126,7 +112,6 @@ export default function KeuanganTab({
         const txDate = tx.tanggal;
         const start = appliedStart || '1970-01-01';
         const end = appliedEnd || appliedStart || '2099-12-31';
-
         return txDate >= start && txDate <= end;
       });
     }
@@ -144,7 +129,6 @@ export default function KeuanganTab({
     return defaultData.slice(0, 10);
   }, [transactions, appliedStart, appliedEnd]);
 
-  // Handler Filter Action
   const handleApplyFilter = () => {
     setAppliedStart(rangeStart);
     setAppliedEnd(rangeEnd || rangeStart);
@@ -191,7 +175,7 @@ export default function KeuanganTab({
 
   return (
     <div className="space-y-6">
-      {/* 1. BORANG INPUT TRANSAKSI (PEMASUKAN / PENGELUARAN) */}
+      {/* 1. INPUT TRANSAKSI BARU */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
           <Wallet className="w-5 h-5 text-purple-400" />
@@ -201,39 +185,32 @@ export default function KeuanganTab({
         </div>
 
         <form onSubmit={handleAddTransaction} className="space-y-4">
-          {/* Tipe Transaksi */}
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => {
-                setTipe('pemasukan');
-              }}
-              className={`py-2.5 rounded-xl text-xs font-bold border transition ${
+              onClick={() => setTipe('pemasukan')}
+              className={
                 tipe === 'pemasukan'
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-              }`}
+                  ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                  : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+              }
             >
               + Pemasukan
             </button>
             <button
               type="button"
-              onClick={() => {
-                setTipe('pengeluaran');
-              }}
-              className={`py-2.5 rounded-xl text-xs font-bold border transition ${
+              onClick={() => setTipe('pengeluaran')}
+              className={
                 tipe === 'pengeluaran'
-                  ? 'bg-rose-500/20 border-rose-500 text-rose-300'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-              }`}
+                  ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-rose-500/20 border-rose-500 text-rose-300'
+                  : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+              }
             >
               - Pengeluaran
             </button>
           </div>
 
-          {/* Grid Inputs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Keterangan */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-400">Keterangan</label>
               <input
@@ -246,7 +223,6 @@ export default function KeuanganTab({
               />
             </div>
 
-            {/* Jumlah Uang (Yuan) */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-400">Jumlah (Yuan)</label>
               <div className="relative flex items-center">
@@ -265,7 +241,6 @@ export default function KeuanganTab({
               </div>
             </div>
 
-            {/* Tanggal */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-400">Tanggal</label>
               <input
@@ -277,7 +252,6 @@ export default function KeuanganTab({
               />
             </div>
 
-            {/* Kategori (Hanya aktif/muncul jika Tipe === 'pengeluaran') */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-400">Kategori</label>
               {tipe === 'pengeluaran' ? (
@@ -303,17 +277,16 @@ export default function KeuanganTab({
             </div>
           </div>
 
-          {/* Pilihan Metode & Tombol Submit */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setMetode('Cash')}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                className={
                   metode === 'Cash'
-                    ? 'bg-purple-600 border-purple-500 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
-                }`}
+                    ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-purple-600 border-purple-500 text-white'
+                    : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-slate-800 border-slate-700 text-slate-400'
+                }
               >
                 <Banknote className="w-3.5 h-3.5" />
                 Tunai (Cash)
@@ -321,11 +294,11 @@ export default function KeuanganTab({
               <button
                 type="button"
                 onClick={() => setMetode('Bank')}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                className={
                   metode === 'Bank'
-                    ? 'bg-cyan-600 border-cyan-500 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
-                }`}
+                    ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-cyan-600 border-cyan-500 text-white'
+                    : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-slate-800 border-slate-700 text-slate-400'
+                }
               >
                 <Building2 className="w-3.5 h-3.5" />
                 Bank
@@ -343,9 +316,8 @@ export default function KeuanganTab({
         </form>
       </div>
 
-      {/* 2. RIWAYAT TRANSAKSI KEUANGAN */}
+      {/* 2. RIWAYAT TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-        {/* HEADER & TOGGLE FILTER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 relative">
           <div>
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
@@ -353,21 +325,20 @@ export default function KeuanganTab({
             </h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
               {appliedStart
-                ? `Rentang: ${appliedStart} s/d${appliedEnd}`
+                ? `Rentang: ${appliedStart} s/d ${appliedEnd}`
                 : 'Menampilkan 10 transaksi / 1 minggu terakhir'}
             </p>
           </div>
 
-          {/* WRAPPER TOMBOL + POPOUT KALENDAR */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition ${
+              className={
                 isFilterOpen || appliedStart
-                  ? 'bg-purple-600/20 border-purple-500 text-purple-300'
-                  : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
-              }`}
+                  ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition bg-purple-600/20 border-purple-500 text-purple-300'
+                  : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
+              }
             >
               <Filter className="w-3.5 h-3.5" />
               <span>Filter Transaksi</span>
@@ -376,7 +347,6 @@ export default function KeuanganTab({
               )}
             </button>
 
-            {/* PANEL KALENDAR MELAYANG (POPOUT) */}
             {isFilterOpen && (
               <div className="absolute right-0 top-12 z-40 w-80 p-4 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md space-y-4">
                 <div className="flex items-center justify-between">
@@ -472,11 +442,11 @@ export default function KeuanganTab({
                     type="button"
                     onClick={handleApplyFilter}
                     disabled={!rangeStart}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg ${
+                    className={
                       rangeStart
-                        ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                        : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                    }`}
+                        ? 'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg bg-purple-600 hover:bg-purple-500 text-white'
+                        : 'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg bg-slate-800 text-slate-600 cursor-not-allowed'
+                    }
                   >
                     <Check className="w-3.5 h-3.5" />
                     Konfirmasi Filter
@@ -487,7 +457,6 @@ export default function KeuanganTab({
           </div>
         </div>
 
-        {/* DAFTAR TRANSAKSI */}
         <div className="space-y-3">
           {displayedTransactions.length === 0 ? (
             <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
@@ -505,11 +474,11 @@ export default function KeuanganTab({
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`p-2.5 rounded-lg ${
+                      className={
                         isPemasukan
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-rose-500/10 text-rose-400'
-                      }`}
+                          ? 'p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400'
+                          : 'p-2.5 rounded-lg bg-rose-500/10 text-rose-400'
+                      }
                     >
                       {isPemasukan ? (
                         <ArrowUpCircle className="w-5 h-5" />
@@ -532,9 +501,11 @@ export default function KeuanganTab({
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p
-                        className={`font-black text-xs ${
-                          isPemasukan ? 'text-emerald-400' : 'text-rose-400'
-                        }`}
+                        className={
+                          isPemasukan
+                            ? 'font-black text-xs text-emerald-400'
+                            : 'font-black text-xs text-rose-400'
+                        }
                       >
                         {isPemasukan ? '+' : '-'}
                         {formatYuan(tx.nominal_yuan)}
@@ -565,7 +536,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* MODAL POPUP EDIT TRANSAKSI */}
+      {/* 3. MODAL EDIT */}
       {editingTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-lg p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4 relative">
@@ -586,22 +557,22 @@ export default function KeuanganTab({
                 <button
                   type="button"
                   onClick={() => setEditingTx({ ...editingTx, tipe: 'pemasukan' })}
-                  className={`py-2.5 rounded-xl text-xs font-bold border transition ${
+                  className={
                     editingTx.tipe === 'pemasukan'
-                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400'
-                  }`}
+                      ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                      : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400'
+                  }
                 >
                   Pemasukan
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingTx({ ...editingTx, tipe: 'pengeluaran' })}
-                  className={`py-2.5 rounded-xl text-xs font-bold border transition ${
+                  className={
                     editingTx.tipe === 'pengeluaran'
-                      ? 'bg-rose-500/20 border-rose-500 text-rose-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400'
-                  }`}
+                      ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-rose-500/20 border-rose-500 text-rose-300'
+                      : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400'
+                  }
                 >
                   Pengeluaran
                 </button>
@@ -646,7 +617,6 @@ export default function KeuanganTab({
                 />
               </div>
 
-              {/* Kategori Edit */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-400">Kategori</label>
                 {editingTx.tipe === 'pengeluaran' ? (
@@ -677,11 +647,11 @@ export default function KeuanganTab({
                   <button
                     type="button"
                     onClick={() => setEditingTx({ ...editingTx, metode: 'Cash' })}
-                    className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${
+                    className={
                       editingTx.metode === 'Cash' || editingTx.metode === 'Tunai'
-                        ? 'bg-purple-600 border-purple-500 text-white'
-                        : 'bg-slate-800 border-slate-700 text-slate-400'
-                    }`}
+                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-purple-600 border-purple-500 text-white'
+                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-slate-800 border-slate-700 text-slate-400'
+                    }
                   >
                     <Banknote className="w-4 h-4" />
                     Tunai (Cash)
@@ -689,7 +659,37 @@ export default function KeuanganTab({
                   <button
                     type="button"
                     onClick={() => setEditingTx({ ...editingTx, metode: 'Bank' })}
-                    className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${
+                    className={
                       editingTx.metode === 'Bank'
-                        ? 'bg-cyan-600 border-cyan-500 text-white'
-                        : 'bg-slate-800
+                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-cyan-600 border-cyan-500 text-white'
+                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-slate-800 border-slate-700 text-slate-400'
+                    }
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Bank
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingTx(null)}
+                  className="flex-1 py-3 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl text-xs font-black bg-purple-600 text-white hover:bg-purple-500 transition shadow-lg"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
