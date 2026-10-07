@@ -33,7 +33,7 @@ export default function Home() {
   const [txTitle, setTxTitle] = useState('');
   const [txAmount, setTxAmount] = useState('');
   const [txCategory, setTxCategory] = useState('Makanan');
-  const [txType, setTxType] = useState('pengeluaran'); // 'pengeluaran' | 'pemasukan'
+  const [txType, setTxType] = useState('pengeluaran');
 
   // State Pembayaran Kuliah
   const [payments, setPayments] = useState([]);
@@ -69,7 +69,6 @@ export default function Home() {
     }
   };
 
-  // Handler Submit Transaksi Keuangan
   const handleCreateTransaction = async (e) => {
     e.preventDefault();
     if (!txTitle || !txAmount) return;
@@ -196,10 +195,9 @@ export default function Home() {
           </nav>
         )}
 
-        {/* TAB DASHBOARD: RINGKASAN & PENCATATAN TRANSAKSI */}
+        {/* TAB DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            {/* Kartu Ringkasan */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
                 <p className="text-xs text-slate-400 font-bold">Total Transaksi</p>
@@ -217,7 +215,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Form Tambah Transaksi */}
             <form onSubmit={handleCreateTransaction} className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm space-y-3`}>
               <h3 className="font-bold text-xs flex items-center gap-1.5">
                 <Plus className="w-4 h-4 text-blue-500" />
@@ -246,7 +243,6 @@ export default function Home() {
               </div>
             </form>
 
-            {/* Daftar Riwayat Transaksi */}
             <div className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm space-y-3`}>
               <h3 className="font-bold text-xs">Riwayat Transaksi Keuangan</h3>
               <div className="space-y-2">
@@ -285,4 +281,69 @@ export default function Home() {
                   <button
                     key={year}
                     onClick={() => setSelectedPaymentYear(year)}
-                    className={`px-3 py-1.5 rounded-xl text-
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      selectedPaymentYear === year
+                        ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                    }`}
+                  >
+                    Tahun {year}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setShowAddCategoryModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 rounded-xl text-xs font-bold hover:bg-blue-100 transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Kategori</span>
+              </button>
+            </div>
+
+            <PaymentTab
+              payments={payments}
+              selectedPaymentYear={selectedPaymentYear}
+              darkMode={darkMode}
+              togglePaymentStatus={togglePaymentStatus}
+              setEditingPayment={setEditingPayment}
+              deletePayment={deletePayment}
+            />
+          </div>
+        )}
+
+        {/* TAB FITUR TAMBAHAN */}
+        {activeTab === 'tools' && (
+          <ToolsTab
+            darkMode={darkMode}
+            isFullscreen={isFullscreen}
+            pomoMode={pomoMode}
+            pomoTime={pomoTime}
+            pomoActive={pomoActive}
+            setPomoActive={setPomoActive}
+            setPomoTime={setPomoTime}
+            setPomoMode={setPomoMode}
+            calculateGPA={calculateGPA}
+            gpaCourses={gpaCourses}
+            stickyNote={stickyNote}
+            setStickyNote={setStickyNote}
+          />
+        )}
+
+        {/* MODAL TAMBAH KATEGORI */}
+        <AddCategoryModal
+          showAddCategoryModal={showAddCategoryModal}
+          setShowAddCategoryModal={setShowAddCategoryModal}
+          handleAddCategory={(e) => {
+            e.preventDefault();
+            setShowAddCategoryModal(false);
+          }}
+          newCategoryInput={newCategoryInput}
+          setNewCategoryInput={setNewCategoryInput}
+          darkMode={darkMode}
+        />
+
+      </div>
+    </div>
+  );
+}
