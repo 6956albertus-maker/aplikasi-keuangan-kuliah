@@ -290,12 +290,17 @@ export default function Home() {
           />
         )}
 
-        {/* --- MODAL TAMBAH KATEGORI --- */}
+        {/* MODAL TAMBAH KATEGORI */}
         <AddCategoryModal
           showAddCategoryModal={showAddCategoryModal}
           setShowAddCategoryModal={setShowAddCategoryModal}
-          handleAddCategory={
-</div>
-</div>
-);
+          handleAddCategory={handleAddCategory}
+          newCategoryInput={newCategoryInput}
+          setNewCategoryInput={setNewCategoryInput}
+          darkMode={darkMode}
+        />
+
+      </div>
+    </div>
+  );
 }
