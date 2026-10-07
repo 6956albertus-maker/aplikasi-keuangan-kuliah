@@ -17,6 +17,7 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  Repeat,
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
@@ -42,6 +43,7 @@ export default function KeuanganTab({
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [metode, setMetode] = useState('Cash');
   const [kategori, setKategori] = useState('Makan');
+  const [isTukar, setIsTukar] = useState(false); // Checkbox Tukar
 
   const [editingTx, setEditingTx] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -84,7 +86,6 @@ export default function KeuanganTab({
     };
   }, [transactions]);
 
-  // RESET SEMUA DATA
   const handleResetAllData = () => {
     if (transactions.length === 0) {
       alert('Tidak ada data transaksi untuk di-reset.');
@@ -134,24 +135,53 @@ export default function KeuanganTab({
     }
   };
 
-  // TAMBAH TRANSAKSI
+  // LOGIK TAMBAH TRANSAKSI
   const handleAddTransaction = (e) => {
     e.preventDefault();
     if (!keterangan || !nominalYuan) return;
 
+    const valYuan = parseFloat(nominalYuan);
+
     if (addTransaction) {
-      addTransaction({
-        tipe,
-        keterangan,
-        nominal_yuan: parseFloat(nominalYuan),
-        tanggal,
-        metode,
-        kategori: tipe === 'pemasukan' ? 'Pemasukan' : kategori,
-      });
+      if (tipe === 'pemasukan' && isTukar) {
+        const akunPilihan = metode; 
+        const akunLain = metode === 'Bank' ? 'Cash' : 'Bank';
+
+        // 1. Pemasukan ke Akun Utama yang dipilih
+        addTransaction({
+          tipe: 'pemasukan',
+          keterangan: `[Tukar] ${keterangan}`,
+          nominal_yuan: valYuan,
+          tanggal,
+          metode: akunPilihan,
+          kategori: 'Pemasukan',
+        });
+
+        // 2. Pemasukan JUGA ke Akun Pasangannya (Sebab tunai bertambah & bank bertambah)
+        addTransaction({
+          tipe: 'pemasukan',
+          keterangan: `[Tukar] ${keterangan}`,
+          nominal_yuan: valYuan,
+          tanggal,
+          metode: akunLain,
+          kategori: 'Pemasukan',
+        });
+      } else {
+        // Transaksi Biasa
+        addTransaction({
+          tipe,
+          keterangan,
+          nominal_yuan: valYuan,
+          tanggal,
+          metode,
+          kategori: tipe === 'pemasukan' ? 'Pemasukan' : kategori,
+        });
+      }
     }
 
     setKeterangan('');
     setNominalYuan('');
+    setIsTukar(false);
   };
 
   // SIMPAN EDIT TRANSAKSI
@@ -237,7 +267,7 @@ export default function KeuanganTab({
 
   return (
     <div className="space-y-6">
-      {/* 1. KOTAK RINGKASAN KEUANGAN */}
+      {/* 1. RINGKASAN KEUANGAN */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
@@ -318,29 +348,48 @@ export default function KeuanganTab({
         </div>
 
         <form onSubmit={handleAddTransaction} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setTipe('pemasukan')}
-              className={
-                tipe === 'pemasukan'
-                  ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                  : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-              }
-            >
-              + Pemasukan
-            </button>
-            <button
-              type="button"
-              onClick={() => setTipe('pengeluaran')}
-              className={
-                tipe === 'pengeluaran'
-                  ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-rose-500/20 border-rose-500 text-rose-300'
-                  : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-              }
-            >
-              - Pengeluaran
-            </button>
+          <div className="flex items-center justify-between gap-3">
+            <div className="grid grid-cols-2 gap-3 flex-1">
+              <button
+                type="button"
+                onClick={() => setTipe('pemasukan')}
+                className={
+                  tipe === 'pemasukan'
+                    ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                    : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                }
+              >
+                + Pemasukan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTipe('pengeluaran');
+                  setIsTukar(false);
+                }}
+                className={
+                  tipe === 'pengeluaran'
+                    ? 'py-2.5 rounded-xl text-xs font-bold border transition bg-rose-500/20 border-rose-500 text-rose-300'
+                    : 'py-2.5 rounded-xl text-xs font-bold border transition bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                }
+              >
+                - Pengeluaran
+              </button>
+            </div>
+
+            {/* CHECKBOX TUKAR */}
+            {tipe === 'pemasukan' && (
+              <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold cursor-pointer hover:bg-purple-500/20 transition select-none">
+                <input
+                  type="checkbox"
+                  checked={isTukar}
+                  onChange={(e) => setIsTukar(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-800"
+                />
+                <Repeat className="w-3.5 h-3.5 text-purple-400" />
+                <span>Tukar (Tambah Cash & Bank)</span>
+              </label>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -348,7 +397,7 @@ export default function KeuanganTab({
               <label className="text-[11px] font-bold text-slate-400">Keterangan</label>
               <input
                 type="text"
-                placeholder="Contoh: Isi Pulsa / Makan"
+                placeholder={isTukar ? "Contoh: Tukar Mixue Teman" : "Contoh: Isi Pulsa / Makan"}
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -403,8 +452,8 @@ export default function KeuanganTab({
                 <input
                   type="text"
                   disabled
-                  value="Pemasukan"
-                  className="w-full p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-500 text-xs cursor-not-allowed select-none"
+                  value={isTukar ? "Pemasukan (Tukar)" : "Pemasukan"}
+                  className="w-full p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 text-xs cursor-not-allowed select-none"
                 />
               )}
             </div>
@@ -412,6 +461,7 @@ export default function KeuanganTab({
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
             <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-semibold mr-1">Metode:</span>
               <button
                 type="button"
                 onClick={() => setMetode('Cash')}
@@ -443,7 +493,7 @@ export default function KeuanganTab({
               className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition"
             >
               <Plus className="w-4 h-4" />
-              <span>Simpan Transaksi</span>
+              <span>{isTukar ? "Simpan Penukaran" : "Simpan Transaksi"}</span>
             </button>
           </div>
         </form>
