@@ -11,9 +11,9 @@ import {
   Plus,
 } from 'lucide-react';
 
-// Path ke folder src/lib
-import { supabase } from '../src/lib/supabaseClient';
-import { formatYuan, formatIDR } from '../src/lib/utils';
+// Path ke folder /lib
+import { supabase } from '../lib/supabaseClient';
+import { formatYuan, formatIDR } from '../lib/utils';
 
 // Path ke hooks (Perhatikan huruf besar 'T' pada useTransactions)
 import { useTransactions } from '../hooks/useTransactions';
