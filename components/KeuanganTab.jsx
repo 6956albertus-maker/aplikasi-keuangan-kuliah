@@ -129,7 +129,7 @@ export default function KeuanganTab({
     };
   }, [transactions, selectedMonth, selectedYear]);
 
-  // DATA GRAFIK PER BULAN (12 Bulan untuk Tahun Terpilih)
+  // DATA GRAFIK PER BULAN
   const monthlyChartData = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) => ({
       monthIndex: i,
@@ -155,10 +155,13 @@ export default function KeuanganTab({
       }
     });
 
-    const maxVal = Math.max(
+    const rawMax = Math.max(
       ...months.map((m) => Math.max(m.pemasukan, m.pengeluaran)),
       10
     );
+
+    // Diberikan margin 20% di atas titik tertinggi agar tooltip tidak terpotong
+    const maxVal = rawMax * 1.2;
 
     return { months, maxVal };
   }, [transactions, selectedYear]);
@@ -332,11 +335,11 @@ export default function KeuanganTab({
     }
   };
 
-  // PEMBUATAN POINT & PATH GRAFIK SVG
+  // UKURAN SVG DENGAN PADDING ATAS LEBIH BESAR
   const svgWidth = 800;
-  const svgHeight = 220;
+  const svgHeight = 260;
   const paddingX = 40;
-  const paddingY = 30;
+  const paddingY = 50; // Jarak atas diperbesar agar tooltip muat sempurna
 
   const pointsPemasukan = monthlyChartData.months.map((item, idx) => {
     const x = paddingX + (idx * (svgWidth - paddingX * 2)) / 11;
@@ -474,7 +477,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 2. KOTAK TOTAL PER KATEGORI (PENGELUARAN PER BULAN) */}
+      {/* 2. KOTAK TOTAL PER KATEGORI */}
       <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
@@ -511,7 +514,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 3. GRAFIK GARIS BULANAN (PEMASUKAN vs PENGELUARAN) */}
+      {/* 3. GRAFIK GARIS BULANAN (DENGAN RUANG DITAMBAHKAN AGAR TOOLTIP TIDAK TERPOTONG) */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
@@ -533,14 +536,12 @@ export default function KeuanganTab({
           </div>
         </div>
 
-        {/* AREA CONTAINER SVG GRAFIK */}
-        <div className="relative w-full overflow-x-auto">
+        <div className="relative w-full overflow-x-auto pt-2">
           <div className="min-w-[650px] relative">
             <svg
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
               className="w-full h-auto overflow-visible"
             >
-              {/* Garis Grid Horizontal */}
               {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
                 const y =
                   paddingY + (1 - ratio) * (svgHeight - paddingY * 2);
@@ -558,7 +559,6 @@ export default function KeuanganTab({
                 );
               })}
 
-              {/* Garis Pemasukan (Hijau) */}
               <path
                 d={pathPemasukan}
                 fill="none"
@@ -568,7 +568,6 @@ export default function KeuanganTab({
                 strokeLinejoin="round"
               />
 
-              {/* Garis Pengeluaran (Merah) */}
               <path
                 d={pathPengeluaran}
                 fill="none"
@@ -578,7 +577,6 @@ export default function KeuanganTab({
                 strokeLinejoin="round"
               />
 
-              {/* Titik Pemasukan (Hijau) */}
               {pointsPemasukan.map((pt, i) => (
                 <circle
                   key={`pem-${i}`}
@@ -592,7 +590,6 @@ export default function KeuanganTab({
                 />
               ))}
 
-              {/* Titik Pengeluaran (Merah) */}
               {pointsPengeluaran.map((pt, i) => (
                 <circle
                   key={`peng-${i}`}
@@ -606,14 +603,13 @@ export default function KeuanganTab({
                 />
               ))}
 
-              {/* Label Bulan pada Sumbu X */}
               {monthlyChartData.months.map((item, idx) => {
                 const x = paddingX + (idx * (svgWidth - paddingX * 2)) / 11;
                 return (
                   <text
                     key={idx}
                     x={x}
-                    y={svgHeight - 8}
+                    y={svgHeight - 10}
                     textAnchor="middle"
                     className="text-[11px] font-bold fill-slate-400"
                   >
@@ -623,13 +619,12 @@ export default function KeuanganTab({
               })}
             </svg>
 
-            {/* Tooltip Hover Titik Grafik */}
             {hoveredPoint && (
               <div
-                className="absolute z-20 pointer-events-none bg-slate-950/90 border border-slate-700 px-3 py-1.5 rounded-xl shadow-xl backdrop-blur-md text-center transform -translate-x-1/2 -translate-y-full"
+                className="absolute z-20 pointer-events-none bg-slate-950/95 border border-slate-700 px-3 py-1.5 rounded-xl shadow-2xl backdrop-blur-md text-center transform -translate-x-1/2 -translate-y-full"
                 style={{
                   left: `${(hoveredPoint.x / svgWidth) * 100}%`,
-                  top: `${(hoveredPoint.y / svgHeight) * 100 - 10}%`,
+                  top: `${(hoveredPoint.y / svgHeight) * 100 - 8}%`,
                 }}
               >
                 <p className="text-[10px] font-extrabold text-slate-400">
