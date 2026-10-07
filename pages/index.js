@@ -185,8 +185,10 @@ export default function Home() {
           <KeuanganTab
             transactions={transactions}
             addTransaction={addTransaction}
+            editTransaction={editTransaction}
             deleteTransaction={deleteTransaction}
-          />
+            resetTransactions={resetTransactions}
+        />
         )}
 
         {/* TAB 2: PEMBAYARAN KULIAH */}
