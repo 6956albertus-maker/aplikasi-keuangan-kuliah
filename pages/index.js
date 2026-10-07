@@ -10,13 +10,13 @@ import {
   Plus,
   Trash2,
   Sparkles,
-  TrendingUp,
   ArrowUpCircle,
   ArrowDownCircle,
   Building2,
   Banknote,
   Calendar,
   FileText,
+  Tag,
 } from 'lucide-react';
 
 import { supabase } from '../lib/supabaseClient';
@@ -25,6 +25,16 @@ import { useTransactions } from '../hooks/useTransactions';
 import PaymentTab from '../components/PaymentTab';
 import ToolsTab from '../components/ToolsTab';
 import AddCategoryModal from '../components/AddCategoryModal';
+
+const EXPENSE_CATEGORIES = [
+  'Makan',
+  'Minum',
+  'Transportasi',
+  'Biaya Kuliah',
+  'Belanja',
+  'Laundry',
+  'Lain-lain',
+];
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('keuangan');
@@ -36,6 +46,7 @@ export default function Home() {
   // State Form Input Transaksi
   const [txType, setTxType] = useState('pemasukan'); // 'pemasukan' | 'pengeluaran'
   const [txAccount, setTxAccount] = useState('Tunai'); // 'Tunai' | 'Bank'
+  const [txCategory, setTxCategory] = useState('Makan'); // Kategori Pengeluaran
   const [txAmount, setTxAmount] = useState('');
   const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
   const [txTitle, setTxTitle] = useState('');
@@ -84,7 +95,7 @@ export default function Home() {
     transactions.forEach((tx) => {
       const amount = parseFloat(tx.jumlah_yuan) || 0;
       const isPemasukan = tx.tipe === 'pemasukan';
-      const isTunai = (tx.kategori || tx.akun) === 'Tunai';
+      const isTunai = tx.akun === 'Tunai' || tx.kategori === 'Tunai';
 
       if (isPemasukan) {
         totalPemasukan += amount;
@@ -110,7 +121,8 @@ export default function Home() {
     await addTransaction({
       judul: txTitle,
       jumlah_yuan: parseFloat(txAmount),
-      kategori: txAccount, // Menyimpan jenis akun (Tunai/Bank) di field kategori
+      akun: txAccount,
+      kategori: txType === 'pengeluaran' ? txCategory : 'Pemasukan',
       tipe: txType,
       tanggal: txDate,
     });
@@ -357,7 +369,33 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 3. Input Jumlah (Yuan) & Konversi Otomatis IDR */}
+              {/* 3. Pilihan Kategori (Khusus Pengeluaran) */}
+              {txType === 'pengeluaran' && (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>Kategori Pengeluaran</span>
+                  </label>
+                  <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                    {EXPENSE_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setTxCategory(cat)}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${
+                          txCategory === cat
+                            ? 'bg-rose-500/30 border-rose-400 text-rose-200 shadow-md'
+                            : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Input Jumlah (Yuan) & Konversi Otomatis IDR */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-400">Jumlah Uang (Yuan)</label>
                 <div className="relative">
@@ -378,7 +416,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 4. Input Tanggal */}
+              {/* 5. Input Tanggal */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
@@ -393,7 +431,7 @@ export default function Home() {
                 />
               </div>
 
-              {/* 5. Input Keterangan */}
+              {/* 6. Input Keterangan */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
                   <FileText className="w-3.5 h-3.5" />
@@ -401,7 +439,7 @@ export default function Home() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Deskripsi (misal: Gaji Part Time / Beli Makan Siang)"
+                  placeholder="Deskripsi (misal: Beli Mie Instan / Busway)"
                   value={txTitle}
                   onChange={(e) => setTxTitle(e.target.value)}
                   className="w-full p-3.5 rounded-2xl border border-slate-300/40 dark:border-slate-700/50 bg-slate-100/70 dark:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs font-bold transition"
@@ -454,7 +492,7 @@ export default function Home() {
                           <div>
                             <p className="font-extrabold text-xs text-slate-100">{tx.judul}</p>
                             <p className="text-[10px] text-slate-400 mt-0.5">
-                              {tx.tanggal || 'Hari ini'} • <span className="font-semibold text-purple-400">{tx.kategori || 'Tunai'}</span>
+                              {tx.tanggal || 'Hari ini'} • <span className="font-semibold text-purple-400">{tx.akun || 'Tunai'}</span> • <span className="font-semibold text-pink-400">{tx.kategori || 'Umum'}</span>
                             </p>
                           </div>
                         </div>
