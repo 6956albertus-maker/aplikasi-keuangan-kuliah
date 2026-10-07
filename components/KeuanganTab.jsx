@@ -14,6 +14,8 @@ import {
   Check,
   X,
   Wallet,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
@@ -49,6 +51,36 @@ export default function KeuanganTab({
   const [rangeEnd, setRangeEnd] = useState(null);
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
+
+  // KIRAAN SAKU & RINGKASAN KEWANGAN
+  const summary = useMemo(() => {
+    let totalTunai = 0;
+    let totalBank = 0;
+    let totalPemasukan = 0;
+    let totalPengeluaran = 0;
+
+    transactions.forEach((tx) => {
+      const amount = Number(tx.nominal_yuan) || 0;
+      const isCash = tx.metode === 'Cash' || tx.metode === 'Tunai';
+
+      if (tx.tipe === 'pemasukan') {
+        totalPemasukan += amount;
+        if (isCash) totalTunai += amount;
+        else totalBank += amount;
+      } else {
+        totalPengeluaran += amount;
+        if (isCash) totalTunai -= amount;
+        else totalBank -= amount;
+      }
+    });
+
+    return {
+      totalTunai,
+      totalBank,
+      totalPemasukan,
+      totalPengeluaran,
+    };
+  }, [transactions]);
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
@@ -175,7 +207,82 @@ export default function KeuanganTab({
 
   return (
     <div className="space-y-6">
-      {/* 1. INPUT TRANSAKSI BARU */}
+      {/* KOTAK RINGKASAN KEUANGAN (4 CARDS) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Total Tunai */}
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Total Tunai
+            </span>
+            <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
+              <Banknote className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-base font-black text-white">
+            {formatYuan(summary.totalTunai)}
+          </p>
+          <p className="text-[10px] text-slate-400">
+            {formatIDR(summary.totalTunai)}
+          </p>
+        </div>
+
+        {/* Total Bank */}
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Total Bank
+            </span>
+            <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+              <Building2 className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-base font-black text-white">
+            {formatYuan(summary.totalBank)}
+          </p>
+          <p className="text-[10px] text-slate-400">
+            {formatIDR(summary.totalBank)}
+          </p>
+        </div>
+
+        {/* Total Pemasukan */}
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+              Total Pemasukan
+            </span>
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-base font-black text-emerald-400">
+            +{formatYuan(summary.totalPemasukan)}
+          </p>
+          <p className="text-[10px] text-slate-400">
+            {formatIDR(summary.totalPemasukan)}
+          </p>
+        </div>
+
+        {/* Total Pengeluaran */}
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
+              Total Pengeluaran
+            </span>
+            <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
+              <TrendingDown className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-base font-black text-rose-400">
+            -{formatYuan(summary.totalPengeluaran)}
+          </p>
+          <p className="text-[10px] text-slate-400">
+            {formatIDR(summary.totalPengeluaran)}
+          </p>
+        </div>
+      </div>
+
+      {/* FORM INPUT TRANSAKSI BARU */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
           <Wallet className="w-5 h-5 text-purple-400" />
@@ -316,7 +423,7 @@ export default function KeuanganTab({
         </form>
       </div>
 
-      {/* 2. RIWAYAT TRANSAKSI */}
+      {/* RIWAYAT TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 relative">
           <div>
@@ -536,7 +643,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 3. MODAL EDIT */}
+      {/* MODAL EDIT TRANSAKSI */}
       {editingTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-lg p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4 relative">
