@@ -19,8 +19,8 @@ import {
   RefreshCw,
   Repeat,
   Calendar,
-  PieChart,
-  Tag
+  Tag,
+  LineChart
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
@@ -36,6 +36,11 @@ const KATEGORI_PENGELUARAN = [
 const MONTH_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+const SHORT_MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+  'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
 ];
 
 export default function KeuanganTab({
@@ -55,6 +60,7 @@ export default function KeuanganTab({
 
   const [editingTx, setEditingTx] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [hoveredPoint, setHoveredPoint] = useState(null);
 
   // Filter Bulan & Tahun untuk Ringkasan Card
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -69,14 +75,13 @@ export default function KeuanganTab({
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
 
-  // RINGKASAN KEUANGAN (Total Pemasukan, Pengeluaran & Per Kategori disesuaikan per Bulan)
+  // RINGKASAN KEUANGAN
   const summary = useMemo(() => {
     let totalTunai = 0;
     let totalBank = 0;
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
 
-    // Inisialisasi total per kategori pengeluaran
     const categoryTotals = {};
     KATEGORI_PENGELUARAN.forEach((cat) => {
       categoryTotals[cat] = 0;
@@ -86,7 +91,6 @@ export default function KeuanganTab({
       const amount = Number(tx.nominal_yuan) || 0;
       const isCash = tx.metode === 'Cash' || tx.metode === 'Tunai';
 
-      // 1. Hitung Saldo Tunai & Bank Keseluruhan (Kumulatif)
       if (tx.tipe === 'pemasukan') {
         if (isCash) totalTunai += amount;
         else totalBank += amount;
@@ -95,7 +99,6 @@ export default function KeuanganTab({
         else totalBank -= amount;
       }
 
-      // 2. Hitung Pemasukan, Pengeluaran & Total Per Kategori KHUSUS BULAN + TAHUN terpilih
       if (tx.tanggal) {
         const txDate = new Date(tx.tanggal);
         const txM = txDate.getMonth();
@@ -106,7 +109,6 @@ export default function KeuanganTab({
             totalPemasukan += amount;
           } else {
             totalPengeluaran += amount;
-            // Tambahkan ke kategori
             const kat = tx.kategori || 'Lain-lain';
             if (categoryTotals[kat] !== undefined) {
               categoryTotals[kat] += amount;
@@ -126,6 +128,40 @@ export default function KeuanganTab({
       categoryTotals,
     };
   }, [transactions, selectedMonth, selectedYear]);
+
+  // DATA GRAFIK PER BULAN (12 Bulan untuk Tahun Terpilih)
+  const monthlyChartData = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, i) => ({
+      monthIndex: i,
+      name: SHORT_MONTH_NAMES[i],
+      fullName: MONTH_NAMES[i],
+      pemasukan: 0,
+      pengeluaran: 0,
+    }));
+
+    transactions.forEach((tx) => {
+      if (!tx.tanggal) return;
+      const date = new Date(tx.tanggal);
+      const y = date.getFullYear();
+      const m = date.getMonth();
+
+      if (y === selectedYear) {
+        const val = Number(tx.nominal_yuan) || 0;
+        if (tx.tipe === 'pemasukan') {
+          months[m].pemasukan += val;
+        } else {
+          months[m].pengeluaran += val;
+        }
+      }
+    });
+
+    const maxVal = Math.max(
+      ...months.map((m) => Math.max(m.pemasukan, m.pengeluaran)),
+      10
+    );
+
+    return { months, maxVal };
+  }, [transactions, selectedYear]);
 
   const handleResetAllData = () => {
     if (transactions.length === 0) {
@@ -296,6 +332,38 @@ export default function KeuanganTab({
     }
   };
 
+  // PEMBUATAN POINT & PATH GRAFIK SVG
+  const svgWidth = 800;
+  const svgHeight = 220;
+  const paddingX = 40;
+  const paddingY = 30;
+
+  const pointsPemasukan = monthlyChartData.months.map((item, idx) => {
+    const x = paddingX + (idx * (svgWidth - paddingX * 2)) / 11;
+    const y =
+      svgHeight -
+      paddingY -
+      (item.pemasukan / monthlyChartData.maxVal) * (svgHeight - paddingY * 2);
+    return { x, y, val: item.pemasukan, month: item.fullName, type: 'Pemasukan' };
+  });
+
+  const pointsPengeluaran = monthlyChartData.months.map((item, idx) => {
+    const x = paddingX + (idx * (svgWidth - paddingX * 2)) / 11;
+    const y =
+      svgHeight -
+      paddingY -
+      (item.pengeluaran / monthlyChartData.maxVal) * (svgHeight - paddingY * 2);
+    return { x, y, val: item.pengeluaran, month: item.fullName, type: 'Pengeluaran' };
+  });
+
+  const pathPemasukan = pointsPemasukan
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+
+  const pathPengeluaran = pointsPengeluaran
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+
   return (
     <div className="space-y-6">
       {/* HEADER RINGKASAN & PILIHAN BULAN */}
@@ -443,7 +511,158 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 3. FORM TAMBAH TRANSAKSI */}
+      {/* 3. GRAFIK GARIS BULANAN (PEMASUKAN vs PENGELUARAN) */}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <LineChart className="w-5 h-5 text-purple-400" />
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+              Grafik Keuangan Bulanan ({selectedYear})
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs font-bold">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+              <span className="text-emerald-400">Pemasukan</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+              <span className="text-rose-400">Pengeluaran</span>
+            </div>
+          </div>
+        </div>
+
+        {/* AREA CONTAINER SVG GRAFIK */}
+        <div className="relative w-full overflow-x-auto">
+          <div className="min-w-[650px] relative">
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full h-auto overflow-visible"
+            >
+              {/* Garis Grid Horizontal */}
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+                const y =
+                  paddingY + (1 - ratio) * (svgHeight - paddingY * 2);
+                return (
+                  <line
+                    key={i}
+                    x1={paddingX}
+                    y1={y}
+                    x2={svgWidth - paddingX}
+                    y2={y}
+                    stroke="#334155"
+                    strokeDasharray="4 4"
+                    strokeWidth="1"
+                  />
+                );
+              })}
+
+              {/* Garis Pemasukan (Hijau) */}
+              <path
+                d={pathPemasukan}
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              {/* Garis Pengeluaran (Merah) */}
+              <path
+                d={pathPengeluaran}
+                fill="none"
+                stroke="#f43f5e"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              {/* Titik Pemasukan (Hijau) */}
+              {pointsPemasukan.map((pt, i) => (
+                <circle
+                  key={`pem-${i}`}
+                  cx={pt.x}
+                  cy={pt.y}
+                  r="5"
+                  className="fill-emerald-400 stroke-slate-900 cursor-pointer hover:r-7 transition-all"
+                  strokeWidth="2"
+                  onMouseEnter={() => setHoveredPoint(pt)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                />
+              ))}
+
+              {/* Titik Pengeluaran (Merah) */}
+              {pointsPengeluaran.map((pt, i) => (
+                <circle
+                  key={`peng-${i}`}
+                  cx={pt.x}
+                  cy={pt.y}
+                  r="5"
+                  className="fill-rose-500 stroke-slate-900 cursor-pointer hover:r-7 transition-all"
+                  strokeWidth="2"
+                  onMouseEnter={() => setHoveredPoint(pt)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                />
+              ))}
+
+              {/* Label Bulan pada Sumbu X */}
+              {monthlyChartData.months.map((item, idx) => {
+                const x = paddingX + (idx * (svgWidth - paddingX * 2)) / 11;
+                return (
+                  <text
+                    key={idx}
+                    x={x}
+                    y={svgHeight - 8}
+                    textAnchor="middle"
+                    className="text-[11px] font-bold fill-slate-400"
+                  >
+                    {item.name}
+                  </text>
+                );
+              })}
+            </svg>
+
+            {/* Tooltip Hover Titik Grafik */}
+            {hoveredPoint && (
+              <div
+                className="absolute z-20 pointer-events-none bg-slate-950/90 border border-slate-700 px-3 py-1.5 rounded-xl shadow-xl backdrop-blur-md text-center transform -translate-x-1/2 -translate-y-full"
+                style={{
+                  left: `${(hoveredPoint.x / svgWidth) * 100}%`,
+                  top: `${(hoveredPoint.y / svgHeight) * 100 - 10}%`,
+                }}
+              >
+                <p className="text-[10px] font-extrabold text-slate-400">
+                  {hoveredPoint.month} •{' '}
+                  <span
+                    className={
+                      hoveredPoint.type === 'Pemasukan'
+                        ? 'text-emerald-400'
+                        : 'text-rose-400'
+                    }
+                  >
+                    {hoveredPoint.type}
+                  </span>
+                </p>
+                <p
+                  className={
+                    hoveredPoint.type === 'Pemasukan'
+                      ? 'text-xs font-black text-emerald-400'
+                      : 'text-xs font-black text-rose-400'
+                  }
+                >
+                  {formatYuan(hoveredPoint.val)}
+                </p>
+                <p className="text-[9px] text-slate-500">
+                  {formatIDR(hoveredPoint.val)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. FORM TAMBAH TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
           <Wallet className="w-5 h-5 text-purple-400" />
@@ -603,7 +822,7 @@ export default function KeuanganTab({
         </form>
       </div>
 
-      {/* 4. RIWAYAT TRANSAKSI */}
+      {/* 5. RIWAYAT TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 relative">
           <div>
@@ -835,7 +1054,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 5. MODAL EDIT TRANSAKSI */}
+      {/* 6. MODAL EDIT TRANSAKSI */}
       {editingTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-lg p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4 relative">
