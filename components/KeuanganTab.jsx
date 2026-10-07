@@ -24,13 +24,13 @@ const EXPENSE_CATEGORIES = [
 
 export default function KeuanganTab({ transactions, addTransaction, deleteTransaction }) {
   const [txType, setTxType] = useState('pemasukan');
-  const [txAccount, setTxAccount] = useState('Cash'); // Sesuaikan dengan nilai 'Cash' / 'Bank' dalam DB
+  const [txAccount, setTxAccount] = useState('Cash');
   const [txCategory, setTxCategory] = useState('Makan');
   const [txAmount, setTxAmount] = useState('');
   const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
   const [txTitle, setTxTitle] = useState('');
 
-  // Pengiraan Jumlah Baki
+  // Pengiraan Baki Keuangan
   const calculateTotals = () => {
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
@@ -58,7 +58,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
 
   const { totalPemasukan, totalPengeluaran, totalTunai, totalBank } = calculateTotals();
 
-  // Hantar Data mengikut kolum Supabase
+  // Simpan Transaksi Baharu
   const handleCreateTransaction = async (e) => {
     e.preventDefault();
     if (!txTitle || !txAmount || !txDate) return;
@@ -78,7 +78,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
 
   return (
     <div className="space-y-6">
-      {/* KARTU RINGKASAN */}
+      {/* 4 KAD RINGKASAN */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-900/30 via-emerald-950/20 to-slate-900/60 backdrop-blur-xl border border-emerald-500/30 shadow-xl">
           <div className="flex items-center justify-between">
@@ -117,14 +117,14 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
         </div>
       </div>
 
-      {/* FORM TRANSAKSI */}
+      {/* BORANG INPUT */}
       <form onSubmit={handleCreateTransaction} className="p-6 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/20 dark:border-slate-800/60 shadow-xl space-y-5">
         <h3 className="font-extrabold text-sm flex items-center gap-2 text-purple-400">
           <Plus className="w-4 h-4 p-0.5 rounded-full bg-purple-500/20 text-purple-300" />
           <span>Tambah Catatan Transaksi</span>
         </h3>
 
-        {/* Jenis Transaksi */}
+        {/* Jenis */}
         <div className="flex gap-3">
           <button
             type="button"
@@ -153,7 +153,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </button>
         </div>
 
-        {/* Metode / Akun */}
+        {/* Akun */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-400">Metode / Akun</label>
           <div className="flex gap-3">
@@ -185,7 +185,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </div>
         </div>
 
-        {/* Kategori Pengeluaran */}
+        {/* Kategori */}
         {txType === 'pengeluaran' && (
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
@@ -211,7 +211,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </div>
         )}
 
-        {/* Jumlah Yuan */}
+        {/* Jumlah */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-400">Jumlah Uang (Yuan)</label>
           <div className="relative">
@@ -232,7 +232,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </div>
         </div>
 
-        {/* Tanggal */}
+        {/* Tarikh */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5" />
@@ -275,7 +275,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
         </button>
       </form>
 
-      {/* RIWAYAT TRANSAKSI */}
+      {/* REKOD TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/20 dark:border-slate-800/60 shadow-xl space-y-4">
         <h3 className="font-black text-xs uppercase tracking-wider text-slate-400">
           Riwayat Transaksi Keuangan
