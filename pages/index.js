@@ -11,12 +11,14 @@ import {
   Plus,
 } from 'lucide-react';
 
-// FIX PATH: Menambahkan ../src/ untuk mengarah ke folder src/lib
+// Path ke folder src/lib
 import { supabase } from '../src/lib/supabaseClient';
 import { formatYuan, formatIDR } from '../src/lib/utils';
 
-// FIX PATH: Mengarah ke folder hooks dan components di root
+// Path ke hooks (Perhatikan huruf besar 'T' pada useTransactions)
 import { useTransactions } from '../hooks/useTransactions';
+
+// Path ke components
 import PaymentTab from '../components/PaymentTab';
 import ToolsTab from '../components/ToolsTab';
 import AddCategoryModal from '../components/AddCategoryModal';
