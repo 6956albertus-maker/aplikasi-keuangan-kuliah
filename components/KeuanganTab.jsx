@@ -30,7 +30,6 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
   const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
   const [txTitle, setTxTitle] = useState('');
 
-  // Pengiraan Baki Keuangan
   const calculateTotals = () => {
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
@@ -58,7 +57,6 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
 
   const { totalPemasukan, totalPengeluaran, totalTunai, totalBank } = calculateTotals();
 
-  // Simpan Transaksi Baharu
   const handleCreateTransaction = async (e) => {
     e.preventDefault();
     if (!txTitle || !txAmount || !txDate) return;
@@ -78,130 +76,132 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
 
   return (
     <div className="space-y-6">
-      {/* 4 KAD RINGKASAN */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-900/30 via-emerald-950/20 to-slate-900/60 backdrop-blur-xl border border-emerald-500/30 shadow-xl">
+      {/* RINGKASAN KEUANGAN (GRID 4 KARTU) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Uang Tunai */}
+        <div className="p-5 rounded-2xl bg-slate-900/80 border border-emerald-500/30 shadow-lg backdrop-blur-md">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-emerald-300">Uang Tunai</p>
-            <Banknote className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-bold text-emerald-400">Uang Tunai</span>
+            <Banknote className="w-5 h-5 text-emerald-400" />
           </div>
-          <p className="text-xl font-black mt-2 text-white">{formatYuan(totalTunai)}</p>
-          <p className="text-[9px] text-emerald-400/80 mt-0.5">{formatIDR(totalTunai)}</p>
+          <p className="text-2xl font-black text-white mt-2">{formatYuan(totalTunai)}</p>
+          <p className="text-xs text-slate-400 mt-1">{formatIDR(totalTunai)}</p>
         </div>
 
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-cyan-900/30 via-cyan-950/20 to-slate-900/60 backdrop-blur-xl border border-cyan-500/30 shadow-xl">
+        {/* Uang Bank */}
+        <div className="p-5 rounded-2xl bg-slate-900/80 border border-cyan-500/30 shadow-lg backdrop-blur-md">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-cyan-300">Uang Bank</p>
-            <Building2 className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs font-bold text-cyan-400">Uang Bank</span>
+            <Building2 className="w-5 h-5 text-cyan-400" />
           </div>
-          <p className="text-xl font-black mt-2 text-white">{formatYuan(totalBank)}</p>
-          <p className="text-[9px] text-cyan-400/80 mt-0.5">{formatIDR(totalBank)}</p>
+          <p className="text-2xl font-black text-white mt-2">{formatYuan(totalBank)}</p>
+          <p className="text-xs text-slate-400 mt-1">{formatIDR(totalBank)}</p>
         </div>
 
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-indigo-900/30 via-indigo-950/20 to-slate-900/60 backdrop-blur-xl border border-indigo-500/30 shadow-xl">
+        {/* Total Pemasukan */}
+        <div className="p-5 rounded-2xl bg-slate-900/80 border border-indigo-500/30 shadow-lg backdrop-blur-md">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-indigo-300">Total Pemasukan</p>
-            <ArrowUpCircle className="w-4 h-4 text-indigo-400" />
+            <span className="text-xs font-bold text-indigo-400">Total Pemasukan</span>
+            <ArrowUpCircle className="w-5 h-5 text-indigo-400" />
           </div>
-          <p className="text-xl font-black mt-2 text-indigo-400">{formatYuan(totalPemasukan)}</p>
-          <p className="text-[9px] text-indigo-300/80 mt-0.5">{formatIDR(totalPemasukan)}</p>
+          <p className="text-2xl font-black text-indigo-300 mt-2">{formatYuan(totalPemasukan)}</p>
+          <p className="text-xs text-slate-400 mt-1">{formatIDR(totalPemasukan)}</p>
         </div>
 
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-rose-900/30 via-rose-950/20 to-slate-900/60 backdrop-blur-xl border border-rose-500/30 shadow-xl">
+        {/* Total Pengeluaran */}
+        <div className="p-5 rounded-2xl bg-slate-900/80 border border-rose-500/30 shadow-lg backdrop-blur-md">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-rose-300">Total Pengeluaran</p>
-            <ArrowDownCircle className="w-4 h-4 text-rose-400" />
+            <span className="text-xs font-bold text-rose-400">Total Pengeluaran</span>
+            <ArrowDownCircle className="w-5 h-5 text-rose-400" />
           </div>
-          <p className="text-xl font-black mt-2 text-rose-400">{formatYuan(totalPengeluaran)}</p>
-          <p className="text-[9px] text-rose-300/80 mt-0.5">{formatIDR(totalPengeluaran)}</p>
+          <p className="text-2xl font-black text-rose-400 mt-2">{formatYuan(totalPengeluaran)}</p>
+          <p className="text-xs text-slate-400 mt-1">{formatIDR(totalPengeluaran)}</p>
         </div>
       </div>
 
-      {/* BORANG INPUT */}
-      <form onSubmit={handleCreateTransaction} className="p-6 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/20 dark:border-slate-800/60 shadow-xl space-y-5">
-        <h3 className="font-extrabold text-sm flex items-center gap-2 text-purple-400">
+      {/* FORM INPUT TRANSAKSI */}
+      <form onSubmit={handleCreateTransaction} className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
+        <h3 className="text-sm font-extrabold text-purple-400 flex items-center gap-2">
           <Plus className="w-4 h-4 p-0.5 rounded-full bg-purple-500/20 text-purple-300" />
           <span>Tambah Catatan Transaksi</span>
         </h3>
 
-        {/* Jenis */}
-        <div className="flex gap-3">
+        {/* Toggle Pemasukan/Pengeluaran */}
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() => setTxType('pemasukan')}
-            className={`flex-1 py-2.5 rounded-2xl text-xs font-black transition flex items-center justify-center gap-2 border ${
+            className={`py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${
               txType === 'pemasukan'
-                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-500/20'
-                : 'border-slate-700/50 text-slate-400 hover:text-white'
+                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                : 'bg-slate-800/50 border-slate-700 text-slate-400'
             }`}
           >
             <ArrowUpCircle className="w-4 h-4" />
-            <span>Pemasukan</span>
+            Pemasukan
           </button>
-
           <button
             type="button"
             onClick={() => setTxType('pengeluaran')}
-            className={`flex-1 py-2.5 rounded-2xl text-xs font-black transition flex items-center justify-center gap-2 border ${
+            className={`py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${
               txType === 'pengeluaran'
-                ? 'bg-rose-500/20 border-rose-500 text-rose-300 shadow-lg shadow-rose-500/20'
-                : 'border-slate-700/50 text-slate-400 hover:text-white'
+                ? 'bg-rose-500/20 border-rose-500 text-rose-300'
+                : 'bg-slate-800/50 border-slate-700 text-slate-400'
             }`}
           >
             <ArrowDownCircle className="w-4 h-4" />
-            <span>Pengeluaran</span>
+            Pengeluaran
           </button>
         </div>
 
-        {/* Akun */}
+        {/* Toggle Akun */}
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-slate-400">Metode / Akun</label>
-          <div className="flex gap-3">
+          <label className="text-xs font-bold text-slate-400">Metode / Akun</label>
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setTxAccount('Cash')}
-              className={`flex-1 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center justify-center gap-2 border ${
+              className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${
                 txAccount === 'Cash'
-                  ? 'bg-purple-600 text-white border-purple-500 shadow-md'
-                  : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
+                  ? 'bg-purple-600 border-purple-500 text-white'
+                  : 'bg-slate-800/50 border-slate-700 text-slate-400'
               }`}
             >
               <Banknote className="w-4 h-4" />
-              <span>Tunai (Cash)</span>
+              Tunai (Cash)
             </button>
-
             <button
               type="button"
               onClick={() => setTxAccount('Bank')}
-              className={`flex-1 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center justify-center gap-2 border ${
+              className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition ${
                 txAccount === 'Bank'
-                  ? 'bg-cyan-600 text-white border-cyan-500 shadow-md'
-                  : 'bg-slate-800/40 border-slate-700/50 text-slate-400'
+                  ? 'bg-cyan-600 border-cyan-500 text-white'
+                  : 'bg-slate-800/50 border-slate-700 text-slate-400'
               }`}
             >
               <Building2 className="w-4 h-4" />
-              <span>Bank</span>
+              Bank
             </button>
           </div>
         </div>
 
-        {/* Kategori */}
+        {/* Kategori (Pengeluaran) */}
         {txType === 'pengeluaran' && (
           <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+            <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
               <Tag className="w-3.5 h-3.5" />
-              <span>Kategori Pengeluaran</span>
+              Kategori
             </label>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+            <div className="flex flex-wrap gap-2">
               {EXPENSE_CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setTxCategory(cat)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${
+                  className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition ${
                     txCategory === cat
-                      ? 'bg-rose-500/30 border-rose-400 text-rose-200 shadow-md'
-                      : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-white'
+                      ? 'bg-rose-500/20 border-rose-400 text-rose-300'
+                      : 'bg-slate-800/50 border-slate-700 text-slate-400'
                   }`}
                 >
                   {cat}
@@ -211,9 +211,9 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
           </div>
         )}
 
-        {/* Jumlah */}
+        {/* Input Jumlah Yuan */}
         <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-slate-400">Jumlah Uang (Yuan)</label>
+          <label className="text-xs font-bold text-slate-400">Jumlah Uang (Yuan)</label>
           <div className="relative">
             <input
               type="number"
@@ -221,69 +221,68 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
               placeholder="Masukkan jumlah dalam ¥ (misal: 50)"
               value={txAmount}
               onChange={(e) => setTxAmount(e.target.value)}
-              className="w-full p-3.5 rounded-2xl border border-slate-300/40 dark:border-slate-700/50 bg-slate-100/70 dark:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs font-bold transition"
+              className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
               required
             />
             {txAmount && !isNaN(txAmount) && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md">
                 ≈ {formatIDR(parseFloat(txAmount))}
-              </div>
+              </span>
             )}
           </div>
         </div>
 
-        {/* Tarikh */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Tanggal Transaksi</span>
-          </label>
-          <input
-            type="date"
-            value={txDate}
-            onChange={(e) => setTxDate(e.target.value)}
-            className="w-full p-3.5 rounded-2xl border border-slate-300/40 dark:border-slate-700/50 bg-slate-100/70 dark:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs font-bold transition text-slate-200"
-            required
-          />
-        </div>
+        {/* Input Tanggal & Keterangan */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" /> Tanggal
+            </label>
+            <input
+              type="date"
+              value={txDate}
+              onChange={(e) => setTxDate(e.target.value)}
+              className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+              required
+            />
+          </div>
 
-        {/* Keterangan */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-            <FileText className="w-3.5 h-3.5" />
-            <span>Keterangan</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Deskripsi (misal: Beli Mie Instan / Busway)"
-            value={txTitle}
-            onChange={(e) => setTxTitle(e.target.value)}
-            className="w-full p-3.5 rounded-2xl border border-slate-300/40 dark:border-slate-700/50 bg-slate-100/70 dark:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs font-bold transition"
-            required
-          />
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
+              <FileText className="w-3.5 h-3.5" /> Keterangan
+            </label>
+            <input
+              type="text"
+              placeholder="Deskripsi (misal: Beli Mie Instan)"
+              value={txTitle}
+              onChange={(e) => setTxTitle(e.target.value)}
+              className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+              required
+            />
+          </div>
         </div>
 
         <button
           type="submit"
-          className={`w-full p-4 text-white rounded-2xl font-black hover:opacity-90 transition shadow-lg active:scale-[0.99] ${
+          className={`w-full p-3.5 rounded-xl text-xs font-black text-white shadow-lg transition ${
             txType === 'pemasukan'
-              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-500/25'
-              : 'bg-gradient-to-r from-rose-600 to-pink-600 shadow-rose-500/25'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90'
+              : 'bg-gradient-to-r from-rose-600 to-pink-600 hover:opacity-90'
           }`}
         >
           Simpan {txType === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'}
         </button>
       </form>
 
-      {/* REKOD TRANSAKSI */}
-      <div className="p-6 rounded-3xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/20 dark:border-slate-800/60 shadow-xl space-y-4">
-        <h3 className="font-black text-xs uppercase tracking-wider text-slate-400">
+      {/* RIWAYAT TRANSAKSI */}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
           Riwayat Transaksi Keuangan
         </h3>
 
         <div className="space-y-3">
           {transactions.length === 0 ? (
-            <div className="p-8 text-center border border-dashed border-slate-300/30 dark:border-slate-800 rounded-2xl">
+            <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
               <p className="text-xs text-slate-400 font-medium">Belum ada transaksi yang dicatat. Mulai catat keuanganmu! 🚀</p>
             </div>
           ) : (
@@ -292,22 +291,16 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
               return (
                 <div
                   key={tx.id}
-                  className="flex justify-between items-center p-4 rounded-2xl bg-white/60 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/30 hover:border-purple-500/50 transition group"
+                  className="flex justify-between items-center p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-purple-500/50 transition"
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-300 ${
-                        isPemasukan
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : 'bg-rose-500/10 text-rose-400'
-                      }`}
-                    >
+                    <div className={`p-2.5 rounded-lg ${isPemasukan ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                       {isPemasukan ? <ArrowUpCircle className="w-5 h-5" /> : <ArrowDownCircle className="w-5 h-5" />}
                     </div>
                     <div>
-                      <p className="font-extrabold text-xs text-slate-100">{tx.keterangan}</p>
+                      <p className="font-bold text-xs text-white">{tx.keterangan}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        {tx.tanggal || 'Hari ini'} • <span className="font-semibold text-purple-400">{tx.metode || 'Cash'}</span> • <span className="font-semibold text-pink-400">{tx.kategori || 'Umum'}</span>
+                        {tx.tanggal || 'Hari ini'} • <span className="text-purple-400">{tx.metode || 'Cash'}</span> • <span className="text-pink-400">{tx.kategori || 'Umum'}</span>
                       </p>
                     </div>
                   </div>
@@ -321,7 +314,7 @@ export default function KeuanganTab({ transactions, addTransaction, deleteTransa
                     </div>
                     <button
                       onClick={() => deleteTransaction(tx.id)}
-                      className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+                      className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
