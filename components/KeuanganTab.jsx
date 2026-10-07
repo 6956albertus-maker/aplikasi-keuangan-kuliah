@@ -26,7 +26,6 @@ const KATEGORI_PENGELUARAN = [
   'Biaya Kuliah',
   'Belanja',
   'Laundry',
-  'Jajan',
   'Lain-lain',
 ];
 
@@ -35,7 +34,7 @@ export default function KeuanganTab({
   addTransaction,
   editTransaction,
   deleteTransaction,
-  resetTransactions, // Opsional jika dimuatkan dari parent
+  resetTransactions,
 }) {
   const [tipe, setTipe] = useState('pengeluaran');
   const [keterangan, setKeterangan] = useState('');
@@ -55,7 +54,7 @@ export default function KeuanganTab({
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
 
-  // KIRAAN RINGKASAN KEUANGAN
+  // RINGKASAN KEUANGAN
   const summary = useMemo(() => {
     let totalTunai = 0;
     let totalBank = 0;
@@ -85,7 +84,7 @@ export default function KeuanganTab({
     };
   }, [transactions]);
 
-  // FUNGSI RESET SEMUA DATA
+  // RESET SEMUA DATA
   const handleResetAllData = () => {
     if (transactions.length === 0) {
       alert('Tidak ada data transaksi untuk di-reset.');
@@ -135,6 +134,7 @@ export default function KeuanganTab({
     }
   };
 
+  // TAMBAH TRANSAKSI
   const handleAddTransaction = (e) => {
     e.preventDefault();
     if (!keterangan || !nominalYuan) return;
@@ -152,6 +152,25 @@ export default function KeuanganTab({
 
     setKeterangan('');
     setNominalYuan('');
+  };
+
+  // SIMPAN EDIT TRANSAKSI
+  const handleUpdateTransaction = (e) => {
+    e.preventDefault();
+    if (editingTx && editTransaction) {
+      const updatedTx = {
+        id: editingTx.id,
+        tipe: editingTx.tipe,
+        keterangan: editingTx.keterangan,
+        nominal_yuan: parseFloat(editingTx.nominal_yuan),
+        tanggal: editingTx.tanggal,
+        metode: editingTx.metode || 'Cash',
+        kategori: editingTx.tipe === 'pemasukan' ? 'Pemasukan' : (editingTx.kategori || 'Makan'),
+      };
+
+      editTransaction(updatedTx);
+      setEditingTx(null);
+    }
   };
 
   const displayedTransactions = useMemo(() => {
@@ -198,18 +217,6 @@ export default function KeuanganTab({
     setIsFilterOpen(false);
   };
 
-  const handleUpdateTransaction = (e) => {
-    e.preventDefault();
-    if (editingTx && editTransaction) {
-      const updatedTx = {
-        ...editingTx,
-        kategori: editingTx.tipe === 'pemasukan' ? 'Pemasukan' : editingTx.kategori,
-      };
-      editTransaction(updatedTx);
-      setEditingTx(null);
-    }
-  };
-
   const prevMonth = () => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
@@ -232,7 +239,6 @@ export default function KeuanganTab({
     <div className="space-y-6">
       {/* 1. KOTAK RINGKASAN KEUANGAN */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Total Tunai */}
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -250,7 +256,6 @@ export default function KeuanganTab({
           </p>
         </div>
 
-        {/* Total Bank */}
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -268,7 +273,6 @@ export default function KeuanganTab({
           </p>
         </div>
 
-        {/* Total Pemasukan */}
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
@@ -286,7 +290,6 @@ export default function KeuanganTab({
           </p>
         </div>
 
-        {/* Total Pengeluaran */}
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
@@ -305,7 +308,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 2. FORM INPUT TRANSAKSI BARU */}
+      {/* 2. FORM TAMBAH TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
           <Wallet className="w-5 h-5 text-purple-400" />
@@ -446,7 +449,7 @@ export default function KeuanganTab({
         </form>
       </div>
 
-      {/* 3. RIWAYAT TRANSAKSI & RESET BUTTON */}
+      {/* 3. RIWAYAT TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 relative">
           <div>
@@ -461,7 +464,6 @@ export default function KeuanganTab({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* BUTTON RESET DATA */}
             <button
               type="button"
               onClick={handleResetAllData}
@@ -472,7 +474,6 @@ export default function KeuanganTab({
               <span>Reset Data</span>
             </button>
 
-            {/* BUTTON FILTER */}
             <div className="relative">
               <button
                 type="button"
