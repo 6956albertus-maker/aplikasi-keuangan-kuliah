@@ -19,6 +19,8 @@ import {
   RefreshCw,
   Repeat,
   Calendar,
+  PieChart,
+  Tag
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
@@ -67,18 +69,24 @@ export default function KeuanganTab({
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
 
-  // RINGKASAN KEUANGAN (Total Pemasukan & Pengeluaran disesuaikan per Bulan)
+  // RINGKASAN KEUANGAN (Total Pemasukan, Pengeluaran & Per Kategori disesuaikan per Bulan)
   const summary = useMemo(() => {
     let totalTunai = 0;
     let totalBank = 0;
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
 
+    // Inisialisasi total per kategori pengeluaran
+    const categoryTotals = {};
+    KATEGORI_PENGELUARAN.forEach((cat) => {
+      categoryTotals[cat] = 0;
+    });
+
     transactions.forEach((tx) => {
       const amount = Number(tx.nominal_yuan) || 0;
       const isCash = tx.metode === 'Cash' || tx.metode === 'Tunai';
 
-      // 1. Hitung Saldo Tunai & Bank Keseluruhan
+      // 1. Hitung Saldo Tunai & Bank Keseluruhan (Kumulatif)
       if (tx.tipe === 'pemasukan') {
         if (isCash) totalTunai += amount;
         else totalBank += amount;
@@ -87,7 +95,7 @@ export default function KeuanganTab({
         else totalBank -= amount;
       }
 
-      // 2. Hitung Pemasukan & Pengeluaran KHUSUS BULAN + TAHUN terpilih
+      // 2. Hitung Pemasukan, Pengeluaran & Total Per Kategori KHUSUS BULAN + TAHUN terpilih
       if (tx.tanggal) {
         const txDate = new Date(tx.tanggal);
         const txM = txDate.getMonth();
@@ -98,6 +106,13 @@ export default function KeuanganTab({
             totalPemasukan += amount;
           } else {
             totalPengeluaran += amount;
+            // Tambahkan ke kategori
+            const kat = tx.kategori || 'Lain-lain';
+            if (categoryTotals[kat] !== undefined) {
+              categoryTotals[kat] += amount;
+            } else {
+              categoryTotals[kat] = (categoryTotals[kat] || 0) + amount;
+            }
           }
         }
       }
@@ -108,6 +123,7 @@ export default function KeuanganTab({
       totalBank,
       totalPemasukan,
       totalPengeluaran,
+      categoryTotals,
     };
   }, [transactions, selectedMonth, selectedYear]);
 
@@ -319,7 +335,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 1. KOTAK RINGKASAN KEUANGAN */}
+      {/* 1. KOTAK RINGKASAN UTAMA */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
@@ -390,7 +406,44 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 2. FORM TAMBAH TRANSAKSI */}
+      {/* 2. KOTAK TOTAL PER KATEGORI (PENGELUARAN PER BULAN) */}
+      <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-purple-400" />
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+              Pengeluaran Per Kategori ({MONTH_NAMES[selectedMonth]} {selectedYear})
+            </h3>
+          </div>
+          <span className="text-[11px] text-slate-500 font-medium">
+            Rincian Pengeluaran
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {KATEGORI_PENGELUARAN.map((cat) => {
+            const val = summary.categoryTotals[cat] || 0;
+            return (
+              <div
+                key={cat}
+                className="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/60 hover:border-purple-500/40 transition space-y-1"
+              >
+                <p className="text-[11px] font-bold text-slate-400 truncate">
+                  {cat}
+                </p>
+                <p className="text-sm font-black text-rose-400">
+                  {formatYuan(val)}
+                </p>
+                <p className="text-[9px] text-slate-500">
+                  {formatIDR(val)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. FORM TAMBAH TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
           <Wallet className="w-5 h-5 text-purple-400" />
@@ -550,7 +603,7 @@ export default function KeuanganTab({
         </form>
       </div>
 
-      {/* 3. RIWAYAT TRANSAKSI */}
+      {/* 4. RIWAYAT TRANSAKSI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 relative">
           <div>
@@ -782,7 +835,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 4. MODAL EDIT TRANSAKSI */}
+      {/* 5. MODAL EDIT TRANSAKSI */}
       {editingTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-lg p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl space-y-4 relative">
