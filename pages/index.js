@@ -295,3 +295,7 @@ export default function Home() {
           showAddCategoryModal={showAddCategoryModal}
           setShowAddCategoryModal={setShowAddCategoryModal}
           handleAddCategory={
+</div>
+</div>
+);
+}
