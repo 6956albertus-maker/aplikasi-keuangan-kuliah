@@ -26,6 +26,7 @@ const KATEGORI_PENGELUARAN = [
   'Biaya Kuliah',
   'Belanja',
   'Laundry',
+  'Jajan',
   'Lain-lain',
 ];
 
