@@ -18,6 +18,7 @@ import {
   TrendingDown,
   RefreshCw,
   Repeat,
+  Calendar,
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
@@ -28,6 +29,11 @@ const KATEGORI_PENGELUARAN = [
   'Belanja',
   'Laundry',
   'Lain-lain',
+];
+
+const MONTH_NAMES = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
 export default function KeuanganTab({
@@ -43,11 +49,16 @@ export default function KeuanganTab({
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [metode, setMetode] = useState('Cash');
   const [kategori, setKategori] = useState('Makan');
-  const [isTukar, setIsTukar] = useState(false); // Checkbox Tukar
+  const [isTukar, setIsTukar] = useState(false);
 
   const [editingTx, setEditingTx] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  // Filter Bulan & Tahun untuk Ringkasan Card
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Filter Kalender bawaan
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
@@ -56,7 +67,7 @@ export default function KeuanganTab({
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
 
-  // RINGKASAN KEUANGAN
+  // RINGKASAN KEUANGAN (Total Pemasukan & Pengeluaran disesuaikan per Bulan)
   const summary = useMemo(() => {
     let totalTunai = 0;
     let totalBank = 0;
@@ -67,14 +78,28 @@ export default function KeuanganTab({
       const amount = Number(tx.nominal_yuan) || 0;
       const isCash = tx.metode === 'Cash' || tx.metode === 'Tunai';
 
+      // 1. Hitung Saldo Tunai & Bank Keseluruhan
       if (tx.tipe === 'pemasukan') {
-        totalPemasukan += amount;
         if (isCash) totalTunai += amount;
         else totalBank += amount;
       } else {
-        totalPengeluaran += amount;
         if (isCash) totalTunai -= amount;
         else totalBank -= amount;
+      }
+
+      // 2. Hitung Pemasukan & Pengeluaran KHUSUS BULAN + TAHUN terpilih
+      if (tx.tanggal) {
+        const txDate = new Date(tx.tanggal);
+        const txM = txDate.getMonth();
+        const txY = txDate.getFullYear();
+
+        if (txM === selectedMonth && txY === selectedYear) {
+          if (tx.tipe === 'pemasukan') {
+            totalPemasukan += amount;
+          } else {
+            totalPengeluaran += amount;
+          }
+        }
       }
     });
 
@@ -84,7 +109,7 @@ export default function KeuanganTab({
       totalPemasukan,
       totalPengeluaran,
     };
-  }, [transactions]);
+  }, [transactions, selectedMonth, selectedYear]);
 
   const handleResetAllData = () => {
     if (transactions.length === 0) {
@@ -108,11 +133,6 @@ export default function KeuanganTab({
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
 
-  const monthNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
-
   const formatDateString = (year, month, day) => {
     const m = String(month + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
@@ -135,7 +155,6 @@ export default function KeuanganTab({
     }
   };
 
-  // LOGIK TAMBAH TRANSAKSI
   const handleAddTransaction = (e) => {
     e.preventDefault();
     if (!keterangan || !nominalYuan) return;
@@ -144,10 +163,9 @@ export default function KeuanganTab({
 
     if (addTransaction) {
       if (tipe === 'pemasukan' && isTukar) {
-        const akunPilihan = metode; 
+        const akunPilihan = metode;
         const akunLain = metode === 'Bank' ? 'Cash' : 'Bank';
 
-        // 1. Pemasukan ke Akun Utama yang dipilih
         addTransaction({
           tipe: 'pemasukan',
           keterangan: `[Tukar] ${keterangan}`,
@@ -157,7 +175,6 @@ export default function KeuanganTab({
           kategori: 'Pemasukan',
         });
 
-        // 2. Pemasukan JUGA ke Akun Pasangannya (Sebab tunai bertambah & bank bertambah)
         addTransaction({
           tipe: 'pemasukan',
           keterangan: `[Tukar] ${keterangan}`,
@@ -167,7 +184,6 @@ export default function KeuanganTab({
           kategori: 'Pemasukan',
         });
       } else {
-        // Transaksi Biasa
         addTransaction({
           tipe,
           keterangan,
@@ -184,7 +200,6 @@ export default function KeuanganTab({
     setIsTukar(false);
   };
 
-  // SIMPAN EDIT TRANSAKSI
   const handleUpdateTransaction = (e) => {
     e.preventDefault();
     if (editingTx && editTransaction) {
@@ -267,7 +282,44 @@ export default function KeuanganTab({
 
   return (
     <div className="space-y-6">
-      {/* 1. RINGKASAN KEUANGAN */}
+      {/* HEADER RINGKASAN & PILIHAN BULAN */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-purple-400" />
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-300">
+            Ringkasan Keuangan
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-xs text-slate-400 font-semibold">Bulan:</span>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+          >
+            {MONTH_NAMES.map((m, idx) => (
+              <option key={m} value={idx}>
+                {m}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+          >
+            {[2024, 2025, 2026, 2027, 2028].map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* 1. KOTAK RINGKASAN KEUANGAN */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
@@ -306,7 +358,7 @@ export default function KeuanganTab({
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-              Total Pemasukan
+              Total Pemasukan ({MONTH_NAMES[selectedMonth]})
             </span>
             <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
               <TrendingUp className="w-4 h-4" />
@@ -323,7 +375,7 @@ export default function KeuanganTab({
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
-              Total Pengeluaran
+              Total Pengeluaran ({MONTH_NAMES[selectedMonth]})
             </span>
             <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
               <TrendingDown className="w-4 h-4" />
@@ -377,7 +429,6 @@ export default function KeuanganTab({
               </button>
             </div>
 
-            {/* CHECKBOX TUKAR */}
             {tipe === 'pemasukan' && (
               <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold cursor-pointer hover:bg-purple-500/20 transition select-none">
                 <input
@@ -552,7 +603,7 @@ export default function KeuanganTab({
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <span className="text-xs font-bold text-white">
-                      {monthNames[currentMonth]} {currentYear}
+                      {MONTH_NAMES[currentMonth]} {currentYear}
                     </span>
                     <button
                       type="button"
