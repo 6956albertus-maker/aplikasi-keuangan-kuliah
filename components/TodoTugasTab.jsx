@@ -9,29 +9,55 @@ import {
   X, 
   ListTodo, 
   Clock, 
-  AlertCircle, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Loader2,
-  Filter
+  Filter,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+
+// FUNGSI HITUNG PRIORITAS OTOMATIS BERDASARKAN TENGGAT WAKTU
+const getHitungPrioritas = (tenggatStr) => {
+  if (!tenggatStr) return 'Rendah';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tenggatDate = new Date(tenggatStr);
+  tenggatDate.setHours(0, 0, 0, 0);
+
+  const diffTime = tenggatDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 1) {
+    return 'Tinggi'; // Dibawah 1 hari (termasuk hari ini / sudah lewat)
+  } else if (diffDays <= 3) {
+    return 'Sedang'; // Dibawah / sama dengan 3 hari
+  } else {
+    return 'Rendah'; // Diatas 3 hari
+  }
+};
 
 export default function TodoTugasTab() {
   const [todoList, setTodoList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterPrioritas, setFilterPrioritas] = useState('Semua');
 
+  // State Kalender & Pop-up
+  const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
+  const [selectedDateTasks, setSelectedDateTasks] = useState(null); // null = pop-up tertutup, Array = isi pop-up
+  const [selectedDateStr, setSelectedDateStr] = useState('');
+
   // State Edit
   const [editingId, setEditingId] = useState(null);
   const [editJudul, setEditJudul] = useState('');
   const [editTenggat, setEditTenggat] = useState('');
-  const [editPrioritas, setEditPrioritas] = useState('Sedang');
 
-  // State Tambah Tugas Baru
+  // State Form Tambah Tugas
   const [showAddForm, setShowAddForm] = useState(false);
   const [newJudul, setNewJudul] = useState('');
   const [newTenggat, setNewTenggat] = useState('');
-  const [newPrioritas, setNewPrioritas] = useState('Sedang');
 
   // FETCH DATA SUPABASE
   const fetchTodos = async () => {
@@ -56,7 +82,7 @@ export default function TodoTugasTab() {
     fetchTodos();
   }, []);
 
-  // TOGGLE SELESAI / BELUM SELESAI
+  // TOGGLE SELESAI
   const handleToggleSelesai = async (id, statusSekarang) => {
     const newStatus = !statusSekarang;
 
@@ -65,6 +91,15 @@ export default function TodoTugasTab() {
         item.id === id ? { ...item, selesai: newStatus } : item
       )
     );
+
+    // Update juga di pop-up modal jika sedang terbuka
+    if (selectedDateTasks) {
+      setSelectedDateTasks((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, selesai: newStatus } : item
+        )
+      );
+    }
 
     const { error } = await supabase
       .from('todo_tugas')
@@ -82,11 +117,11 @@ export default function TodoTugasTab() {
     setEditingId(item.id);
     setEditJudul(item.judul || '');
     setEditTenggat(item.tenggat_waktu || '');
-    setEditPrioritas(item.prioritas || 'Sedang');
   };
 
   const handleSaveEdit = async (id) => {
     const formattedTenggat = editTenggat || null;
+    const computedPrioritas = getHitungPrioritas(formattedTenggat);
 
     setTodoList((prev) =>
       prev.map((item) =>
@@ -95,7 +130,7 @@ export default function TodoTugasTab() {
               ...item,
               judul: editJudul,
               tenggat_waktu: formattedTenggat,
-              prioritas: editPrioritas,
+              prioritas: computedPrioritas,
             }
           : item
       )
@@ -107,7 +142,7 @@ export default function TodoTugasTab() {
       .update({
         judul: editJudul,
         tenggat_waktu: formattedTenggat,
-        prioritas: editPrioritas,
+        prioritas: computedPrioritas,
       })
       .eq('id', id);
 
@@ -122,6 +157,9 @@ export default function TodoTugasTab() {
     if (!window.confirm('Apakah Anda yakin ingin menghapus tugas ini?')) return;
 
     setTodoList((prev) => prev.filter((item) => item.id !== id));
+    if (selectedDateTasks) {
+      setSelectedDateTasks((prev) => prev.filter((item) => item.id !== id));
+    }
 
     const { error } = await supabase
       .from('todo_tugas')
@@ -140,6 +178,7 @@ export default function TodoTugasTab() {
     if (!newJudul) return;
 
     const formattedTenggat = newTenggat || null;
+    const computedPrioritas = getHitungPrioritas(formattedTenggat);
 
     const { data, error } = await supabase
       .from('todo_tugas')
@@ -147,7 +186,7 @@ export default function TodoTugasTab() {
         {
           judul: newJudul,
           tenggat_waktu: formattedTenggat,
-          prioritas: newPrioritas,
+          prioritas: computedPrioritas,
           selesai: false,
         },
       ])
@@ -160,7 +199,6 @@ export default function TodoTugasTab() {
       setTodoList((prev) => [...prev, ...data]);
       setNewJudul('');
       setNewTenggat('');
-      setNewPrioritas('Sedang');
       setShowAddForm(false);
     }
   };
@@ -170,8 +208,13 @@ export default function TodoTugasTab() {
   const totalSelesai = todoList.filter((item) => item.selesai).length;
   const totalBelum = totalTugas - totalSelesai;
 
-  // FILTERED LIST
-  const filteredList = todoList.filter((item) => {
+  // FILTERED LIST SEMENTARA BERDASARKAN HITUNGAN OTOMATIS
+  const processedList = todoList.map((item) => ({
+    ...item,
+    prioritas: getHitungPrioritas(item.tenggat_waktu),
+  }));
+
+  const filteredList = processedList.filter((item) => {
     if (filterPrioritas === 'Semua') return true;
     return item.prioritas === filterPrioritas;
   });
@@ -188,6 +231,39 @@ export default function TodoTugasTab() {
       default:
         return 'bg-slate-800 text-slate-400 border-slate-700';
     }
+  };
+
+  // HELPER KALENDER
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const prevMonthDays = () => {
+    setCurrentMonthDate(new Date(year, month - 1, 1));
+  };
+  const nextMonthDays = () => {
+    setCurrentMonthDate(new Date(year, month + 1, 1));
+  };
+
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  // LOGIKA KLIK TANGGAL KALENDER
+  const handleDayClick = (dayNum) => {
+    const formattedMonth = String(month + 1).padStart(2, '0');
+    const formattedDay = String(dayNum).padStart(2, '0');
+    const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+
+    const tasksOnDate = processedList.filter(
+      (item) => item.tenggat_waktu === dateStr
+    );
+
+    setSelectedDateStr(`${dayNum} ${monthNames[month]} ${year}`);
+    setSelectedDateTasks(tasksOnDate);
   };
 
   return (
@@ -222,7 +298,169 @@ export default function TodoTugasTab() {
         </div>
       </div>
 
-      {/* RINCIAN & AKSI */}
+      {/* KALENDER WIDGET */}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-purple-400" />
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+              Kalender Tugas ({monthNames[month]} {year})
+            </h3>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={prevMonthDays}
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={nextMonthDays}
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* GRID KALENDER */}
+        <div className="grid grid-cols-7 gap-1 text-center text-xs">
+          {['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d) => (
+            <div key={d} className="font-extrabold text-slate-500 py-1">
+              {d}
+            </div>
+          ))}
+
+          {/* Blank space awal bulan */}
+          {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+            <div key={`empty-${i}`} className="p-2" />
+          ))}
+
+          {/* Tanggal dalam Bulan */}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const dayNum = i + 1;
+            const formattedMonth = String(month + 1).padStart(2, '0');
+            const formattedDay = String(dayNum).padStart(2, '0');
+            const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+
+            const tasksForThisDay = processedList.filter(
+              (item) => item.tenggat_waktu === dateStr
+            );
+
+            const hasTask = tasksForThisDay.length > 0;
+            const hasUnfinishedTask = tasksForThisDay.some((t) => !t.selesai);
+
+            // Tentukan dot prioritas tertinggi
+            let dotColor = 'bg-slate-500';
+            if (tasksForThisDay.some((t) => !t.selesai && t.prioritas === 'Tinggi')) {
+              dotColor = 'bg-rose-500';
+            } else if (tasksForThisDay.some((t) => !t.selesai && t.prioritas === 'Sedang')) {
+              dotColor = 'bg-amber-500';
+            } else if (tasksForThisDay.some((t) => !t.selesai && t.prioritas === 'Rendah')) {
+              dotColor = 'bg-blue-500';
+            } else if (hasTask && !hasUnfinishedTask) {
+              dotColor = 'bg-emerald-500'; // Semua tugas di tanggal tsb sudah lunas
+            }
+
+            return (
+              <button
+                key={dayNum}
+                onClick={() => handleDayClick(dayNum)}
+                className={`p-2 rounded-xl flex flex-col items-center justify-center relative hover:bg-purple-600/20 border transition ${
+                  hasTask
+                    ? 'border-purple-500/40 bg-purple-500/10 font-bold text-white'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>{dayNum}</span>
+                {hasTask && (
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full mt-1 ${dotColor}`}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* POP-UP MODAL KALENDER */}
+      {selectedDateTasks !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl max-w-lg w-full space-y-4 relative">
+            <button
+              onClick={() => setSelectedDateTasks(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <CalendarIcon className="w-5 h-5 text-purple-400" />
+              <h4 className="text-sm font-bold text-white">
+                Tugas Tanggal: {selectedDateStr}
+              </h4>
+            </div>
+
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {selectedDateTasks.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6">
+                  Tidak ada tugas untuk tanggal ini.
+                </p>
+              ) : (
+                selectedDateTasks.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between p-3 rounded-2xl border ${
+                      item.selesai
+                        ? 'bg-slate-900/40 border-slate-800 opacity-60'
+                        : 'bg-slate-800/50 border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleToggleSelesai(item.id, item.selesai)}
+                        className="text-slate-400 hover:text-emerald-400"
+                      >
+                        {item.selesai ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-slate-600" />
+                        )}
+                      </button>
+                      <div>
+                        <p
+                          className={`text-xs font-bold ${
+                            item.selesai ? 'line-through text-slate-400' : 'text-white'
+                          }`}
+                        >
+                          {item.judul}
+                        </p>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border inline-block mt-1 ${getPrioritasBadge(
+                            item.prioritas
+                          )}`}
+                        >
+                          Prioritas: {item.prioritas}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteItem(item.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DAFTAR TODO TUGAS UTAMA */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2">
@@ -261,11 +499,11 @@ export default function TodoTugasTab() {
           </div>
         </div>
 
-        {/* FORM TAMBAH TUGAS BARU */}
+        {/* FORM TAMBAH TUGAS (PRIORITAS OTOMATIS) */}
         {showAddForm && (
           <form onSubmit={handleAddItem} className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 space-y-3">
             <p className="text-xs font-bold text-slate-300">Tambah Tugas Baru</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 type="text"
                 placeholder="Judul Tugas / Catatan"
@@ -280,15 +518,6 @@ export default function TodoTugasTab() {
                 onChange={(e) => setNewTenggat(e.target.value)}
                 className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
-              <select
-                value={newPrioritas}
-                onChange={(e) => setNewPrioritas(e.target.value)}
-                className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="Tinggi">Prioritas Tinggi</option>
-                <option value="Sedang">Prioritas Sedang</option>
-                <option value="Rendah">Prioritas Rendah</option>
-              </select>
             </div>
             <div className="flex justify-end gap-2">
               <button
@@ -308,7 +537,7 @@ export default function TodoTugasTab() {
           </form>
         )}
 
-        {/* LOADING & DAFTAR TUGAS */}
+        {/* LIST TUGAS */}
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
             <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
@@ -333,7 +562,6 @@ export default function TodoTugasTab() {
                         : 'bg-slate-800/40 border-slate-700/60 hover:border-purple-500/40'
                     }`}
                   >
-                    {/* CHECKBOX & JUDUL TUGAS */}
                     <div className="flex items-start sm:items-center gap-3 flex-1">
                       <button
                         type="button"
@@ -349,7 +577,7 @@ export default function TodoTugasTab() {
 
                       <div className="space-y-1.5 flex-1">
                         {isEditing ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <input
                               type="text"
                               value={editJudul}
@@ -362,15 +590,6 @@ export default function TodoTugasTab() {
                               onChange={(e) => setEditTenggat(e.target.value)}
                               className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs focus:outline-none"
                             />
-                            <select
-                              value={editPrioritas}
-                              onChange={(e) => setEditPrioritas(e.target.value)}
-                              className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs focus:outline-none"
-                            >
-                              <option value="Tinggi">Tinggi</option>
-                              <option value="Sedang">Sedang</option>
-                              <option value="Rendah">Rendah</option>
-                            </select>
                           </div>
                         ) : (
                           <>
@@ -382,21 +601,18 @@ export default function TodoTugasTab() {
                               {item.judul}
                             </span>
 
-                            {/* TENGGAT WAKTU & BADGE PRIORITAS */}
                             <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                              {item.prioritas && (
-                                <span
-                                  className={`px-2 py-0.5 rounded-md font-semibold border ${getPrioritasBadge(
-                                    item.prioritas
-                                  )}`}
-                                >
-                                  {item.prioritas}
-                                </span>
-                              )}
+                              <span
+                                className={`px-2 py-0.5 rounded-md font-semibold border ${getPrioritasBadge(
+                                  item.prioritas
+                                )}`}
+                              >
+                                {item.prioritas}
+                              </span>
 
                               {item.tenggat_waktu && (
                                 <span className="text-slate-400 flex items-center gap-1 bg-slate-800/80 px-2 py-0.5 rounded-md">
-                                  <Calendar className="w-3 h-3 text-slate-400" />
+                                  <CalendarIcon className="w-3 h-3 text-slate-400" />
                                   Tenggat: {item.tenggat_waktu}
                                 </span>
                               )}
@@ -406,7 +622,6 @@ export default function TodoTugasTab() {
                       </div>
                     </div>
 
-                    {/* ACTION BUTTONS */}
                     <div className="flex items-center justify-end gap-1 pl-9 sm:pl-0">
                       {isEditing ? (
                         <>
