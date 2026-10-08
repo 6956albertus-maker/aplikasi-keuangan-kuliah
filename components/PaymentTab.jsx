@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   Circle, 
@@ -9,40 +9,16 @@ import {
   X, 
   GraduationCap, 
   DollarSign, 
-  Clock 
+  Clock,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 import { formatYuan, formatIDR } from '../lib/utils';
 
 export default function PaymentTab() {
-  // State pilihan tahun
   const [activeTab, setActiveTab] = useState('Tahun Bahasa');
-
-  // State data pembayaran kuliah per tahun
-  const [dataPembayaran, setDataPembayaran] = useState({
-    'Tahun Bahasa': [
-      { id: 1, nama: 'SPP / Tuition Fee', nominal: 15000, isLunas: true },
-      { id: 2, nama: 'Asrama (Dormitory)', nominal: 4000, isLunas: true },
-      { id: 3, nama: 'Asuransi Kesehatan', nominal: 800, isLunas: false },
-    ],
-    'Tahun 1': [
-      { id: 4, nama: 'SPP / Tuition Fee', nominal: 18000, isLunas: false },
-      { id: 5, nama: 'Asrama (Dormitory)', nominal: 4000, isLunas: false },
-      { id: 6, nama: 'Buku & Peralatan', nominal: 1000, isLunas: false },
-    ],
-    'Tahun 2': [
-      { id: 7, nama: 'SPP / Tuition Fee', nominal: 18000, isLunas: false },
-      { id: 8, nama: 'Asrama (Dormitory)', nominal: 4000, isLunas: false },
-    ],
-    'Tahun 3': [
-      { id: 9, nama: 'SPP / Tuition Fee', nominal: 18000, isLunas: false },
-      { id: 10, nama: 'Asrama (Dormitory)', nominal: 4000, isLunas: false },
-    ],
-    'Tahun 4': [
-      { id: 11, nama: 'SPP / Tuition Fee', nominal: 18000, isLunas: false },
-      { id: 12, nama: 'Asrama (Dormitory)', nominal: 4000, isLunas: false },
-      { id: 13, nama: 'Biaya Wisuda & Skripsi', nominal: 2500, isLunas: false },
-    ],
-  });
+  const [pembayaranList, setPembayaranList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // State Form Edit
   const [editingId, setEditingId] = useState(null);
@@ -56,84 +32,152 @@ export default function PaymentTab() {
 
   const listTahun = ['Tahun Bahasa', 'Tahun 1', 'Tahun 2', 'Tahun 3', 'Tahun 4'];
 
-  // Hitung Total Keseluruhan (Semua Tahun)
+  // 1. FETCH DATA DARI SUPABASE
+  const fetchPembayaran = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('pembayaran_kuliah')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) throw error;
+      if (data) setPembayaranList(data);
+    } catch (err) {
+      console.error('Gagal mengambil data pembayaran:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPembayaran();
+  }, []);
+
+  // 2. HITUNG TOTAL KESELURUHAN (SEMUA TAHUN)
   let totalLunas = 0;
   let totalBelumLunas = 0;
 
-  Object.values(dataPembayaran).forEach((items) => {
-    items.forEach((item) => {
-      const val = Number(item.nominal) || 0;
-      if (item.isLunas) {
-        totalLunas += val;
-      } else {
-        totalBelumLunas += val;
-      }
-    });
+  pembayaranList.forEach((item) => {
+    const val = Number(item.jumlah_yuan) || 0;
+    if (item.sudah_dibayar) {
+      totalLunas += val;
+    } else {
+      totalBelumLunas += val;
+    }
   });
 
-  // Toggle Checkbox Status Lunas
-  const handleToggleLunas = (id) => {
-    setDataPembayaran((prev) => ({
-      ...prev,
-      [activeTab]: prev[activeTab].map((item) =>
-        item.id === id ? { ...item, isLunas: !item.isLunas } : item
-      ),
-    }));
+  // Filter list berdasarkan tahun yang aktif
+  const currentItems = pembayaranList.filter(
+    (item) => item.kategori_tahun === activeTab
+  );
+
+  // 3. TOGGLE CHECKBOX (UPDATE SUPABASE)
+  const handleToggleLunas = async (id, statusSekarang) => {
+    const newStatus = !statusSekarang;
+    
+    // Update State Lokal
+    setPembayaranList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, sudah_dibayar: newStatus } : item))
+    );
+
+    // Update Database Supabase
+    const { error } = await supabase
+      .from('pembayaran_kuliah')
+      .update({ sudah_dibayar: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Gagal memperbarui status:', error.message);
+      fetchPembayaran(); // Rollback jika error
+    }
   };
 
-  // Mulai Mode Edit
+  // 4. MULAI & SIMPAN EDIT (UPDATE SUPABASE)
   const handleStartEdit = (item) => {
     setEditingId(item.id);
-    setEditNama(item.nama);
-    setEditNominal(item.nominal);
+    setEditNama(item.nama_tagihan);
+    setEditNominal(item.jumlah_yuan);
   };
 
-  // Simpan Hasil Edit
-  const handleSaveEdit = (id) => {
-    setDataPembayaran((prev) => ({
-      ...prev,
-      [activeTab]: prev[activeTab].map((item) =>
+  const handleSaveEdit = async (id) => {
+    const parsedNominal = parseFloat(editNominal) || 0;
+
+    // Update State Lokal
+    setPembayaranList((prev) =>
+      prev.map((item) =>
         item.id === id
-          ? { ...item, nama: editNama, nominal: parseFloat(editNominal) || 0 }
+          ? { ...item, nama_tagihan: editNama, jumlah_yuan: parsedNominal }
           : item
-      ),
-    }));
+      )
+    );
     setEditingId(null);
+
+    // Update Database Supabase
+    const { error } = await supabase
+      .from('pembayaran_kuliah')
+      .update({
+        nama_tagihan: editNama,
+        jumlah_yuan: parsedNominal,
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Gagal memperbarui tagihan:', error.message);
+      fetchPembayaran();
+    }
   };
 
-  // Hapus Item Tagihan
-  const handleDeleteItem = (id) => {
-    setDataPembayaran((prev) => ({
-      ...prev,
-      [activeTab]: prev[activeTab].filter((item) => item.id !== id),
-    }));
+  // 5. HAPUS ITEM (DELETE SUPABASE)
+  const handleDeleteItem = async (id) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus tagihan ini?')) return;
+
+    setPembayaranList((prev) => prev.filter((item) => item.id !== id));
+
+    const { error } = await supabase
+      .from('pembayaran_kuliah')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Gagal menghapus tagihan:', error.message);
+      fetchPembayaran();
+    }
   };
 
-  // Tambah Item Tagihan Baru
-  const handleAddItem = (e) => {
+  // 6. TAMBAH ITEM BARU (INSERT SUPABASE)
+  const handleAddItem = async (e) => {
     e.preventDefault();
     if (!newNama || !newNominal) return;
 
-    const newItem = {
-      id: Date.now(),
-      nama: newNama,
-      nominal: parseFloat(newNominal) || 0,
-      isLunas: false,
-    };
+    const parsedNominal = parseFloat(newNominal) || 0;
 
-    setDataPembayaran((prev) => ({
-      ...prev,
-      [activeTab]: [...prev[activeTab], newItem],
-    }));
+    const { data, error } = await supabase
+      .from('pembayaran_kuliah')
+      .insert([
+        {
+          kategori_tahun: activeTab,
+          nama_tagihan: newNama,
+          jumlah_yuan: parsedNominal,
+          sudah_dibayar: false,
+        },
+      ])
+      .select();
 
-    setNewNama('');
-    setNewNominal('');
-    setShowAddForm(false);
+    if (error) {
+      console.error('Gagal menambah tagihan:', error.message);
+      alert('Gagal menambah data ke database.');
+    } else if (data) {
+      setPembayaranList((prev) => [...prev, ...data]);
+      setNewNama('');
+      setNewNominal('');
+      setShowAddForm(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. RINGKASAN PALING ATAS */}
+      {/* RINGKASAN PALING ATAS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* TOTAL LUNAS */}
         <div className="p-5 rounded-3xl bg-slate-900/90 border border-emerald-500/30 shadow-xl space-y-2 relative overflow-hidden">
@@ -176,7 +220,7 @@ export default function PaymentTab() {
         </div>
       </div>
 
-      {/* 2. TOMBOL PILIHAN TAHUN KULIAH */}
+      {/* NAVIGASI TOMBOL TAHUN */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
         {listTahun.map((tahun) => {
           const isActive = activeTab === tahun;
@@ -200,7 +244,7 @@ export default function PaymentTab() {
         })}
       </div>
 
-      {/* 3. DAFTAR CHECKLIST & NOMINAL */}
+      {/* DAFTAR CHECKLIST & NOMINAL */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2">
@@ -222,11 +266,11 @@ export default function PaymentTab() {
         {/* FORM TAMBAH TAGIHAN BARU */}
         {showAddForm && (
           <form onSubmit={handleAddItem} className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 space-y-3">
-            <p className="text-xs font-bold text-slate-300">Tambah Komponen Biaya Baru</p>
+            <p className="text-xs font-bold text-slate-300">Tambah Tagihan ke {activeTab}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 type="text"
-                placeholder="Nama Tagihan (cth: Biaya Asuransi)"
+                placeholder="Nama Tagihan (cth: Language Learning)"
                 value={newNama}
                 onChange={(e) => setNewNama(e.target.value)}
                 className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -263,129 +307,136 @@ export default function PaymentTab() {
           </form>
         )}
 
-        {/* LIST ITEM TAGIHAN */}
-        <div className="space-y-3">
-          {(dataPembayaran[activeTab] || []).length === 0 ? (
-            <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
-              <p className="text-xs text-slate-400">Belum ada data tagihan untuk {activeTab}.</p>
-            </div>
-          ) : (
-            dataPembayaran[activeTab].map((item) => {
-              const isEditing = editingId === item.id;
+        {/* LOADING INDICATOR */}
+        {loading ? (
+          <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
+            <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+            <p className="text-xs font-medium">Memuat data dari Supabase...</p>
+          </div>
+        ) : (
+          /* LIST ITEM TAGIHAN */
+          <div className="space-y-3">
+            {currentItems.length === 0 ? (
+              <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
+                <p className="text-xs text-slate-400">Belum ada data tagihan untuk {activeTab}.</p>
+              </div>
+            ) : (
+              currentItems.map((item) => {
+                const isEditing = editingId === item.id;
 
-              return (
-                <div
-                  key={item.id}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border transition-all gap-3 ${
-                    item.isLunas
-                      ? 'bg-slate-900/40 border-slate-800/80 opacity-80'
-                      : 'bg-slate-800/40 border-slate-700/60 hover:border-purple-500/40'
-                  }`}
-                >
-                  {/* LEFT: CHECKBOX & NAMA TAGIHAN */}
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleLunas(item.id)}
-                      className="text-slate-400 hover:text-emerald-400 transition"
-                    >
-                      {item.isLunas ? (
-                        <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                      ) : (
-                        <Circle className="w-6 h-6 text-slate-600 hover:text-slate-400" />
-                      )}
-                    </button>
-
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editNama}
-                        onChange={(e) => setEditNama(e.target.value)}
-                        className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      />
-                    ) : (
-                      <span
-                        className={`text-xs font-bold ${
-                          item.isLunas ? 'text-slate-400 line-through' : 'text-white'
-                        }`}
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border transition-all gap-3 ${
+                      item.sudah_dibayar
+                        ? 'bg-slate-900/40 border-slate-800/80 opacity-80'
+                        : 'bg-slate-800/40 border-slate-700/60 hover:border-purple-500/40'
+                    }`}
+                  >
+                    {/* CHECKBOX & NAMA TAGIHAN */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLunas(item.id, item.sudah_dibayar)}
+                        className="text-slate-400 hover:text-emerald-400 transition"
                       >
-                        {item.nama}
-                      </span>
-                    )}
-                  </div>
+                        {item.sudah_dibayar ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                        ) : (
+                          <Circle className="w-6 h-6 text-slate-600 hover:text-slate-400" />
+                        )}
+                      </button>
 
-                  {/* RIGHT: NOMINAL & ACTION BUTTONS */}
-                  <div className="flex items-center justify-between sm:justify-end gap-3 pl-9 sm:pl-0">
-                    {isEditing ? (
-                      <div className="relative flex items-center w-32">
+                      {isEditing ? (
                         <input
-                          type="number"
-                          step="any"
-                          value={editNominal}
-                          onChange={(e) => setEditNominal(e.target.value)}
-                          className="w-full p-1.5 pr-6 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          type="text"
+                          value={editNama}
+                          onChange={(e) => setEditNama(e.target.value)}
+                          className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
                         />
-                        <span className="absolute right-2 text-xs text-slate-400">¥</span>
-                      </div>
-                    ) : (
-                      <div className="text-right">
-                        <p
-                          className={`text-xs font-black ${
-                            item.isLunas ? 'text-emerald-400' : 'text-rose-400'
+                      ) : (
+                        <span
+                          className={`text-xs font-bold ${
+                            item.sudah_dibayar ? 'text-slate-400 line-through' : 'text-white'
                           }`}
                         >
-                          {formatYuan(item.nominal)}
-                        </p>
-                        <p className="text-[10px] text-slate-500">
-                          {formatIDR(item.nominal)}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* BUTTON ACTIONS */}
-                    <div className="flex items-center gap-1">
-                      {isEditing ? (
-                        <>
-                          <button
-                            onClick={() => handleSaveEdit(item.id)}
-                            className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded-lg"
-                            title="Simpan"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-lg"
-                            title="Batal"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleStartEdit(item)}
-                            className="p-1.5 text-slate-400 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition"
-                            title="Edit Nominal / Nama"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                            title="Hapus Tagihan"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
+                          {item.nama_tagihan}
+                        </span>
                       )}
                     </div>
+
+                    {/* NOMINAL & ACTION BUTTONS */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 pl-9 sm:pl-0">
+                      {isEditing ? (
+                        <div className="relative flex items-center w-32">
+                          <input
+                            type="number"
+                            step="any"
+                            value={editNominal}
+                            onChange={(e) => setEditNominal(e.target.value)}
+                            className="w-full p-1.5 pr-6 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          />
+                          <span className="absolute right-2 text-xs text-slate-400">¥</span>
+                        </div>
+                      ) : (
+                        <div className="text-right">
+                          <p
+                            className={`text-xs font-black ${
+                              item.sudah_dibayar ? 'text-emerald-400' : 'text-rose-400'
+                            }`}
+                          >
+                            {formatYuan(item.jumlah_yuan)}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            {formatIDR(item.jumlah_yuan)}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-1">
+                        {isEditing ? (
+                          <>
+                            <button
+                              onClick={() => handleSaveEdit(item.id)}
+                              className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded-lg"
+                              title="Simpan"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="p-1.5 text-slate-400 hover:bg-slate-800 rounded-lg"
+                              title="Batal"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleStartEdit(item)}
+                              className="p-1.5 text-slate-400 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition"
+                              title="Edit Nominal / Nama"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                              title="Hapus Tagihan"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
