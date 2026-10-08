@@ -11,7 +11,7 @@ import {
   Clock, 
   Calendar as CalendarIcon, 
   Loader2,
-  Filter,
+  History,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -31,20 +31,39 @@ const getHitungPrioritas = (tenggatStr) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays < 1) {
-    return 'Tinggi'; // Dibawah 1 hari
+    return 'Tinggi';
   } else if (diffDays <= 3) {
-    return 'Sedang'; // Dibawah / sama dengan 3 hari
+    return 'Sedang';
   } else {
-    return 'Rendah'; // Diatas 3 hari
+    return 'Rendah';
   }
+};
+
+// HELPER MEMERIKSA APAKAH TENGGAT SUDAH LEBIH DARI 1 BULAN (30 HARI)
+const isMoreThanOneMonthOld = (tenggatStr) => {
+  if (!tenggatStr) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tenggatDate = new Date(tenggatStr);
+  tenggatDate.setHours(0, 0, 0, 0);
+
+  const diffTime = today.getTime() - tenggatDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays > 30; // Lebih dari 30 hari yang lalu
 };
 
 export default function TodoTugasTab() {
   const [todoList, setTodoList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterPrioritas, setFilterPrioritas] = useState('Semua');
 
-  // State Kalender & Pop-up
+  // State History Modal & Filter
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyYear, setHistoryYear] = useState(new Date().getFullYear().toString());
+  const [historyMonth, setHistoryMonth] = useState('Semua');
+
+  // State Kalender & Pop-up Klik Tanggal
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const [selectedDateTasks, setSelectedDateTasks] = useState(null);
   const [selectedDateStr, setSelectedDateStr] = useState('');
@@ -66,7 +85,7 @@ export default function TodoTugasTab() {
       const { data, error } = await supabase
         .from('todo_tugas')
         .select('*')
-        .order('selesai', { ascending: true }) // Yang belum selesai di atas, yang selesai di bawah
+        .order('selesai', { ascending: true })
         .order('tenggat_waktu', { ascending: true, nullsFirst: false });
 
       if (error) throw error;
@@ -82,7 +101,7 @@ export default function TodoTugasTab() {
     fetchTodos();
   }, []);
 
-  // TOGGLE SELESAI (OTOMATIS PINDAH POSISI KE BAWAH)
+  // TOGGLE SELESAI
   const handleToggleSelesai = async (id, statusSekarang) => {
     const newStatus = !statusSekarang;
 
@@ -207,7 +226,7 @@ export default function TodoTugasTab() {
   const totalSelesai = todoList.filter((item) => item.selesai).length;
   const totalBelum = totalTugas - totalSelesai;
 
-  // DIHITUNG DENGAN PRIORITAS OTOMATIS DAN DISORTING (YANG BELUM SELESAI DI ATAS, SELESAI DI BAWAH)
+  // DIHITUNG DENGAN PRIORITAS OTOMATIS DAN DISORTING
   const processedList = todoList
     .map((item) => ({
       ...item,
@@ -220,10 +239,10 @@ export default function TodoTugasTab() {
       return 0;
     });
 
-  const filteredList = processedList.filter((item) => {
-    if (filterPrioritas === 'Semua') return true;
-    return item.prioritas === filterPrioritas;
-  });
+  // HIDE TUGAS YANG LEBIH DARI 1 BULAN DARI LIST UTAMA
+  const activeTodoList = processedList.filter(
+    (item) => !isMoreThanOneMonthOld(item.tenggat_waktu)
+  );
 
   // BADGE PRIORITAS COLOR
   const getPrioritasBadge = (prio) => {
@@ -271,6 +290,28 @@ export default function TodoTugasTab() {
     setSelectedDateTasks(tasksOnDate);
   };
 
+  // FILTER TUGAS UNTUK MODAL HISTORY
+  const historyList = processedList.filter((item) => {
+    if (!item.tenggat_waktu) return false;
+    const taskDate = new Date(item.tenggat_waktu);
+    const taskYear = taskDate.getFullYear().toString();
+    const taskMonth = (taskDate.getMonth() + 1).toString().padStart(2, '0');
+
+    const matchYear = historyYear === 'Semua' || taskYear === historyYear;
+    const matchMonth = historyMonth === 'Semua' || taskMonth === historyMonth;
+
+    return matchYear && matchMonth;
+  });
+
+  // MENDAPATKAN DAFTAR TAHUN YANG TERSEDIA DI DATABASE
+  const availableYears = Array.from(
+    new Set(
+      processedList
+        .filter((item) => item.tenggat_waktu)
+        .map((item) => new Date(item.tenggat_waktu).getFullYear().toString())
+    )
+  ).sort((a, b) => b - a);
+
   return (
     <div className="space-y-6">
       {/* RINGKASAN DASHBOARD */}
@@ -305,7 +346,6 @@ export default function TodoTugasTab() {
 
       {/* KALENDER WIDGET */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-        {/* HEADER KALENDER */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-purple-400" />
@@ -331,19 +371,16 @@ export default function TodoTugasTab() {
 
         {/* GRID KALENDER */}
         <div className="grid grid-cols-7 gap-1.5 text-xs">
-          {/* NAMA HARI FULL (TIDAK DISINGKAT) */}
           {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((d) => (
             <div key={d} className="font-extrabold text-slate-400 py-2 text-center text-xs">
               {d}
             </div>
           ))}
 
-          {/* Blank space awal bulan */}
           {Array.from({ length: firstDayOfMonth }).map((_, i) => (
             <div key={`empty-${i}`} className="min-h-[85px] p-2" />
           ))}
 
-          {/* Tanggal dalam Bulan */}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const dayNum = i + 1;
             const formattedMonth = String(month + 1).padStart(2, '0');
@@ -354,7 +391,7 @@ export default function TodoTugasTab() {
               (item) => item.tenggat_waktu === dateStr
             );
 
-            const displayTasks = tasksForThisDay.slice(0, 2); // Maksimal 2 tugas
+            const displayTasks = tasksForThisDay.slice(0, 2);
             const extraCount = tasksForThisDay.length - 2;
 
             return (
@@ -363,12 +400,10 @@ export default function TodoTugasTab() {
                 onClick={() => handleDayClick(dayNum)}
                 className="min-h-[85px] p-2 rounded-xl flex flex-col items-start justify-start border border-slate-800/60 bg-slate-900/30 hover:bg-slate-800/50 transition relative text-left group"
               >
-                {/* NOMOR TANGGAL DI KIRI ATAS */}
                 <span className="text-xs font-black text-slate-300 group-hover:text-purple-400">
                   {dayNum}
                 </span>
 
-                {/* MAKSIMAL 2 KETERANGAN TUGAS DI BAWAHNYA */}
                 <div className="w-full mt-1.5 space-y-1">
                   {displayTasks.map((t) => (
                     <div
@@ -400,7 +435,7 @@ export default function TodoTugasTab() {
         </div>
       </div>
 
-      {/* POP-UP MODAL KALENDER */}
+      {/* POP-UP MODAL TANGGAL KALENDER */}
       {selectedDateTasks !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl max-w-lg w-full space-y-4 relative">
@@ -476,6 +511,133 @@ export default function TodoTugasTab() {
         </div>
       )}
 
+      {/* MODAL HISTORY TUGAS (PER TAHUN & PER BULAN) */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl max-w-2xl w-full space-y-5 relative">
+            <button
+              onClick={() => setShowHistoryModal(false)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <History className="w-5 h-5 text-purple-400" />
+              <div>
+                <h4 className="text-sm font-bold text-white">History Tugas</h4>
+                <p className="text-[11px] text-slate-400">
+                  Arsip seluruh tugas berdasarkan tahun dan bulan.
+                </p>
+              </div>
+            </div>
+
+            {/* FILTER TAHUN & BULAN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Pilih Tahun
+                </label>
+                <select
+                  value={historyYear}
+                  onChange={(e) => setHistoryYear(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value="Semua">Semua Tahun</option>
+                  {availableYears.map((yr) => (
+                    <option key={yr} value={yr}>
+                      Tahun {yr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Pilih Bulan
+                </label>
+                <select
+                  value={historyMonth}
+                  onChange={(e) => setHistoryMonth(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value="Semua">Semua Bulan</option>
+                  {monthNames.map((name, index) => {
+                    const monthVal = (index + 1).toString().padStart(2, '0');
+                    return (
+                      <option key={monthVal} value={monthVal}>
+                        {name}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            {/* LIST DAFTAR HISTORY */}
+            <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+              {historyList.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-8 border border-dashed border-slate-800 rounded-2xl">
+                  Tidak ada history tugas pada periode ini.
+                </p>
+              ) : (
+                historyList.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between p-3.5 rounded-2xl border ${
+                      item.selesai
+                        ? 'bg-slate-900/40 border-slate-800/80 opacity-70'
+                        : 'bg-slate-800/40 border-slate-700/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleToggleSelesai(item.id, item.selesai)}
+                        className="text-slate-400 hover:text-emerald-400"
+                      >
+                        {item.selesai ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-slate-600" />
+                        )}
+                      </button>
+                      <div className="space-y-0.5">
+                        <p
+                          className={`text-xs font-bold ${
+                            item.selesai ? 'line-through text-slate-400' : 'text-white'
+                          }`}
+                        >
+                          {item.judul}
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span
+                            className={`px-2 py-0.5 rounded-md font-semibold border ${getPrioritasBadge(
+                              item.prioritas
+                            )}`}
+                          >
+                            {item.prioritas}
+                          </span>
+                          <span className="text-slate-400">
+                            Tenggat: {item.tenggat_waktu}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteItem(item.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DAFTAR TODO TUGAS UTAMA */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
@@ -487,24 +649,16 @@ export default function TodoTugasTab() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* FILTER PRIORITAS */}
-            <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700">
-              <Filter className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
-              {['Semua', 'Tinggi', 'Sedang', 'Rendah'].map((prio) => (
-                <button
-                  key={prio}
-                  onClick={() => setFilterPrioritas(prio)}
-                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition ${
-                    filterPrioritas === prio
-                      ? 'bg-purple-600 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {prio}
-                </button>
-              ))}
-            </div>
+            {/* TOMBOL HISTORY TUGAS */}
+            <button
+              onClick={() => setShowHistoryModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
+            >
+              <History className="w-4 h-4 text-purple-400" />
+              <span>History Tugas</span>
+            </button>
 
+            {/* TOMBOL TAMBAH TUGAS */}
             <button
               onClick={() => setShowAddForm(!showAddForm)}
               className="px-3.5 py-2 rounded-xl bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
@@ -553,7 +707,7 @@ export default function TodoTugasTab() {
           </form>
         )}
 
-        {/* LIST TUGAS */}
+        {/* LIST TUGAS UTAMA */}
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
             <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
@@ -561,12 +715,12 @@ export default function TodoTugasTab() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredList.length === 0 ? (
+            {activeTodoList.length === 0 ? (
               <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
-                <p className="text-xs text-slate-400">Tidak ada tugas ditemukan.</p>
+                <p className="text-xs text-slate-400">Tidak ada tugas aktif.</p>
               </div>
             ) : (
-              filteredList.map((item) => {
+              activeTodoList.map((item) => {
                 const isEditing = editingId === item.id;
 
                 return (
