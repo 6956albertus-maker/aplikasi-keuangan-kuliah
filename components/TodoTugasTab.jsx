@@ -31,7 +31,7 @@ const getHitungPrioritas = (tenggatStr) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays < 1) {
-    return 'Tinggi'; // Dibawah 1 hari (termasuk hari ini / sudah lewat)
+    return 'Tinggi'; // Dibawah 1 hari
   } else if (diffDays <= 3) {
     return 'Sedang'; // Dibawah / sama dengan 3 hari
   } else {
@@ -46,7 +46,7 @@ export default function TodoTugasTab() {
 
   // State Kalender & Pop-up
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
-  const [selectedDateTasks, setSelectedDateTasks] = useState(null); // null = pop-up tertutup, Array = isi pop-up
+  const [selectedDateTasks, setSelectedDateTasks] = useState(null);
   const [selectedDateStr, setSelectedDateStr] = useState('');
 
   // State Edit
@@ -66,7 +66,7 @@ export default function TodoTugasTab() {
       const { data, error } = await supabase
         .from('todo_tugas')
         .select('*')
-        .order('selesai', { ascending: true })
+        .order('selesai', { ascending: true }) // Yang belum selesai di atas, yang selesai di bawah
         .order('tenggat_waktu', { ascending: true, nullsFirst: false });
 
       if (error) throw error;
@@ -82,7 +82,7 @@ export default function TodoTugasTab() {
     fetchTodos();
   }, []);
 
-  // TOGGLE SELESAI
+  // TOGGLE SELESAI (OTOMATIS PINDAH POSISI)
   const handleToggleSelesai = async (id, statusSekarang) => {
     const newStatus = !statusSekarang;
 
@@ -92,7 +92,6 @@ export default function TodoTugasTab() {
       )
     );
 
-    // Update juga di pop-up modal jika sedang terbuka
     if (selectedDateTasks) {
       setSelectedDateTasks((prev) =>
         prev.map((item) =>
@@ -208,11 +207,19 @@ export default function TodoTugasTab() {
   const totalSelesai = todoList.filter((item) => item.selesai).length;
   const totalBelum = totalTugas - totalSelesai;
 
-  // FILTERED LIST SEMENTARA BERDASARKAN HITUNGAN OTOMATIS
-  const processedList = todoList.map((item) => ({
-    ...item,
-    prioritas: getHitungPrioritas(item.tenggat_waktu),
-  }));
+  // DIHITUNG DENGAN PRIORITAS OTOMATIS DAN DISORTING (YANG BELUM SELESAI DI ATAS)
+  const processedList = todoList
+    .map((item) => ({
+      ...item,
+      prioritas: getHitungPrioritas(item.tenggat_waktu),
+    }))
+    .sort((a, b) => {
+      // Urutkan selesai ke bawah
+      if (a.selesai !== b.selesai) {
+        return a.selesai ? 1 : -1;
+      }
+      return 0;
+    });
 
   const filteredList = processedList.filter((item) => {
     if (filterPrioritas === 'Semua') return true;
@@ -252,7 +259,6 @@ export default function TodoTugasTab() {
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
 
-  // LOGIKA KLIK TANGGAL KALENDER
   const handleDayClick = (dayNum) => {
     const formattedMonth = String(month + 1).padStart(2, '0');
     const formattedDay = String(dayNum).padStart(2, '0');
@@ -304,7 +310,7 @@ export default function TodoTugasTab() {
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-purple-400" />
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
-              Kalender Tugas ({monthNames[month]} {year})
+              KALENDER TUGAS ({monthNames[month].toUpperCase()} {year})
             </h3>
           </div>
           <div className="flex items-center gap-1">
@@ -324,16 +330,17 @@ export default function TodoTugasTab() {
         </div>
 
         {/* GRID KALENDER */}
-        <div className="grid grid-cols-7 gap-1 text-center text-xs">
-          {['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d) => (
-            <div key={d} className="font-extrabold text-slate-500 py-1">
+        <div className="grid grid-cols-7 gap-1.5 text-xs">
+          {/* NAMA HARI LENGKAP */}
+          {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((d) => (
+            <div key={d} className="font-extrabold text-slate-400 py-1.5 text-center">
               {d}
             </div>
           ))}
 
           {/* Blank space awal bulan */}
           {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-            <div key={`empty-${i}`} className="p-2" />
+            <div key={`empty-${i}`} className="min-h-[85px] p-2" />
           ))}
 
           {/* Tanggal dalam Bulan */}
@@ -347,37 +354,46 @@ export default function TodoTugasTab() {
               (item) => item.tenggat_waktu === dateStr
             );
 
-            const hasTask = tasksForThisDay.length > 0;
-            const hasUnfinishedTask = tasksForThisDay.some((t) => !t.selesai);
-
-            // Tentukan dot prioritas tertinggi
-            let dotColor = 'bg-slate-500';
-            if (tasksForThisDay.some((t) => !t.selesai && t.prioritas === 'Tinggi')) {
-              dotColor = 'bg-rose-500';
-            } else if (tasksForThisDay.some((t) => !t.selesai && t.prioritas === 'Sedang')) {
-              dotColor = 'bg-amber-500';
-            } else if (tasksForThisDay.some((t) => !t.selesai && t.prioritas === 'Rendah')) {
-              dotColor = 'bg-blue-500';
-            } else if (hasTask && !hasUnfinishedTask) {
-              dotColor = 'bg-emerald-500'; // Semua tugas di tanggal tsb sudah lunas
-            }
+            const displayTasks = tasksForThisDay.slice(0, 2); // Maksimal 2 tugas
+            const extraCount = tasksForThisDay.length - 2;
 
             return (
               <button
                 key={dayNum}
                 onClick={() => handleDayClick(dayNum)}
-                className={`p-2 rounded-xl flex flex-col items-center justify-center relative hover:bg-purple-600/20 border transition ${
-                  hasTask
-                    ? 'border-purple-500/40 bg-purple-500/10 font-bold text-white'
-                    : 'border-transparent text-slate-400 hover:text-white'
-                }`}
+                className="min-h-[85px] p-2 rounded-2xl flex flex-col items-start justify-start border border-slate-800/60 bg-slate-900/40 hover:bg-slate-800/50 transition relative text-left group"
               >
-                <span>{dayNum}</span>
-                {hasTask && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full mt-1 ${dotColor}`}
-                  />
-                )}
+                {/* NOMOR TANGGAL KIRI ATAS */}
+                <span className="text-xs font-black text-slate-300 group-hover:text-purple-400">
+                  {dayNum}
+                </span>
+
+                {/* MAKSIMAL 2 KETERANGAN TUGAS DI BAWAHNYA */}
+                <div className="w-full mt-1.5 space-y-1">
+                  {displayTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`text-[10px] px-1.5 py-0.5 rounded truncate border ${
+                        t.selesai
+                          ? 'bg-slate-800/60 border-slate-700/50 text-slate-500 line-through'
+                          : t.prioritas === 'Tinggi'
+                          ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                          : t.prioritas === 'Sedang'
+                          ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                          : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+                      }`}
+                      title={t.judul}
+                    >
+                      {t.judul}
+                    </div>
+                  ))}
+
+                  {extraCount > 0 && (
+                    <p className="text-[9px] font-bold text-slate-500 pl-0.5">
+                      +{extraCount} lainnya
+                    </p>
+                  )}
+                </div>
               </button>
             );
           })}
@@ -499,7 +515,7 @@ export default function TodoTugasTab() {
           </div>
         </div>
 
-        {/* FORM TAMBAH TUGAS (PRIORITAS OTOMATIS) */}
+        {/* FORM TAMBAH TUGAS */}
         {showAddForm && (
           <form onSubmit={handleAddItem} className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 space-y-3">
             <p className="text-xs font-bold text-slate-300">Tambah Tugas Baru</p>
