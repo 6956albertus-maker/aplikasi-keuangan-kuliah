@@ -82,7 +82,7 @@ export default function TodoTugasTab() {
     fetchTodos();
   }, []);
 
-  // TOGGLE SELESAI (OTOMATIS PINDAH POSISI)
+  // TOGGLE SELESAI (OTOMATIS PINDAH POSISI KE BAWAH)
   const handleToggleSelesai = async (id, statusSekarang) => {
     const newStatus = !statusSekarang;
 
@@ -207,14 +207,13 @@ export default function TodoTugasTab() {
   const totalSelesai = todoList.filter((item) => item.selesai).length;
   const totalBelum = totalTugas - totalSelesai;
 
-  // DIHITUNG DENGAN PRIORITAS OTOMATIS DAN DISORTING (YANG BELUM SELESAI DI ATAS)
+  // DIHITUNG DENGAN PRIORITAS OTOMATIS DAN DISORTING (YANG BELUM SELESAI DI ATAS, SELESAI DI BAWAH)
   const processedList = todoList
     .map((item) => ({
       ...item,
       prioritas: getHitungPrioritas(item.tenggat_waktu),
     }))
     .sort((a, b) => {
-      // Urutkan selesai ke bawah
       if (a.selesai !== b.selesai) {
         return a.selesai ? 1 : -1;
       }
@@ -305,103 +304,101 @@ export default function TodoTugasTab() {
       </div>
 
       {/* KALENDER WIDGET */}
-<div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-  {/* HEADER KALENDER */}
-  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-    <div className="flex items-center gap-2">
-      <CalendarIcon className="w-5 h-5 text-purple-400" />
-      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
-        KALENDER TUGAS ({monthNames[month].toUpperCase()} {year})
-      </h3>
-    </div>
-    <div className="flex items-center gap-1">
-      <button
-        onClick={prevMonthDays}
-        className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
-      >
-        <ChevronLeft className="w-4 h-4" />
-      </button>
-      <button
-        onClick={nextMonthDays}
-        className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
-      >
-        <ChevronRight className="w-4 h-4" />
-      </button>
-    </div>
-  </div>
-
-  {/* GRID KALENDER */}
-  <div className="grid grid-cols-7 gap-1.5 text-xs">
-    {/* 1. NAMA HARI FULL / TIDAK DISINGKAT */}
-    {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((d) => (
-      <div key={d} className="font-extrabold text-slate-400 py-2 text-center text-xs">
-        {d}
-      </div>
-    ))}
-
-    {/* Blank space awal bulan */}
-    {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-      <div key={`empty-${i}`} className="min-h-[85px] p-2" />
-    ))}
-
-    {/* Tanggal dalam Bulan */}
-    {Array.from({ length: daysInMonth }).map((_, i) => {
-      const dayNum = i + 1;
-      const formattedMonth = String(month + 1).padStart(2, '0');
-      const formattedDay = String(dayNum).padStart(2, '0');
-      const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
-
-      // Ambil daftar tugas di tanggal ini
-      const tasksForThisDay = processedList.filter(
-        (item) => item.tenggat_waktu === dateStr
-      );
-
-      // Maksimal 2 tugas saja yang ditampilkan langsung
-      const displayTasks = tasksForThisDay.slice(0, 2);
-      const extraCount = tasksForThisDay.length - 2;
-
-      return (
-        <button
-          key={dayNum}
-          onClick={() => handleDayClick(dayNum)}
-          className="min-h-[85px] p-2 rounded-xl flex flex-col items-start justify-start border border-slate-800/60 bg-slate-900/30 hover:bg-slate-800/50 transition relative text-left group"
-        >
-          {/* 2. NOMOR TANGGAL DI KIRI ATAS */}
-          <span className="text-xs font-black text-slate-300 group-hover:text-purple-400">
-            {dayNum}
-          </span>
-
-          {/* 3. KETERANGAN TUGAS (MAKSIMAL 2 KEBAWAH) */}
-          <div className="w-full mt-1.5 space-y-1">
-            {displayTasks.map((t) => (
-              <div
-                key={t.id}
-                className={`text-[10px] px-1.5 py-0.5 rounded truncate border ${
-                  t.selesai
-                    ? 'bg-slate-800/60 border-slate-700/50 text-slate-500 line-through'
-                    : t.prioritas === 'Tinggi'
-                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                    : t.prioritas === 'Sedang'
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                    : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                }`}
-                title={t.judul}
-              >
-                {t.judul}
-              </div>
-            ))}
-
-            {extraCount > 0 && (
-              <p className="text-[9px] font-bold text-slate-500 pl-0.5">
-                +{extraCount} lainnya
-              </p>
-            )}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
+        {/* HEADER KALENDER */}
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-purple-400" />
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+              KALENDER TUGAS ({monthNames[month].toUpperCase()} {year})
+            </h3>
           </div>
-        </button>
-      );
-    })}
-  </div>
-</div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={prevMonthDays}
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={nextMonthDays}
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* GRID KALENDER */}
+        <div className="grid grid-cols-7 gap-1.5 text-xs">
+          {/* NAMA HARI FULL (TIDAK DISINGKAT) */}
+          {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((d) => (
+            <div key={d} className="font-extrabold text-slate-400 py-2 text-center text-xs">
+              {d}
+            </div>
+          ))}
+
+          {/* Blank space awal bulan */}
+          {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-[85px] p-2" />
+          ))}
+
+          {/* Tanggal dalam Bulan */}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const dayNum = i + 1;
+            const formattedMonth = String(month + 1).padStart(2, '0');
+            const formattedDay = String(dayNum).padStart(2, '0');
+            const dateStr = `${year}-${formattedMonth}-${formattedDay}`;
+
+            const tasksForThisDay = processedList.filter(
+              (item) => item.tenggat_waktu === dateStr
+            );
+
+            const displayTasks = tasksForThisDay.slice(0, 2); // Maksimal 2 tugas
+            const extraCount = tasksForThisDay.length - 2;
+
+            return (
+              <button
+                key={dayNum}
+                onClick={() => handleDayClick(dayNum)}
+                className="min-h-[85px] p-2 rounded-xl flex flex-col items-start justify-start border border-slate-800/60 bg-slate-900/30 hover:bg-slate-800/50 transition relative text-left group"
+              >
+                {/* NOMOR TANGGAL DI KIRI ATAS */}
+                <span className="text-xs font-black text-slate-300 group-hover:text-purple-400">
+                  {dayNum}
+                </span>
+
+                {/* MAKSIMAL 2 KETERANGAN TUGAS DI BAWAHNYA */}
+                <div className="w-full mt-1.5 space-y-1">
+                  {displayTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className={`text-[10px] px-1.5 py-0.5 rounded truncate border ${
+                        t.selesai
+                          ? 'bg-slate-800/60 border-slate-700/50 text-slate-500 line-through'
+                          : t.prioritas === 'Tinggi'
+                          ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                          : t.prioritas === 'Sedang'
+                          ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                          : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+                      }`}
+                      title={t.judul}
+                    >
+                      {t.judul}
+                    </div>
+                  ))}
+
+                  {extraCount > 0 && (
+                    <p className="text-[9px] font-bold text-slate-500 pl-0.5">
+                      +{extraCount} lainnya
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* POP-UP MODAL KALENDER */}
       {selectedDateTasks !== null && (
