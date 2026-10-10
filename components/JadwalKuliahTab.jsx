@@ -31,7 +31,7 @@ const TIME_SLOTS = [
   { jam: 12, waktu: '22:15 - 23:00' },
 ];
 
-// JADWAL TETAP SAMPAI JULI 2027
+// JADWAL TETAP REVISI TERBARU (HARI KAMIS DIPERBARUI)
 const INITIAL_FIXED_SCHEDULE = {
   Senin: [
     { id: 'fixed-s1', matkul: 'Chinese Comprehensive Course', tempat: 'Gedung 2 Ruangan 1-2', jam: [3, 4], active: true },
@@ -47,7 +47,8 @@ const INITIAL_FIXED_SCHEDULE = {
     { id: 'fixed-r2', matkul: 'Chinese Reading and Writing Course', tempat: 'Gedung 2 Ruangan 111', jam: [3, 4], active: true },
   ],
   Kamis: [
-    { id: 'fixed-k1', matkul: 'Chinese Listening Course', tempat: 'Gedung 2 Ruangan 307', jam: [1, 2], active: true },
+    { id: 'fixed-k1', matkul: 'Chinese Speaking Course', tempat: 'Gedung 2 Ruangan 307', jam: [1, 2], active: true },
+    { id: 'fixed-k2', matkul: 'Chinese Listening Course', tempat: 'Gedung Teaching Ruangan 1-2', jam: [3, 4], active: true },
   ],
   Jumat: [
     { id: 'fixed-j1', matkul: 'Chinese Culture Course', tempat: 'Gedung 2 Ruangan 203', jam: [3, 4], active: true },
@@ -59,48 +60,34 @@ const INITIAL_FIXED_SCHEDULE = {
 const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 export default function JadwalKuliahTab() {
-  const [selectedDay, setSelectedDay] = useState('Senin');
+  const [selectedDay, setSelectedDay] = useState('Kamis');
   const [fixedSchedule, setFixedSchedule] = useState(INITIAL_FIXED_SCHEDULE);
   const [additionalSchedule, setAdditionalSchedule] = useState([]);
   
   // State Form Input
   const [showAddForm, setShowAddForm] = useState(false);
-  const [inputHari, setInputHari] = useState('Senin');
+  const [inputHari, setInputHari] = useState('Kamis');
   const [inputMatkul, setInputMatkul] = useState('');
   const [inputTempat, setInputTempat] = useState('');
   const [selectedJamList, setSelectedJamList] = useState([]);
 
   useEffect(() => {
-    const savedChipStatus = localStorage.getItem('fixed_schedule_status');
+    // Selalu perbarui dengan struktur awal yang baru
+    const savedChipStatus = localStorage.getItem('fixed_schedule_status_v2');
     if (savedChipStatus) {
       try {
         setFixedSchedule(JSON.parse(savedChipStatus));
       } catch (e) {
-        console.error('Failed to parse saved schedule status');
+        setFixedSchedule(INITIAL_FIXED_SCHEDULE);
       }
-    }
-
-    const currentWeekYear = getWeekYearString(new Date());
-    const lastSavedWeek = localStorage.getItem('last_saved_week');
-    if (lastSavedWeek !== currentWeekYear) {
+    } else {
       setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-      localStorage.setItem('fixed_schedule_status', JSON.stringify(INITIAL_FIXED_SCHEDULE));
-      localStorage.setItem('last_saved_week', currentWeekYear);
+      localStorage.setItem('fixed_schedule_status_v2', JSON.stringify(INITIAL_FIXED_SCHEDULE));
     }
 
     fetchAdditionalSchedule();
   }, []);
 
-  function getWeekYearString(date) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    const yearStart = new Date(d.getFullYear(), 0, 1);
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    return `${d.getFullYear()}-W${weekNo}`;
-  }
-
-  // FETCH DARI TABEL BARU "jadwal_kuliah"
   const fetchAdditionalSchedule = async () => {
     try {
       const { data, error } = await supabase
@@ -122,12 +109,12 @@ export default function JadwalKuliahTab() {
       )
     };
     setFixedSchedule(updated);
-    localStorage.setItem('fixed_schedule_status', JSON.stringify(updated));
+    localStorage.setItem('fixed_schedule_status_v2', JSON.stringify(updated));
   };
 
   const handleResetChips = () => {
     setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-    localStorage.setItem('fixed_schedule_status', JSON.stringify(INITIAL_FIXED_SCHEDULE));
+    localStorage.setItem('fixed_schedule_status_v2', JSON.stringify(INITIAL_FIXED_SCHEDULE));
   };
 
   const handleJamCheckbox = (jamNum) => {
@@ -138,7 +125,6 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  // INSERT KE TABEL BARU "jadwal_kuliah"
   const handleAddAdditionalSchedule = async (e) => {
     e.preventDefault();
     if (!inputMatkul || !inputTempat || selectedJamList.length === 0) {
@@ -170,7 +156,6 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  // DELETE DARI TABEL BARU "jadwal_kuliah"
   const handleDeleteAdditional = async (id) => {
     if (!window.confirm('Hapus jadwal tambahan ini?')) return;
     setAdditionalSchedule((prev) => prev.filter((item) => item.id !== id));
@@ -392,7 +377,7 @@ export default function JadwalKuliahTab() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: Gedung 2 Ruangan 105"
+                  placeholder="Contoh: Gedung Teaching Ruangan 1-2"
                   value={inputTempat}
                   onChange={(e) => setInputTempat(e.target.value)}
                   className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
