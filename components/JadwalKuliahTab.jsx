@@ -13,22 +13,22 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-// DAFTAR WAKTU TEPAT PER JAM PELAJARAN (12 SESI)
+// DAFTAR WAKTU REVISI (45 MINS/SESI + BREAK 5 MINS ANTAR SESI BLOK SAMA)
 const TIME_SLOTS = [
   { jam: 1,  waktu: '08:00 - 08:45' },
-  { jam: 2,  waktu: '08:55 - 09:40' },
+  { jam: 2,  waktu: '08:50 - 09:35' }, // Break 5 menit dari Jam 1
   { jam: 3,  waktu: '09:50 - 10:35' },
-  { jam: 4,  waktu: '10:45 - 11:30' },
+  { jam: 4,  waktu: '10:40 - 11:25' }, // Break 5 menit dari Jam 3
   // Istirahat 1: 12:10 - 14:00
   { jam: 5,  waktu: '14:00 - 14:45' },
-  { jam: 6,  waktu: '14:55 - 15:40' },
+  { jam: 6,  waktu: '14:50 - 15:35' }, // Break 5 menit dari Jam 5
   { jam: 7,  waktu: '15:50 - 16:35' },
-  { jam: 8,  waktu: '16:45 - 17:30' },
+  { jam: 8,  waktu: '16:40 - 17:25' }, // Break 5 menit dari Jam 7
   // Istirahat 2: 18:10 - 19:30
   { jam: 9,  waktu: '19:30 - 20:15' },
-  { jam: 10, waktu: '20:25 - 21:10' },
+  { jam: 10, waktu: '20:20 - 21:05' }, // Break 5 menit dari Jam 9
   { jam: 11, waktu: '21:20 - 22:05' },
-  { jam: 12, waktu: '22:15 - 23:00' },
+  { jam: 12, waktu: '22:10 - 22:55' }, // Break 5 menit dari Jam 11
 ];
 
 // JADWAL TETAP REVISI TERBARU (HARI KAMIS DIPERBARUI)
