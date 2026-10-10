@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Clock, 
-  Calendar as CalendarIcon, 
   Wallet, 
   TrendingUp, 
   TrendingDown, 
@@ -12,7 +11,6 @@ import {
   BookOpen, 
   ArrowRight, 
   MapPin, 
-  Calculator, 
   Sparkles,
   PieChart
 } from 'lucide-react';
@@ -245,86 +243,90 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
       </div>
 
-      {/* BARIS 2: 2 KOTAK MAROON (AGENDA & TODO) & KOTAK KUNING (JADWAL HARI INI) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* BARIS 2: 2 KOTAK MAROON (50%) & KOTAK KUNING JADWAL (50%) SEIMBANG DI TENGAH */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         
-        {/* KIRI: 2 KOTAK MAROON (AGENDA & TODO) */}
-        <div className="space-y-6">
+        {/* KIRI (50%): 2 KOTAK MAROON (AGENDA & TODO) */}
+        <div className="flex flex-col justify-between gap-6">
           
           {/* MAROON 1: AGENDA KULIAH MENDATANG */}
-          <div className="p-5 rounded-3xl bg-rose-950/20 border border-rose-500/30 shadow-xl space-y-3">
-            <div className="flex items-center justify-between border-b border-rose-900/40 pb-2.5">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-rose-300 flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-rose-400" /> AGENDA MENDATANG (MAX 5)
-              </span>
-              <button
-                onClick={() => setActiveTab('agenda')}
-                className="text-[10px] font-bold text-rose-400 hover:text-rose-300"
-              >
-                Lihat Semua
-              </button>
-            </div>
+          <div className="p-5 rounded-3xl bg-rose-950/20 border border-rose-500/30 shadow-xl space-y-3 flex-1 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-rose-900/40 pb-2.5 mb-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-rose-300 flex items-center gap-2">
+                  <CalendarDays className="w-4 h-4 text-rose-400" /> AGENDA MENDATANG (MAX 5)
+                </span>
+                <button
+                  onClick={() => setActiveTab('agenda')}
+                  className="text-[10px] font-bold text-rose-400 hover:text-rose-300"
+                >
+                  Lihat Semua
+                </button>
+              </div>
 
-            <div className="space-y-2">
-              {agendas.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-3">Tidak ada agenda mendatang.</p>
-              ) : (
-                agendas.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs"
-                  >
-                    <span className="font-bold text-white truncate max-w-[160px]">
-                      {item.judul || item.acara}
-                    </span>
-                    <span className="text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded-md">
-                      {item.tanggal}
-                    </span>
-                  </div>
-                ))
-              )}
+              <div className="space-y-2">
+                {agendas.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-3">Tidak ada agenda mendatang.</p>
+                ) : (
+                  agendas.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs"
+                    >
+                      <span className="font-bold text-white truncate max-w-[200px]">
+                        {item.judul || item.acara}
+                      </span>
+                      <span className="text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded-md">
+                        {item.tanggal}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
           {/* MAROON 2: TODO TUGAS TERDEKAT */}
-          <div className="p-5 rounded-3xl bg-rose-950/20 border border-rose-500/30 shadow-xl space-y-3">
-            <div className="flex items-center justify-between border-b border-rose-900/40 pb-2.5">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-rose-300 flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-rose-400" /> TODO TUGAS TERDEKAT (MAX 5)
-              </span>
-              <button
-                onClick={() => setActiveTab('tugas')}
-                className="text-[10px] font-bold text-rose-400 hover:text-rose-300"
-              >
-                Lihat Semua
-              </button>
-            </div>
+          <div className="p-5 rounded-3xl bg-rose-950/20 border border-rose-500/30 shadow-xl space-y-3 flex-1 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-rose-900/40 pb-2.5 mb-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-rose-300 flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-rose-400" /> TODO TUGAS TERDEKAT (MAX 5)
+                </span>
+                <button
+                  onClick={() => setActiveTab('tugas')}
+                  className="text-[10px] font-bold text-rose-400 hover:text-rose-300"
+                >
+                  Lihat Semua
+                </button>
+              </div>
 
-            <div className="space-y-2">
-              {todos.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-3">Tidak ada tugas terdekat.</p>
-              ) : (
-                todos.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs"
-                  >
-                    <span className="font-bold text-white truncate max-w-[160px]">
-                      {item.judul}
-                    </span>
-                    <span className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-md">
-                      {item.tenggat_waktu || 'Tidak ada tenggat'}
-                    </span>
-                  </div>
-                ))
-              )}
+              <div className="space-y-2">
+                {todos.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-3">Tidak ada tugas terdekat.</p>
+                ) : (
+                  todos.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs"
+                    >
+                      <span className="font-bold text-white truncate max-w-[200px]">
+                        {item.judul}
+                      </span>
+                      <span className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-md">
+                        {item.tenggat_waktu || 'Tidak ada tenggat'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
         </div>
 
-        {/* KANAN: KOTAK KUNING (JADWAL KULIAH HARI INI) */}
-        <div className="lg:col-span-2 p-6 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-xl space-y-4 flex flex-col justify-between">
+        {/* KANAN (50%): KOTAK KUNING (JADWAL KULIAH HARI INI) */}
+        <div className="p-6 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
               <div className="flex items-center gap-2">
@@ -341,16 +343,16 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
               </button>
             </div>
 
-            <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
               {todaySchedule.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
+                <div className="p-12 text-center border border-dashed border-slate-800 rounded-2xl">
                   <p className="text-xs text-slate-500">Tidak ada jadwal kuliah untuk hari ini.</p>
                 </div>
               ) : (
                 todaySchedule.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3.5 rounded-2xl bg-slate-800/60 border border-amber-500/30 flex items-center justify-between"
+                    className="p-4 rounded-2xl bg-slate-800/60 border border-amber-500/30 flex items-center justify-between"
                   >
                     <div className="space-y-1">
                       <span className="text-xs font-black text-white block">
@@ -361,7 +363,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
                       </span>
                     </div>
 
-                    <span className="text-xs font-extrabold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-xl">
+                    <span className="text-xs font-extrabold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl">
                       Jam Ke: {Array.isArray(item.kategori_jam) ? item.kategori_jam.join(', ') : '-'}
                     </span>
                   </div>
@@ -370,7 +372,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
             </div>
           </div>
 
-          <div className="pt-2 text-[11px] text-slate-500 text-right italic border-t border-slate-800">
+          <div className="pt-3 text-[11px] text-slate-500 text-right italic border-t border-slate-800/80 mt-4">
             *Menampilkan jadwal otomatis berdasarkan hari saat ini.
           </div>
         </div>
