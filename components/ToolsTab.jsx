@@ -14,8 +14,10 @@ import {
   Check,
   Play,
   Pause,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 export default function ToolsTab({ kursYuan = 2671 }) {
   // 1. STATE KALKULATOR GPA / IPK
@@ -53,9 +55,13 @@ export default function ToolsTab({ kursYuan = 2671 }) {
   const totalHsk = Number(scoreListening) + Number(scoreReading) + Number(scoreWriting);
   const isHskPass = totalHsk >= 180;
 
-  // 3. STATE KONVERTER KURS CEPAT
+  // 3. STATE KONVERTER KURS CEPAT (SYNC SUPABASE)
   const [inputCny, setInputCny] = useState(100);
   const [inputIdr, setInputIdr] = useState(100 * kursYuan);
+
+  useEffect(() => {
+    setInputIdr(inputCny * kursYuan);
+  }, [kursYuan, inputCny]);
 
   const handleCnyChange = (val) => {
     setInputCny(val);
@@ -67,40 +73,109 @@ export default function ToolsTab({ kursYuan = 2671 }) {
     setInputCny((val / kursYuan).toFixed(2));
   };
 
-  // 4. STATE STICKY NOTES
-  const [notes, setNotes] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('student_manager_notes');
-      return saved ? JSON.parse(saved) : ['Ingat daftar ujian HSK bulan depan!'];
-    }
-    return [];
-  });
+  // 4. STATE STICKY NOTES (SINKRON SUPABASE)
+  const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
+  const [loadingNotes, setLoadingNotes] = useState(true);
+
+  // Fetch Notes dari Supabase
+  const fetchNotes = async () => {
+    try {
+      setLoadingNotes(true);
+      const { data, error } = await supabase
+        .from('tools_notes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data) setNotes(data);
+    } catch (err) {
+      console.error('Gagal mengambil catatan dari Supabase:', err.message);
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('student_manager_notes', JSON.stringify(notes));
-  }, [notes]);
+    fetchNotes();
+    fetchSemesterDates();
+  }, []);
 
-  const addNote = (e) => {
+  const addNote = async (e) => {
     e.preventDefault();
     if (!newNote.trim()) return;
-    setNotes([newNote, ...notes]);
+
+    const textToInsert = newNote.trim();
     setNewNote('');
+
+    const { data, error } = await supabase
+      .from('tools_notes')
+      .insert([{ isi_catatan: textToInsert }])
+      .select();
+
+    if (error) {
+      console.error('Gagal menyimpan catatan ke Supabase:', error.message);
+      fetchNotes();
+    } else if (data) {
+      setNotes((prev) => [data[0], ...prev]);
+    }
   };
 
-  const deleteNote = (index) => {
-    setNotes(notes.filter((_, i) => i !== index));
+  const deleteNote = async (id) => {
+    setNotes((prev) => prev.filter((item) => item.id !== id));
+
+    const { error } = await supabase
+      .from('tools_notes')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Gagal menghapus catatan dari Supabase:', error.message);
+      fetchNotes();
+    }
   };
 
-  // 5. TOOL BARU: PENGUKUR PROGRESS SEMESTER
+  // 5. TOOL PENGUKUR PROGRESS SEMESTER (SINKRON SUPABASE)
   const [startDate, setStartDate] = useState('2026-09-01');
   const [endDate, setEndDate] = useState('2027-01-15');
+
+  const fetchSemesterDates = async () => {
+    try {
+      const { data: startData } = await supabase
+        .from('pengaturan')
+        .select('value')
+        .eq('key', 'semester_start_str')
+        .single();
+
+      const { data: endData } = await supabase
+        .from('pengaturan')
+        .select('value')
+        .eq('key', 'semester_end_str')
+        .single();
+
+      if (startData && startData.value) setStartDate(String(startData.value));
+      if (endData && endData.value) setEndDate(String(endData.value));
+    } catch (err) {
+      // Ignore fallback default
+    }
+  };
+
+  const updateSemesterStart = async (val) => {
+    setStartDate(val);
+    await supabase.from('pengaturan').upsert({ key: 'semester_start_str', value: val });
+  };
+
+  const updateSemesterEnd = async (val) => {
+    setEndDate(val);
+    await supabase.from('pengaturan').upsert({ key: 'semester_end_str', value: val });
+  };
 
   const calculateSemesterProgress = () => {
     const start = new Date(startDate).getTime();
     const end = new Date(endDate).getTime();
     const now = new Date().getTime();
 
+    if (isNaN(start) || isNaN(end)) return { percent: 0, daysLeft: 0 };
     if (now < start) return { percent: 0, daysLeft: Math.ceil((end - start) / (1000 * 60 * 60 * 24)) };
     if (now > end) return { percent: 100, daysLeft: 0 };
 
@@ -114,7 +189,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
 
   const semProgress = calculateSemesterProgress();
 
-  // 6. TOOL BARU: TIMER POMODORO FOCUS
+  // 6. TOOL TIMER POMODORO
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
@@ -144,7 +219,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
     return `${m}:${s}`;
   };
 
-  // 7. TOOL BARU: GENERATOR DRAF EMAIL DOSEN / LAOSHI
+  // 7. TOOL GENERATOR EMAIL DOSEN/LAOSHI
   const [emailType, setEmailType] = useState('izin');
   const [studentName, setStudentName] = useState('Siswa');
   const [copied, setCopied] = useState(false);
@@ -172,7 +247,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex items-center justify-between">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wider text-purple-400 flex items-center gap-2">
-            <Sparkles className="w-5 h-5" /> STUDENT PRODUCTIVITY TOOLS
+            <Sparkles className="w-5 h-5" /> STUDENT PRODUCTIVITY TOOLS (SUPABASE CONNECTED)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             Koleksi alat bantu akademik, simulasi HSK, timer fokus, generator email laoshi, dan konversi kurs.
@@ -308,12 +383,12 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           </div>
         </div>
 
-        {/* TOOL 3: KONVERTER KURS RAPID (CNY - IDR) */}
+        {/* TOOL 3: KONVERTER KURS INSTAN (SUPABASE SYNCED) */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
             <Coins className="w-5 h-5 text-emerald-400" />
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-200">
-              Konverter Kurs Instan (Supabase Synced)
+              Konverter Kurs Instan
             </h3>
           </div>
 
@@ -348,12 +423,12 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           </p>
         </div>
 
-        {/* TOOL 4: STICKY NOTES */}
+        {/* TOOL 4: STICKY NOTES (SINKRON DATABASE SUPABASE) */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
             <StickyNote className="w-5 h-5 text-amber-400" />
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-200">
-              Catatan Tempel (Sticky Notes)
+              Catatan Tempel (Sticky Notes Supabase)
             </h3>
           </div>
 
@@ -373,25 +448,35 @@ export default function ToolsTab({ kursYuan = 2671 }) {
             </button>
           </form>
 
-          <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-            {notes.map((note, index) => (
-              <div
-                key={index}
-                className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex justify-between items-center"
-              >
-                <span>{note}</span>
-                <button
-                  onClick={() => deleteNote(index)}
-                  className="text-amber-400/60 hover:text-rose-400 ml-2"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
+          {loadingNotes ? (
+            <div className="p-4 flex items-center justify-center text-slate-500 gap-2 text-xs">
+              <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> Memuat catatan...
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+              {notes.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-3 italic">Belum ada catatan terdaftar.</p>
+              ) : (
+                notes.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex justify-between items-center"
+                  >
+                    <span>{item.isi_catatan}</span>
+                    <button
+                      onClick={() => deleteNote(item.id)}
+                      className="text-amber-400/60 hover:text-rose-400 ml-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
-        {/* TOOL BARU 5: TIMER FOKUS POMODORO */}
+        {/* TOOL 5: TIMER FOKUS POMODORO */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
@@ -433,7 +518,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           </div>
         </div>
 
-        {/* TOOL BARU 6: PENGUKUR PROGRESS SEMESTER */}
+        {/* TOOL 6: PENGUKUR PROGRESS SEMESTER (SINKRON SUPABASE) */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
             <Calendar className="w-5 h-5 text-cyan-400" />
@@ -448,7 +533,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => updateSemesterStart(e.target.value)}
                 className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white"
               />
             </div>
@@ -457,7 +542,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
               <input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => updateSemesterEnd(e.target.value)}
                 className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white"
               />
             </div>
@@ -482,7 +567,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
 
       </div>
 
-      {/* TOOL BARU 7: GENERATOR EMAIL DOSEN/LAOSHI (FULL WIDTH) */}
+      {/* TOOL 7: GENERATOR EMAIL DOSEN/LAOSHI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
