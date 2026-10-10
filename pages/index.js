@@ -1,24 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-
-export default function Home() {
-  // Logo SVG Keren: Topi Toga (Graduation Cap) & Sparkle Gradasi Purple-Pink
-  const faviconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='28' fill='%230f172a'/><path d='M50 22L18 38L50 54L82 38L50 22Z' fill='url(%23grad)'/><path d='M28 47.5V66C28 73 38 78 50 78C62 78 72 73 72 66V47.5L50 58.5L28 47.5Z' fill='url(%23grad)'/><path d='M82 42V65' stroke='%23f43f5e' stroke-width='4' stroke-linecap='round'/><circle cx='82' cy='68' r='3.5' fill='%23f43f5e'/><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23c084fc'/><stop offset='50%25' stop-color='%23f472b6'/><stop offset='100%25' stop-color='%23fb7185'/></linearGradient></defs></svg>`;
-
-  return (
-    <>
-      <Head>
-        <title>Student Manager</title>
-        <meta name="description" content="Dashboard Student Manager" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* FAVICON LOGO KEREN TAMPIL DI TAB CHROME */}
-        <link rel="icon" type="image/svg+xml" href={faviconSvg} />
-      </Head>
-
-      {/* Konten aplikasi Anda selanjutnya... */}
-    </>
-  );
-
 import { supabase } from '../lib/supabaseClient';
 import { useTransactions } from '../hooks/useTransactions';
 
@@ -42,6 +23,24 @@ import {
   Edit2,
   Check
 } from 'lucide-react';
+
+export default function Home() {
+  // Logo SVG Keren: Topi Toga (Graduation Cap) & Sparkle Gradasi Purple-Pink
+  const faviconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='28' fill='%230f172a'/><path d='M50 22L18 38L50 54L82 38L50 22Z' fill='url(%23grad)'/><path d='M28 47.5V66C28 73 38 78 50 78C62 78 72 73 72 66V47.5L50 58.5L28 47.5Z' fill='url(%23grad)'/><path d='M82 42V65' stroke='%23f43f5e' stroke-width='4' stroke-linecap='round'/><circle cx='82' cy='68' r='3.5' fill='%23f43f5e'/><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23c084fc'/><stop offset='50%25' stop-color='%23f472b6'/><stop offset='100%25' stop-color='%23fb7185'/></linearGradient></defs></svg>`;
+
+  return (
+    <>
+      <Head>
+        <title>Student Manager</title>
+        <meta name="description" content="Dashboard Student Manager" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* FAVICON LOGO KEREN TAMPIL DI TAB CHROME */}
+        <link rel="icon" type="image/svg+xml" href={faviconSvg} />
+      </Head>
+
+      {/* Konten aplikasi Anda selanjutnya... */}
+    </>
+  );
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('summary');
