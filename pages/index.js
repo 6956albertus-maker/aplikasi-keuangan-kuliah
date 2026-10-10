@@ -18,7 +18,7 @@ export default function Home() {
       {/* Konten aplikasi Anda selanjutnya... */}
     </>
   );
-}
+
 import { supabase } from '../lib/supabaseClient';
 import { useTransactions } from '../hooks/useTransactions';
 
