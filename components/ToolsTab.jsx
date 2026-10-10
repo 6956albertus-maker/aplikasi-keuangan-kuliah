@@ -15,29 +15,81 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Loader2
+  Loader2,
+  Server,
+  Database,
+  Cpu,
+  HardDrive,
+  Activity
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function ToolsTab({ kursYuan = 2671 }) {
-  // 1. STATE KALKULATOR GPA / IPK
+  // 1. STATE KALKULATOR GPA / IPK (SINKRON SUPABASE)
   const [courses, setCourses] = useState([
     { id: 1, name: 'Chinese Comprehensive', sks: 4, grade: 4.0 },
     { id: 2, name: 'Chinese Listening', sks: 2, grade: 3.5 },
   ]);
 
+  // 2. STATE KALKULATOR SKOR HSK (SINKRON SUPABASE)
+  const [scoreListening, setScoreListening] = useState(70);
+  const [scoreReading, setScoreReading] = useState(75);
+  const [scoreWriting, setScoreWriting] = useState(65);
+
+  // 3. STATE PROGRESS SEMESTER (SINKRON SUPABASE)
+  const [startDate, setStartDate] = useState('2026-09-01');
+  const [endDate, setEndDate] = useState('2027-01-15');
+
+  // FETCH SEMUA CONFIG TOOLS DARI SUPABASE
+  useEffect(() => {
+    const fetchToolsConfig = async () => {
+      try {
+        const { data, error } = await supabase.from('pengaturan').select('*');
+        if (error) throw error;
+
+        if (data) {
+          data.forEach((item) => {
+            if (item.key === 'gpa_courses') {
+              try { setCourses(JSON.parse(item.value)); } catch (e) {}
+            }
+            if (item.key === 'hsk_listening') setScoreListening(Number(item.value));
+            if (item.key === 'hsk_reading') setScoreReading(Number(item.value));
+            if (item.key === 'hsk_writing') setScoreWriting(Number(item.value));
+            if (item.key === 'semester_start_str') setStartDate(item.value);
+            if (item.key === 'semester_end_str') setEndDate(item.value);
+          });
+        }
+      } catch (err) {
+        console.error('Gagal memuat konfigurasi tools dari Supabase:', err.message);
+      }
+    };
+
+    fetchToolsConfig();
+  }, []);
+
+  // HELPER SIMPAN KE TABEL PENGATURAN SUPABASE
+  const saveConfigToSupabase = async (key, value) => {
+    const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    await supabase.from('pengaturan').upsert({ key, value: valStr });
+  };
+
+  // HANDLER AKSI GPA / IPK
   const addCourse = () => {
-    setCourses([...courses, { id: Date.now(), name: '', sks: 2, grade: 4.0 }]);
+    const updated = [...courses, { id: Date.now(), name: '', sks: 2, grade: 4.0 }];
+    setCourses(updated);
+    saveConfigToSupabase('gpa_courses', updated);
   };
 
   const updateCourse = (id, field, value) => {
-    setCourses(
-      courses.map((c) => (c.id === id ? { ...c, [field]: value } : c))
-    );
+    const updated = courses.map((c) => (c.id === id ? { ...c, [field]: value } : c));
+    setCourses(updated);
+    saveConfigToSupabase('gpa_courses', updated);
   };
 
   const deleteCourse = (id) => {
-    setCourses(courses.filter((c) => c.id !== id));
+    const updated = courses.filter((c) => c.id !== id);
+    setCourses(updated);
+    saveConfigToSupabase('gpa_courses', updated);
   };
 
   const totalSKS = courses.reduce((acc, curr) => acc + Number(curr.sks || 0), 0);
@@ -47,127 +99,33 @@ export default function ToolsTab({ kursYuan = 2671 }) {
   );
   const gpa = totalSKS > 0 ? (totalBobot / totalSKS).toFixed(2) : '0.00';
 
-  // 2. STATE KALKULATOR SKOR HSK
-  const [scoreListening, setScoreListening] = useState(70);
-  const [scoreReading, setScoreReading] = useState(75);
-  const [scoreWriting, setScoreWriting] = useState(65);
+  // HANDLER SKOR HSK
+  const handleScoreChange = (type, val) => {
+    const numVal = Number(val);
+    if (type === 'listening') {
+      setScoreListening(numVal);
+      saveConfigToSupabase('hsk_listening', numVal);
+    } else if (type === 'reading') {
+      setScoreReading(numVal);
+      saveConfigToSupabase('hsk_reading', numVal);
+    } else if (type === 'writing') {
+      setScoreWriting(numVal);
+      saveConfigToSupabase('hsk_writing', numVal);
+    }
+  };
 
   const totalHsk = Number(scoreListening) + Number(scoreReading) + Number(scoreWriting);
   const isHskPass = totalHsk >= 180;
 
-  // 3. STATE KONVERTER KURS CEPAT (SYNC SUPABASE)
-  const [inputCny, setInputCny] = useState(100);
-  const [inputIdr, setInputIdr] = useState(100 * kursYuan);
-
-  useEffect(() => {
-    setInputIdr(inputCny * kursYuan);
-  }, [kursYuan, inputCny]);
-
-  const handleCnyChange = (val) => {
-    setInputCny(val);
-    setInputIdr(val * kursYuan);
-  };
-
-  const handleIdrChange = (val) => {
-    setInputIdr(val);
-    setInputCny((val / kursYuan).toFixed(2));
-  };
-
-  // 4. STATE STICKY NOTES (SINKRON SUPABASE)
-  const [notes, setNotes] = useState([]);
-  const [newNote, setNewNote] = useState('');
-  const [loadingNotes, setLoadingNotes] = useState(true);
-
-  // Fetch Notes dari Supabase
-  const fetchNotes = async () => {
-    try {
-      setLoadingNotes(true);
-      const { data, error } = await supabase
-        .from('tools_notes')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      if (data) setNotes(data);
-    } catch (err) {
-      console.error('Gagal mengambil catatan dari Supabase:', err.message);
-    } finally {
-      setLoadingNotes(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotes();
-    fetchSemesterDates();
-  }, []);
-
-  const addNote = async (e) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-
-    const textToInsert = newNote.trim();
-    setNewNote('');
-
-    const { data, error } = await supabase
-      .from('tools_notes')
-      .insert([{ isi_catatan: textToInsert }])
-      .select();
-
-    if (error) {
-      console.error('Gagal menyimpan catatan ke Supabase:', error.message);
-      fetchNotes();
-    } else if (data) {
-      setNotes((prev) => [data[0], ...prev]);
-    }
-  };
-
-  const deleteNote = async (id) => {
-    setNotes((prev) => prev.filter((item) => item.id !== id));
-
-    const { error } = await supabase
-      .from('tools_notes')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Gagal menghapus catatan dari Supabase:', error.message);
-      fetchNotes();
-    }
-  };
-
-  // 5. TOOL PENGUKUR PROGRESS SEMESTER (SINKRON SUPABASE)
-  const [startDate, setStartDate] = useState('2026-09-01');
-  const [endDate, setEndDate] = useState('2027-01-15');
-
-  const fetchSemesterDates = async () => {
-    try {
-      const { data: startData } = await supabase
-        .from('pengaturan')
-        .select('value')
-        .eq('key', 'semester_start_str')
-        .single();
-
-      const { data: endData } = await supabase
-        .from('pengaturan')
-        .select('value')
-        .eq('key', 'semester_end_str')
-        .single();
-
-      if (startData && startData.value) setStartDate(String(startData.value));
-      if (endData && endData.value) setEndDate(String(endData.value));
-    } catch (err) {
-      // Ignore fallback default
-    }
-  };
-
-  const updateSemesterStart = async (val) => {
+  // HANDLER TANGGAL SEMESTER
+  const handleStartDateChange = (val) => {
     setStartDate(val);
-    await supabase.from('pengaturan').upsert({ key: 'semester_start_str', value: val });
+    saveConfigToSupabase('semester_start_str', val);
   };
 
-  const updateSemesterEnd = async (val) => {
+  const handleEndDateChange = (val) => {
     setEndDate(val);
-    await supabase.from('pengaturan').upsert({ key: 'semester_end_str', value: val });
+    saveConfigToSupabase('semester_end_str', val);
   };
 
   const calculateSemesterProgress = () => {
@@ -189,7 +147,76 @@ export default function ToolsTab({ kursYuan = 2671 }) {
 
   const semProgress = calculateSemesterProgress();
 
-  // 6. TOOL TIMER POMODORO
+  // 4. KONVERTER KURS INSTAN
+  const [inputCny, setInputCny] = useState(100);
+  const [inputIdr, setInputIdr] = useState(100 * kursYuan);
+
+  useEffect(() => {
+    setInputIdr(inputCny * kursYuan);
+  }, [kursYuan, inputCny]);
+
+  const handleCnyChange = (val) => {
+    setInputCny(val);
+    setInputIdr(val * kursYuan);
+  };
+
+  const handleIdrChange = (val) => {
+    setInputIdr(val);
+    setInputCny((val / kursYuan).toFixed(2));
+  };
+
+  // 5. STICKY NOTES (SUPABASE)
+  const [notes, setNotes] = useState([]);
+  const [newNote, setNewNote] = useState('');
+  const [loadingNotes, setLoadingNotes] = useState(true);
+
+  const fetchNotes = async () => {
+    try {
+      setLoadingNotes(true);
+      const { data, error } = await supabase
+        .from('tools_notes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data) setNotes(data);
+    } catch (err) {
+      console.error('Gagal mengambil catatan:', err.message);
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  const addNote = async (e) => {
+    e.preventDefault();
+    if (!newNote.trim()) return;
+
+    const textToInsert = newNote.trim();
+    setNewNote('');
+
+    const { data, error } = await supabase
+      .from('tools_notes')
+      .insert([{ isi_catatan: textToInsert }])
+      .select();
+
+    if (error) {
+      console.error('Gagal menyimpan catatan:', error.message);
+      fetchNotes();
+    } else if (data) {
+      setNotes((prev) => [data[0], ...prev]);
+    }
+  };
+
+  const deleteNote = async (id) => {
+    setNotes((prev) => prev.filter((item) => item.id !== id));
+    await supabase.from('tools_notes').delete().eq('id', id);
+  };
+
+  // 6. TIMER POMODORO
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
@@ -219,7 +246,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
     return `${m}:${s}`;
   };
 
-  // 7. TOOL GENERATOR EMAIL DOSEN/LAOSHI
+  // 7. GENERATOR EMAIL LAOSHI
   const [emailType, setEmailType] = useState('izin');
   const [studentName, setStudentName] = useState('Siswa');
   const [copied, setCopied] = useState(false);
@@ -247,10 +274,10 @@ export default function ToolsTab({ kursYuan = 2671 }) {
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex items-center justify-between">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wider text-purple-400 flex items-center gap-2">
-            <Sparkles className="w-5 h-5" /> STUDENT PRODUCTIVITY TOOLS (SUPABASE CONNECTED)
+            <Sparkles className="w-5 h-5" /> STUDENT PRODUCTIVITY TOOLS (FULL SUPABASE SYNCED)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Koleksi alat bantu akademik, simulasi HSK, timer fokus, generator email laoshi, dan konversi kurs.
+            Seluruh perubahan IPK, Skor HSK, Tanggal Semester, dan Catatan tersimpan otomatis ke database.
           </p>
         </div>
       </div>
@@ -347,7 +374,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
                 type="number"
                 max="100"
                 value={scoreListening}
-                onChange={(e) => setScoreListening(e.target.value)}
+                onChange={(e) => handleScoreChange('listening', e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold text-center"
               />
             </div>
@@ -359,7 +386,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
                 type="number"
                 max="100"
                 value={scoreReading}
-                onChange={(e) => setScoreReading(e.target.value)}
+                onChange={(e) => handleScoreChange('reading', e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold text-center"
               />
             </div>
@@ -371,7 +398,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
                 type="number"
                 max="100"
                 value={scoreWriting}
-                onChange={(e) => setScoreWriting(e.target.value)}
+                onChange={(e) => handleScoreChange('writing', e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold text-center"
               />
             </div>
@@ -383,7 +410,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           </div>
         </div>
 
-        {/* TOOL 3: KONVERTER KURS INSTAN (SUPABASE SYNCED) */}
+        {/* TOOL 3: KONVERTER KURS INSTAN */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
             <Coins className="w-5 h-5 text-emerald-400" />
@@ -419,16 +446,16 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           </div>
 
           <p className="text-[10px] text-slate-500 italic text-right">
-            *1 CNY = Rp {kursYuan.toLocaleString('id-ID')} (Data Supabase)
+            *1 CNY = Rp {kursYuan.toLocaleString('id-ID')}
           </p>
         </div>
 
-        {/* TOOL 4: STICKY NOTES (SINKRON DATABASE SUPABASE) */}
+        {/* TOOL 4: STICKY NOTES */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
             <StickyNote className="w-5 h-5 text-amber-400" />
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-200">
-              Catatan Tempel (Sticky Notes Supabase)
+              Catatan Tempel (Sticky Notes)
             </h3>
           </div>
 
@@ -518,7 +545,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           </div>
         </div>
 
-        {/* TOOL 6: PENGUKUR PROGRESS SEMESTER (SINKRON SUPABASE) */}
+        {/* TOOL 6: PENGUKUR PROGRESS SEMESTER */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
             <Calendar className="w-5 h-5 text-cyan-400" />
@@ -533,7 +560,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => updateSemesterStart(e.target.value)}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white"
               />
             </div>
@@ -542,7 +569,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
               <input
                 type="date"
                 value={endDate}
-                onChange={(e) => updateSemesterEnd(e.target.value)}
+                onChange={(e) => handleEndDateChange(e.target.value)}
                 className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white"
               />
             </div>
@@ -567,7 +594,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
 
       </div>
 
-      {/* TOOL 7: GENERATOR EMAIL DOSEN/LAOSHI */}
+      {/* TOOL 7: GENERATOR EMAIL LAOSHI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
@@ -611,6 +638,74 @@ export default function ToolsTab({ kursYuan = 2671 }) {
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? 'Tersalin!' : 'Salin Draf'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* KETERANGAN USE SERVER VERCEL & DATABASE SUPABASE (DI PALING BAWAH) */}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-xl space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+          <Activity className="w-5 h-5 text-indigo-400" />
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+            METRIKS DASHBOARD & MONITORING SERVER INFRASTRUKTUR
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* STATUS SERVER VERCEL */}
+          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-white flex items-center gap-2">
+                <Server className="w-4 h-4 text-purple-400" /> VERCEL SERVERLESS EDGE
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                ACTIVE
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block flex items-center gap-1">
+                  <Cpu className="w-3 h-3 text-purple-400" /> CPU Execution Limit
+                </span>
+                <span className="font-mono text-slate-300 font-black">10s Serverless Timeout</span>
+              </div>
+
+              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block flex items-center gap-1">
+                  <HardDrive className="w-3 h-3 text-purple-400" /> RAM Allocated
+                </span>
+                <span className="font-mono text-slate-300 font-black">1024 MB Edge Memory</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-500 italic">Region Deployment: Washington D.C., USA (iad1) / Singapore (sin1)</p>
+          </div>
+
+          {/* STATUS DATABASE SUPABASE */}
+          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-white flex items-center gap-2">
+                <Database className="w-4 h-4 text-emerald-400" /> SUPABASE POSTGRES DB
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                CONNECTED
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block">Database Storage</span>
+                <span className="font-mono text-emerald-400 font-black">500 MB Free Tier</span>
+              </div>
+
+              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block">Connection Protocol</span>
+                <span className="font-mono text-emerald-400 font-black">REST Realtime API</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-500 italic">Project ID: yjaggntpljmgndyzygus (Public Cloud Host)</p>
+          </div>
+
         </div>
       </div>
 
