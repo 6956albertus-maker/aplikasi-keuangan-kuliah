@@ -21,36 +21,39 @@ import {
   Cpu,
   HardDrive,
   Activity,
-  Server, 
-  Database, 
-  Cpu, 
-  HardDrive, 
-  Activity, 
-  Terminal, 
+  Terminal,
   RefreshCw,
   CheckCircle2,
-  Zap,
-  Info
+  Zap
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function ToolsTab({ kursYuan = 2671 }) {
-  // 1. STATE KALKULATOR GPA / IPK (SINKRON SUPABASE)
+  // 1. STATE KALKULATOR GPA / IPK
   const [courses, setCourses] = useState([
     { id: 1, name: 'Chinese Comprehensive', sks: 4, grade: 4.0 },
     { id: 2, name: 'Chinese Listening', sks: 2, grade: 3.5 },
   ]);
 
-  // 2. STATE KALKULATOR SKOR HSK (SINKRON SUPABASE)
+  // 2. STATE KALKULATOR SKOR HSK
   const [scoreListening, setScoreListening] = useState(70);
   const [scoreReading, setScoreReading] = useState(75);
   const [scoreWriting, setScoreWriting] = useState(65);
 
-  // 3. STATE PROGRESS SEMESTER (SINKRON SUPABASE)
+  // 3. STATE PROGRESS SEMESTER
   const [startDate, setStartDate] = useState('2026-09-01');
   const [endDate, setEndDate] = useState('2027-01-15');
 
-  // FETCH SEMUA CONFIG TOOLS DARI SUPABASE
+  // 4. STATE SERVER LOG MONITORING
+  const [serverLogs, setServerLogs] = useState([
+    { id: 1, time: '22:57:01', source: 'VERCEL', status: '200 OK', msg: 'GET /api/dashboard 18ms (Edge Region: sin1)' },
+    { id: 2, time: '22:57:02', source: 'SUPABASE', status: 'SYNCED', msg: 'Query table [jadwal_kuliah] fetched 2 rows' },
+    { id: 3, time: '22:57:05', source: 'SUPABASE', status: 'UPDATED', msg: 'Upsert [pengaturan] key: kurs_yuan value: ' + kursYuan },
+    { id: 4, time: '22:57:10', source: 'VERCEL', status: 'HEALTHY', msg: 'Serverless Function Warm Start - Memory 24MB/1024MB' },
+  ]);
+  const [isRefreshingLog, setIsRefreshingLog] = useState(false);
+
+  // FETCH CONFIG DARi SUPABASE
   useEffect(() => {
     const fetchToolsConfig = async () => {
       try {
@@ -70,14 +73,13 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           });
         }
       } catch (err) {
-        console.error('Gagal memuat konfigurasi tools dari Supabase:', err.message);
+        console.error('Gagal memuat konfigurasi tools:', err.message);
       }
     };
 
     fetchToolsConfig();
   }, []);
 
-  // HELPER SIMPAN KE TABEL PENGATURAN SUPABASE
   const saveConfigToSupabase = async (key, value) => {
     const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
     await supabase.from('pengaturan').upsert({ key, value: valStr });
@@ -157,7 +159,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
 
   const semProgress = calculateSemesterProgress();
 
-  // 4. KONVERTER KURS INSTAN
+  // KONVERTER KURS
   const [inputCny, setInputCny] = useState(100);
   const [inputIdr, setInputIdr] = useState(100 * kursYuan);
 
@@ -175,7 +177,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
     setInputCny((val / kursYuan).toFixed(2));
   };
 
-  // 5. STICKY NOTES (SUPABASE)
+  // STICKY NOTES SUPABASE
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [loadingNotes, setLoadingNotes] = useState(true);
@@ -226,7 +228,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
     await supabase.from('tools_notes').delete().eq('id', id);
   };
 
-  // 6. TIMER POMODORO
+  // TIMER POMODORO
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
@@ -256,7 +258,7 @@ export default function ToolsTab({ kursYuan = 2671 }) {
     return `${m}:${s}`;
   };
 
-  // 7. GENERATOR EMAIL LAOSHI
+  // GENERATOR EMAIL LAOSHI
   const [emailType, setEmailType] = useState('izin');
   const [studentName, setStudentName] = useState('Siswa');
   const [copied, setCopied] = useState(false);
@@ -275,6 +277,23 @@ export default function ToolsTab({ kursYuan = 2671 }) {
     navigator.clipboard.writeText(getEmailTemplate());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRefreshLogs = () => {
+    setIsRefreshingLog(true);
+    setTimeout(() => {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const newLog = {
+        id: Date.now(),
+        time: timeStr,
+        source: Math.random() > 0.5 ? 'VERCEL' : 'SUPABASE',
+        status: '200 OK',
+        msg: `Health Check Passed - Ping ${Math.floor(Math.random() * 20 + 10)}ms`
+      };
+      setServerLogs((prev) => [newLog, ...prev.slice(0, 5)]);
+      setIsRefreshingLog(false);
+    }, 600);
   };
 
   return (
@@ -651,106 +670,9 @@ export default function ToolsTab({ kursYuan = 2671 }) {
         </div>
       </div>
 
-      {/* KETERANGAN USE SERVER VERCEL & DATABASE SUPABASE (DI PALING BAWAH) */}
-      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-xl space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-          <Activity className="w-5 h-5 text-indigo-400" />
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
-            METRIKS DASHBOARD & MONITORING SERVER INFRASTRUKTUR
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* STATUS SERVER VERCEL */}
-          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-white flex items-center gap-2">
-                <Server className="w-4 h-4 text-purple-400" /> VERCEL SERVERLESS EDGE
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                ACTIVE
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 block flex items-center gap-1">
-                  <Cpu className="w-3 h-3 text-purple-400" /> CPU Execution Limit
-                </span>
-                <span className="font-mono text-slate-300 font-black">10s Serverless Timeout</span>
-              </div>
-
-              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 block flex items-center gap-1">
-                  <HardDrive className="w-3 h-3 text-purple-400" /> RAM Allocated
-                </span>
-                <span className="font-mono text-slate-300 font-black">1024 MB Edge Memory</span>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-500 italic">Region Deployment: Washington D.C., USA (iad1) / Singapore (sin1)</p>
-          </div>
-
-          {/* STATUS DATABASE SUPABASE */}
-          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-white flex items-center gap-2">
-                <Database className="w-4 h-4 text-emerald-400" /> SUPABASE POSTGRES DB
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                CONNECTED
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 block">Database Storage</span>
-                <span className="font-mono text-emerald-400 font-black">500 MB Free Tier</span>
-              </div>
-
-              <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 block">Connection Protocol</span>
-                <span className="font-mono text-emerald-400 font-black">REST Realtime API</span>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-500 italic">Project ID: yjaggntpljmgndyzygus (Public Cloud Host)</p>
-          // STATE SERVER LOG MONITORING
-  const [serverLogs, setServerLogs] = useState([
-    { id: 1, time: '22:57:01', source: 'VERCEL', status: '200 OK', msg: 'GET /api/dashboard 18ms (Edge Region: sin1)', type: 'success' },
-    { id: 2, time: '22:57:02', source: 'SUPABASE', status: 'SYNCED', msg: 'Query table [jadwal_kuliah] fetched 2 rows', type: 'info' },
-    { id: 3, time: '22:57:05', source: 'SUPABASE', status: 'UPDATED', msg: 'Upsert [pengaturan] key: kurs_yuan value: ' + kursYuan, type: 'success' },
-    { id: 4, time: '22:57:10', source: 'VERCEL', status: 'HEALTHY', msg: 'Serverless Function Warm Start - Memory 24MB/1024MB', type: 'info' },
-  ]);
-
-  const [isRefreshingLog, setIsRefreshingLog] = useState(false);
-
-  // Simulasi penambahan log otomatis saat ada aktivitas
-  const handleRefreshLogs = () => {
-    setIsRefreshingLog(true);
-    setTimeout(() => {
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
-      const newLog = {
-        id: Date.now(),
-        time: timeStr,
-        source: Math.random() > 0.5 ? 'VERCEL' : 'SUPABASE',
-        status: '200 OK',
-        msg: `Health Check Passed - Ping ${Math.floor(Math.random() * 20 + 10)}ms`,
-        type: 'success'
-      };
-      setServerLogs((prev) => [newLog, ...prev.slice(0, 5)]);
-      setIsRefreshingLog(false);
-    }, 600);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Kartu-kartu tools produktivitas di atasnya tetap sama... */}
-
-      {/* METRIKS DASHBOARD & MONITORING SERVER INFRASTRUKTUR + LOG CONSOLE */}
+      {/* METRIKS DASHBOARD & MONITORING SERVER INFRASTRUKTUR */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-xl space-y-5">
         
-        {/* HEADER MONITORING */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-indigo-400" />
@@ -772,10 +694,8 @@ export default function ToolsTab({ kursYuan = 2671 }) {
           </button>
         </div>
 
-        {/* METRIKS GRID (VERCEL & SUPABASE) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          {/* STATUS SERVER VERCEL */}
           <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-extrabold text-white flex items-center gap-2">
@@ -804,7 +724,6 @@ export default function ToolsTab({ kursYuan = 2671 }) {
             <p className="text-[10px] text-slate-500 italic">Region: Washington D.C., USA (iad1) / Singapore (sin1)</p>
           </div>
 
-          {/* STATUS DATABASE SUPABASE */}
           <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-extrabold text-white flex items-center gap-2">
@@ -831,7 +750,6 @@ export default function ToolsTab({ kursYuan = 2671 }) {
 
         </div>
 
-        {/* CONSOLE TERMINAL LIVE SERVER LOGS */}
         <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 font-mono">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
             <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
