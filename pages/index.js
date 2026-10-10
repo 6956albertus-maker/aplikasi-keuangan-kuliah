@@ -25,24 +25,6 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  // Logo SVG Keren: Topi Toga (Graduation Cap) & Sparkle Gradasi Purple-Pink
-  const faviconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='28' fill='%230f172a'/><path d='M50 22L18 38L50 54L82 38L50 22Z' fill='url(%23grad)'/><path d='M28 47.5V66C28 73 38 78 50 78C62 78 72 73 72 66V47.5L50 58.5L28 47.5Z' fill='url(%23grad)'/><path d='M82 42V65' stroke='%23f43f5e' stroke-width='4' stroke-linecap='round'/><circle cx='82' cy='68' r='3.5' fill='%23f43f5e'/><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23c084fc'/><stop offset='50%25' stop-color='%23f472b6'/><stop offset='100%25' stop-color='%23fb7185'/></linearGradient></defs></svg>`;
-
-  return (
-    <>
-      <Head>
-        <title>Student Manager</title>
-        <meta name="description" content="Dashboard Student Manager" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* FAVICON LOGO KEREN TAMPIL DI TAB CHROME */}
-        <link rel="icon" type="image/svg+xml" href={faviconSvg} />
-      </Head>
-
-      {/* Konten aplikasi Anda selanjutnya... */}
-    </>
-  );
-
-export default function Home() {
   const [activeTab, setActiveTab] = useState('summary');
   const [kursYuan, setKursYuan] = useState(2671);
   const [isEditingKurs, setIsEditingKurs] = useState(false);
@@ -56,6 +38,9 @@ export default function Home() {
     deleteTransaction,
     resetTransactions,
   } = useTransactions();
+
+  // SVG Favicon Logo Topi Toga (Graduation Cap)
+  const faviconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='28' fill='%230f172a'/><path d='M50 22L18 38L50 54L82 38L50 22Z' fill='url(%23grad)'/><path d='M28 47.5V66C28 73 38 78 50 78C62 78 72 73 72 66V47.5L50 58.5L28 47.5Z' fill='url(%23grad)'/><path d='M82 42V65' stroke='%23f43f5e' stroke-width='4' stroke-linecap='round'/><circle cx='82' cy='68' r='3.5' fill='%23f43f5e'/><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23c084fc'/><stop offset='50%25' stop-color='%23f472b6'/><stop offset='100%25' stop-color='%23fb7185'/></linearGradient></defs></svg>`;
 
   // FETCH KURS DARI SUPABASE
   useEffect(() => {
@@ -102,13 +87,13 @@ export default function Home() {
         <title>Student Manager</title>
         <meta name="description" content="Dashboard Student Manager" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href={faviconSvg} />
       </Head>
 
       <div className="min-h-screen bg-[#07090e] text-slate-100 p-4 md:p-8 font-sans">
         <div className="max-w-6xl mx-auto space-y-8">
           
-          {/* HEADER DENGAN JUDUL & WIDGET KURS EDITABLE (TANPA KATA SUPABASE) */}
+          {/* HEADER */}
           <header className="relative flex flex-col md:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 uppercase">
@@ -163,7 +148,7 @@ export default function Home() {
             </div>
           </header>
 
-          {/* NAVIGASI TOMBOL DASHBOARD CENTER */}
+          {/* NAVIGASI TOMBOL DASHBOARD */}
           <div className="flex justify-center">
             <nav className="flex flex-wrap items-center justify-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/80 shadow-2xl backdrop-blur-md">
               <button
