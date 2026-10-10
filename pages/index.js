@@ -8,6 +8,7 @@ import KeuanganTab from '../components/KeuanganTab';
 import PaymentTab from '../components/PaymentTab';
 import TodoTugasTab from '../components/TodoTugasTab';
 import AgendaKuliahTab from '../components/AgendaKuliahTab';
+import JadwalKuliahTab from '../components/JadwalKuliahTab';
 import ToolsTab from '../components/ToolsTab';
 
 import { 
@@ -17,12 +18,13 @@ import {
   GraduationCap, 
   Wrench, 
   LayoutDashboard,
-  Coins
+  Coins,
+  BookOpen
 } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('summary');
-  const [kursYuan, setKursYuan] = useState(2671); // Fallback kurs
+  const [kursYuan, setKursYuan] = useState(2671);
 
   const {
     transactions,
@@ -33,7 +35,6 @@ export default function Home() {
     resetTransactions,
   } = useTransactions();
 
-  // FETCH KURS REALTIME DARI SUPABASE (TABEL: pengaturan)
   useEffect(() => {
     const fetchKurs = async () => {
       try {
@@ -44,14 +45,11 @@ export default function Home() {
           .single();
 
         if (error) throw error;
-        if (data && data.value) {
-          setKursYuan(Number(data.value));
-        }
+        if (data && data.value) setKursYuan(Number(data.value));
       } catch (err) {
         console.error('Gagal mengambil kurs yuan:', err.message);
       }
     };
-
     fetchKurs();
   }, []);
 
@@ -59,7 +57,7 @@ export default function Home() {
     <>
       <Head>
         <title>Student Manager</title>
-        <meta name="description" content="Dashboard Keuangan, Todo Tugas & Agenda Kuliah" />
+        <meta name="description" content="Dashboard Student Manager" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -67,7 +65,7 @@ export default function Home() {
       <div className="min-h-screen bg-[#07090e] text-slate-100 p-4 md:p-8 font-sans">
         <div className="max-w-6xl mx-auto space-y-8">
           
-          {/* HEADER DENGAN JUDUL & WIDGET KURS SUPABASE */}
+          {/* HEADER */}
           <header className="relative flex flex-col md:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 uppercase">
@@ -78,7 +76,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* WIDGET KURS DARI SUPABASE */}
             <div className="flex items-center gap-2 bg-slate-900/90 border border-purple-500/30 px-4 py-2.5 rounded-2xl shadow-lg backdrop-blur-md">
               <div className="p-1.5 rounded-xl bg-purple-500/10 text-purple-400">
                 <Coins className="w-4 h-4" />
@@ -94,7 +91,7 @@ export default function Home() {
             </div>
           </header>
 
-          {/* NAVIGASI TOMBOL DASHBOARD (CENTER) */}
+          {/* NAVIGASI TOMBOL DASHBOARD CENTER */}
           <div className="flex justify-center">
             <nav className="flex flex-wrap items-center justify-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/80 shadow-2xl backdrop-blur-md">
               <button
@@ -107,6 +104,18 @@ export default function Home() {
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('jadwal')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
+                  activeTab === 'jadwal'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Jadwal Kuliah</span>
               </button>
 
               <button
@@ -171,7 +180,7 @@ export default function Home() {
             </nav>
           </div>
 
-          {/* RENDERING TAB CONTENT */}
+          {/* MAIN CONTENT AREA */}
           <main>
             {activeTab === 'summary' && (
               <DashboardTab
@@ -180,6 +189,8 @@ export default function Home() {
                 setActiveTab={setActiveTab}
               />
             )}
+
+            {activeTab === 'jadwal' && <JadwalKuliahTab />}
 
             {activeTab === 'keuangan' && (
               <KeuanganTab
