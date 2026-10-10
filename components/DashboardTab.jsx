@@ -16,11 +16,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-// PETA WAKTU SELESAI UNTUK MEMERIKSA APAKAH KELAS SUDAH BERAKHIR
+// PETA WAKTU SELESAI UNTUK MEMERIKSA APAKAH KELAS SUDAH BERAKHIR (DENGAN BREAK 5 MINS)
 const END_TIMES_MAP = {
-  1: '08:45', 2: '09:40', 3: '10:35', 4: '11:30',
-  5: '14:45', 6: '15:40', 7: '16:35', 8: '17:30',
-  9: '20:15', 10: '21:10', 11: '22:05', 12: '23:00'
+  1: '08:45', 2: '09:35', 3: '10:35', 4: '11:25',
+  5: '14:45', 6: '15:35', 7: '16:35', 8: '17:25',
+  9: '20:15', 10: '21:05', 11: '22:05', 12: '22:55'
 };
 
 const getWaktuFromJamArray = (jamArr) => {
@@ -29,12 +29,22 @@ const getWaktuFromJamArray = (jamArr) => {
   const maxJam = Math.max(...jamArr);
 
   const startMap = {
-    1: '08:00', 2: '08:55', 3: '09:50', 4: '10:45',
-    5: '14:00', 6: '14:55', 7: '15:50', 8: '16:45',
-    9: '19:30', 10: '20:25', 11: '21:20', 12: '22:15'
+    1: '08:00', 2: '08:50', 3: '09:50', 4: '10:40',
+    5: '14:00', 6: '14:50', 7: '15:50', 8: '16:40',
+    9: '19:30', 10: '20:20', 11: '21:20', 12: '22:10'
   };
 
   return `${startMap[minJam] || ''} - ${END_TIMES_MAP[maxJam] || ''}`;
+};
+
+// HELPER PROSES URUTAN JADWAL SESUAI JAM TERAWAL (ASCENDING)
+const sortScheduleByJam = (scheduleList) => {
+  if (!Array.isArray(scheduleList)) return [];
+  return [...scheduleList].sort((a, b) => {
+    const minA = Array.isArray(a.kategori_jam) && a.kategori_jam.length > 0 ? Math.min(...a.kategori_jam) : 99;
+    const minB = Array.isArray(b.kategori_jam) && b.kategori_jam.length > 0 ? Math.min(...b.kategori_jam) : 99;
+    return minA - minB;
+  });
 };
 
 export default function DashboardTab({ transactions = [], kursYuan = 2671, setActiveTab }) {
@@ -53,7 +63,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
     return () => clearInterval(timer);
   }, []);
 
-  // 2. FETCH SUPABASE DATA & DETERMINASI JADWAL (HARI INI / BESOK)
+  // 2. FETCH SUPABASE DATA & DETERMINASI JADWAL (TERURUT JAM 1-12)
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -95,7 +105,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
         let isAllFinished = false;
 
         if (todayJadwal && todayJadwal.length > 0) {
-          // Cari jam selesai paling akhir dari semua kelas hari ini
           let maxEndJam = 0;
           todayJadwal.forEach((item) => {
             if (Array.isArray(item.kategori_jam) && item.kategori_jam.length > 0) {
@@ -109,27 +118,26 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
             const endObj = new Date();
             endObj.setHours(endHour, endMin, 0, 0);
 
-            // Jika waktu sekarang sudah melewati jam selesai kelas terakhir hari ini
             if (now > endObj) {
               isAllFinished = true;
             }
           }
         } else {
-          // Jika tidak ada kelas sama sekali hari ini, tampilkan jadwal besok
           isAllFinished = true;
         }
 
         if (isAllFinished) {
-          // Fetch Jadwal Besok
+          // Fetch & Urutkan Jadwal Besok
           const { data: tomorrowJadwal } = await supabase
             .from('jadwal_kuliah')
             .select('*')
             .eq('hari', tomorrowDayName);
 
-          setDisplayedSchedule(tomorrowJadwal || []);
+          setDisplayedSchedule(sortScheduleByJam(tomorrowJadwal || []));
           setIsScheduleTomorrow(true);
         } else {
-          setDisplayedSchedule(todayJadwal || []);
+          // Urutkan Jadwal Hari Ini
+          setDisplayedSchedule(sortScheduleByJam(todayJadwal || []));
           setIsScheduleTomorrow(false);
         }
 
@@ -158,7 +166,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
   const categoryTotals = {};
 
-  // Data Per Hari dalam Bulan Ini untuk Grafik Garis Tren
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const dailyIncome = new Array(daysInMonth).fill(0);
   const dailyExpenseNonKuliah = new Array(daysInMonth).fill(0);
@@ -177,7 +184,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
     if (tx.tanggal) {
       const d = new Date(tx.tanggal);
       if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-        const dayNum = d.getDate() - 1; // Index 0..daysInMonth-1
+        const dayNum = d.getDate() - 1;
 
         if (tx.tipe === 'pemasukan') {
           totalPemasukanBulanIni += nominal;
@@ -189,7 +196,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
           const kat = tx.kategori || 'Lain-lain';
           categoryTotals[kat] = (categoryTotals[kat] || 0) + nominal;
 
-          // PENGELUARAN DILUAR BIAYA KULIAH UNTUK GRAFIK GARIS
           if (kat.toLowerCase() !== 'biaya kuliah') {
             totalPengeluaranNonKuliah += nominal;
             if (dayNum >= 0 && dayNum < daysInMonth) {
@@ -213,13 +219,8 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
   const seconds = String(time.getSeconds()).padStart(2, '0');
   const formattedTimeWithTZ = `${hours}:${minutes}:${seconds} +CST`;
 
-  // Kalkulasi Titik Koordinat SVG untuk Grafik Garis
-  const maxValGraph = Math.max(
-    ...dailyIncome, 
-    ...dailyExpenseNonKuliah, 
-    100
-  );
-
+  // Kalkulasi Koordinat SVG Grafik
+  const maxValGraph = Math.max(...dailyIncome, ...dailyExpenseNonKuliah, 100);
   const graphWidth = 500;
   const graphHeight = 120;
 
@@ -341,7 +342,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
       </div>
 
-      {/* BARIS 2: AGENDA, TODO & JADWAL KULIAH (OTOMATIS HARI INI / BESOK) */}
+      {/* BARIS 2: AGENDA, TODO & JADWAL KULIAH (DIURUTKAN ASCENDING JAM 1 - 12) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         
         {/* AGENDA & TODO */}
@@ -419,7 +420,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
           </div>
         </div>
 
-        {/* JADWAL KULIAH (OTOMATIS BERUBAH JADI JADWAL BESOK BILA KELAS HARI INI SELESAI) */}
+        {/* JADWAL KULIAH (TERURUT JAM DARI YANG PALING AWAL) */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -492,7 +493,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
       {/* BARIS 3: GRAFIK GARIS TREN KEUANGAN & CATATAN CEPAT */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* GRAFIK GARIS (LINE CHART) TREN PEMASUKAN VS PENGELUARAN (DILUAR BIAYA KULIAH) */}
+        {/* GRAFIK GARIS TREN PEMASUKAN VS PENGELUARAN */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
@@ -504,7 +505,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
           </div>
 
           <div className="space-y-4 pt-1">
-            {/* LEGEND / KETERANGAN GARIS */}
             <div className="flex items-center justify-between text-xs font-bold px-1">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" />
@@ -516,15 +516,12 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
               </div>
             </div>
 
-            {/* SVG LINE CHART */}
             <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 relative">
               <svg viewBox={`0 0 ${graphWidth} ${graphHeight}`} className="w-full h-36 overflow-visible">
-                {/* GRID LINES BACKGROUND */}
                 <line x1="0" y1="20" x2={graphWidth} y2="20" stroke="#334155" strokeDasharray="3 3" strokeWidth="0.5" />
                 <line x1="0" y1="60" x2={graphWidth} y2="60" stroke="#334155" strokeDasharray="3 3" strokeWidth="0.5" />
                 <line x1="0" y1="100" x2={graphWidth} y2="100" stroke="#334155" strokeDasharray="3 3" strokeWidth="0.5" />
 
-                {/* GARIS PEMASUKAN (HIJAU) */}
                 <polyline
                   fill="none"
                   stroke="#10b981"
@@ -534,7 +531,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
                   points={incomePointsStr}
                 />
 
-                {/* GARIS PENGELUARAN NON-KULIAH (MERAH/ROSE) */}
                 <polyline
                   fill="none"
                   stroke="#f43f5e"
@@ -552,7 +548,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
               </div>
             </div>
 
-            {/* RINGKASAN REKAPAN BIAYA DILUAR KULIAH */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/50">
                 <span className="text-[10px] font-bold text-slate-400 block">Total Pemasukan:</span>
