@@ -21,7 +21,9 @@ import {
   Coins,
   BookOpen,
   Edit2,
-  Check
+  Check,
+  ArrowDownCircle,
+  Loader2
 } from 'lucide-react';
 
 export default function Home() {
@@ -29,6 +31,7 @@ export default function Home() {
   const [kursYuan, setKursYuan] = useState(2671);
   const [isEditingKurs, setIsEditingKurs] = useState(false);
   const [inputKursVal, setInputKursVal] = useState(2671);
+  const [isFetchingBca, setIsFetchingBca] = useState(false);
 
   const {
     transactions,
@@ -42,7 +45,7 @@ export default function Home() {
   // SVG Favicon Logo Topi Toga (Graduation Cap)
   const faviconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='28' fill='%230f172a'/><path d='M50 22L18 38L50 54L82 38L50 22Z' fill='url(%23grad)'/><path d='M28 47.5V66C28 73 38 78 50 78C62 78 72 73 72 66V47.5L50 58.5L28 47.5Z' fill='url(%23grad)'/><path d='M82 42V65' stroke='%23f43f5e' stroke-width='4' stroke-linecap='round'/><circle cx='82' cy='68' r='3.5' fill='%23f43f5e'/><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23c084fc'/><stop offset='50%25' stop-color='%23f472b6'/><stop offset='100%25' stop-color='%23fb7185'/></linearGradient></defs></svg>`;
 
-  // FETCH KURS DARI SUPABASE
+  // FETCH KURS DARi SUPABASE
   useEffect(() => {
     const fetchKurs = async () => {
       try {
@@ -64,7 +67,7 @@ export default function Home() {
     fetchKurs();
   }, []);
 
-  // UPDATE KURS KE SUPABASE
+  // UPDATE KURS MANUAL KE SUPABASE
   const handleSaveKurs = async () => {
     const newVal = Number(inputKursVal);
     if (!newVal || newVal <= 0) return;
@@ -78,6 +81,35 @@ export default function Home() {
 
     if (error) {
       console.error('Gagal memperbarui kurs ke Supabase:', error.message);
+    }
+  };
+
+  // TOMBOL PANAH BEKAWAH: AMBIL KURS BCA REALTIME
+  const handleFetchBcaRealtime = async () => {
+    try {
+      setIsFetchingBca(true);
+      const res = await fetch('/api/get-bca-kurs');
+      const json = await res.json();
+
+      if (json && json.kurs) {
+        const rateBca = Number(json.kurs);
+        setKursYuan(rateBca);
+        setInputKursVal(rateBca);
+
+        // Simpan otomatis ke Supabase
+        await supabase
+          .from('pengaturan')
+          .upsert({ key: 'kurs_yuan', value: rateBca });
+
+        alert(`Berhasil memperbarui kurs BCA Realtime: 1 CNY = Rp ${rateBca.toLocaleString('id-ID')}`);
+      } else {
+        alert('Gagal mengambil data dari BCA.');
+      }
+    } catch (err) {
+      console.error('Error fetching BCA:', err);
+      alert('Terjadi kesalahan saat menghubungi API BCA.');
+    } finally {
+      setIsFetchingBca(false);
     }
   };
 
@@ -104,7 +136,7 @@ export default function Home() {
               </p>
             </div>
 
-            {/* WIDGET KURS EDITABLE */}
+            {/* WIDGET KURS EDITABLE + TOMBOL REFRESH BCA REALTIME */}
             <div className="flex items-center gap-2 bg-slate-900/90 border border-purple-500/30 px-4 py-2.5 rounded-2xl shadow-lg backdrop-blur-md">
               <div className="p-1.5 rounded-xl bg-purple-500/10 text-purple-400">
                 <Coins className="w-4 h-4" />
@@ -135,12 +167,28 @@ export default function Home() {
                     <p className="text-xs font-black text-emerald-400">
                       1 CNY = Rp {kursYuan.toLocaleString('id-ID')}
                     </p>
+                    
+                    {/* TOMBOL EDIT MANUAL */}
                     <button
                       onClick={() => setIsEditingKurs(true)}
                       className="p-1 text-slate-400 hover:text-purple-300 rounded-lg"
-                      title="Edit Nilai Kurs"
+                      title="Edit Manual Nilai Kurs"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* TOMBOL PANAH KEBAWAH: SYNC KURS BCA REALTIME */}
+                    <button
+                      onClick={handleFetchBcaRealtime}
+                      disabled={isFetchingBca}
+                      className="p-1 text-slate-400 hover:text-emerald-400 rounded-lg transition"
+                      title="Tarik Kurs e-Rate BCA Realtime"
+                    >
+                      {isFetchingBca ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                      ) : (
+                        <ArrowDownCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      )}
                     </button>
                   </div>
                 )}
