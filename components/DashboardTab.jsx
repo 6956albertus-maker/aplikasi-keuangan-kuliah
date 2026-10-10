@@ -16,6 +16,33 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
+// DAFTAR WAKTU UTAMA UNTUK MENGONVERSI JAM KE DENGAN MENTIMING TEPAT
+const TIME_SLOTS_MAP = {
+  1: '08:00', 2: '09:40', 3: '09:50', 4: '11:30',
+  5: '14:00', 6: '15:40', 7: '15:50', 8: '17:30',
+  9: '19:30', 10: '21:10', 11: '21:20', 12: '23:00'
+};
+
+const getWaktuFromJamArray = (jamArr) => {
+  if (!Array.isArray(jamArr) || jamArr.length === 0) return '';
+  const minJam = Math.min(...jamArr);
+  const maxJam = Math.max(...jamArr);
+
+  const startMap = {
+    1: '08:00', 2: '08:55', 3: '09:50', 4: '10:45',
+    5: '14:00', 6: '14:55', 7: '15:50', 8: '16:45',
+    9: '19:30', 10: '20:25', 11: '21:20', 12: '22:15'
+  };
+
+  const endMap = {
+    1: '08:45', 2: '09:40', 3: '10:35', 4: '11:30',
+    5: '14:45', 6: '15:40', 7: '16:35', 8: '17:30',
+    9: '20:15', 10: '21:10', 11: '22:05', 12: '23:00'
+  };
+
+  return `${startMap[minJam] || ''} - ${endMap[maxJam] || ''}`;
+};
+
 export default function DashboardTab({ transactions = [], kursYuan = 2671, setActiveTab }) {
   // Realtime Clock State
   const [time, setTime] = useState(new Date());
@@ -166,7 +193,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
           </div>
         </div>
 
-        {/* KOTAK MERAH: REKAPAN KEUANGAN & RINCIAN PER KATEGORI (HIJAU TUA) */}
+        {/* KOTAK MERAH: REKAPAN KEUANGAN & RINCIAN PER KATEGORI */}
         <div className="lg:col-span-2 p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
@@ -325,7 +352,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
         </div>
 
-        {/* KANAN (50%): KOTAK KUNING (JADWAL KULIAH HARI INI) */}
+        {/* KANAN (50%): KOTAK KUNING (JADWAL KULIAH HARI INI DENGAN RENTANG JAM) */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -349,25 +376,35 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
                   <p className="text-xs text-slate-500">Tidak ada jadwal kuliah untuk hari ini.</p>
                 </div>
               ) : (
-                todaySchedule.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 rounded-2xl bg-slate-800/60 border border-amber-500/30 flex items-center justify-between"
-                  >
-                    <div className="space-y-1">
-                      <span className="text-xs font-black text-white block">
-                        {item.matkul}
-                      </span>
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-amber-400" /> {item.tempat}
-                      </span>
-                    </div>
+                todaySchedule.map((item) => {
+                  const waktuStr = getWaktuFromJamArray(item.kategori_jam);
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-2xl bg-slate-800/60 border border-amber-500/30 flex items-center justify-between"
+                    >
+                      <div className="space-y-1">
+                        <span className="text-xs font-black text-white block">
+                          {item.matkul}
+                        </span>
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-amber-400" /> {item.tempat}
+                        </span>
+                      </div>
 
-                    <span className="text-xs font-extrabold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl">
-                      Jam Ke: {Array.isArray(item.kategori_jam) ? item.kategori_jam.join(', ') : '-'}
-                    </span>
-                  </div>
-                ))
+                      <div className="text-right space-y-1">
+                        <span className="text-xs font-extrabold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-xl inline-block">
+                          Jam Ke: {Array.isArray(item.kategori_jam) ? item.kategori_jam.join(', ') : '-'}
+                        </span>
+                        {waktuStr && (
+                          <span className="text-[10px] text-slate-400 font-bold block flex items-center justify-end gap-1">
+                            <Clock className="w-3 h-3 text-amber-400" /> {waktuStr}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -379,26 +416,44 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
       </div>
 
-      {/* BARIS 3: BARIS PALING BAWAH (GRAFIK RINGKASAN & MINI TOOLS) */}
+      {/* BARIS 3: PERSENTASE PENGELUARAN REALTIME (TANPA INFINITE SPINNER) & MINI TOOLS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* KIRI (PINK/UNGU): GRAFIK RINGKASAN KEUANGAN */}
+        {/* KIRI (PURPLE): RINCIAN PERSENTASE PENGELUARAN FIX */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
               <PieChart className="w-5 h-5 text-purple-400" />
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-purple-300">
-                PERSENTASE PENGELUARAN
+                PERSENTASE PENGELUARAN PER KATEGORI
               </h3>
             </div>
           </div>
 
-          <div className="p-6 rounded-2xl bg-slate-800/40 border border-slate-700/50 flex flex-col items-center justify-center space-y-3 text-center">
-            <div className="w-16 h-16 rounded-full border-4 border-purple-500 border-t-transparent animate-spin" />
-            <p className="text-xs text-slate-400 font-medium">
-              Proyeksi Pengeluaran Bulan Ini: <br />
-              <span className="font-black text-white text-sm">{formatYuan(totalPengeluaranBulanIni)}</span> ({formatIDR(totalPengeluaranBulanIni)})
-            </p>
+          <div className="space-y-3">
+            {totalPengeluaranBulanIni === 0 ? (
+              <p className="text-xs text-slate-500 text-center py-6">
+                Belum ada data pengeluaran bulan ini.
+              </p>
+            ) : (
+              Object.entries(categoryTotals).map(([kat, val]) => {
+                const percent = Math.round((val / totalPengeluaranBulanIni) * 100);
+                return (
+                  <div key={kat} className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-slate-300">{kat}</span>
+                      <span className="text-purple-400">{percent}% ({formatYuan(val)})</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
