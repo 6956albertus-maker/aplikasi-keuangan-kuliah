@@ -12,16 +12,9 @@ import {
   ArrowRight, 
   MapPin, 
   Sparkles,
-  PieChart
+  BarChart3
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-
-// DAFTAR WAKTU UTAMA UNTUK MENGONVERSI JAM KE DENGAN MENTIMING TEPAT
-const TIME_SLOTS_MAP = {
-  1: '08:00', 2: '09:40', 3: '09:50', 4: '11:30',
-  5: '14:00', 6: '15:40', 7: '15:50', 8: '17:30',
-  9: '19:30', 10: '21:10', 11: '21:20', 12: '23:00'
-};
 
 const getWaktuFromJamArray = (jamArr) => {
   if (!Array.isArray(jamArr) || jamArr.length === 0) return '';
@@ -52,7 +45,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
   const [todos, setTodos] = useState([]);
   const [todaySchedule, setTodaySchedule] = useState([]);
 
-  // Tools Quick Note State
+  // Quick Note State
   const [quickNote, setQuickNote] = useState('');
 
   // 1. REALTIME CLOCK EFFECT
@@ -67,7 +60,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
       try {
         const todayStr = new Date().toISOString().split('T')[0];
 
-        // Fetch Agendas (Max 5 Terdekat)
+        // Fetch Agendas
         const { data: agendaData } = await supabase
           .from('agenda_kuliah')
           .select('*')
@@ -77,7 +70,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
         if (agendaData) setAgendas(agendaData);
 
-        // Fetch Todos (Belum Selesai, Max 5 Terdekat)
+        // Fetch Todos
         const { data: todoData } = await supabase
           .from('todo_tugas')
           .select('*')
@@ -124,7 +117,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
   transactions.forEach((tx) => {
     const nominal = Number(tx.nominal_yuan) || 0;
     
-    // Total Saldo
     if (tx.tipe === 'pemasukan') {
       if (tx.metode === 'Tunai') totalTunai += nominal;
       if (tx.metode === 'Bank') totalBank += nominal;
@@ -133,7 +125,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
       if (tx.metode === 'Bank') totalBank -= nominal;
     }
 
-    // Calculation Bulan Ini
     if (tx.tanggal) {
       const d = new Date(tx.tanggal);
       if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
@@ -155,19 +146,19 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
     year: 'numeric'
   });
 
-  const formattedTime = time.toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
+  // FORMAT JAM DENGAN TITIK DUA (00:00:00) DAN ZONA WAKTU (+CST)
+  const hours = String(time.getHours()).padStart(2, '0');
+  const minutes = String(time.getMinutes()).padStart(2, '0');
+  const seconds = String(time.getSeconds()).padStart(2, '0');
+  const formattedTimeWithTZ = `${hours}:${minutes}:${seconds} +CST`;
 
   return (
     <div className="space-y-6">
       
-      {/* BARIS 1: KOTAK BIRU TUA (JAM) & KOTAK MERAH (KEUANGAN) */}
+      {/* BARIS 1: JAM REALTIME & REKAPAN KEUANGAN */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* KOTAK BIRU TUA: JAM & TANGGAL REALTIME */}
+        {/* JAM REALTIME WITH ZONA WAKTU +CST */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-indigo-500/30 shadow-xl flex flex-col justify-between relative overflow-hidden group">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <span className="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
@@ -179,8 +170,8 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
           </div>
 
           <div className="py-6 text-center space-y-2">
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-widest font-mono">
-              {formattedTime}
+            <h2 className="text-3xl md:text-4xl font-black text-white tracking-wider font-mono">
+              {formattedTimeWithTZ}
             </h2>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
               {formattedDate}
@@ -193,7 +184,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
           </div>
         </div>
 
-        {/* KOTAK MERAH: REKAPAN KEUANGAN & RINCIAN PER KATEGORI */}
+        {/* REKAPAN KEUANGAN */}
         <div className="lg:col-span-2 p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
@@ -210,7 +201,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
             </button>
           </div>
 
-          {/* TOTAL KEUANGAN (4 STATUS) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
               <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1 flex items-center gap-1">
@@ -245,7 +235,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
             </div>
           </div>
 
-          {/* KOTAK HIJAU TUA: PENGELUARAN PER KATEGORI */}
           <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20 space-y-2">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 block">
               TOTAL PENGELUARAN PER KATEGORI (BULAN INI)
@@ -270,13 +259,11 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
       </div>
 
-      {/* BARIS 2: 2 KOTAK MAROON (50%) & KOTAK KUNING JADWAL (50%) SEIMBANG DI TENGAH */}
+      {/* BARIS 2: AGENDA, TODO & JADWAL KULIAH */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         
-        {/* KIRI (50%): 2 KOTAK MAROON (AGENDA & TODO) */}
+        {/* AGENDA & TODO */}
         <div className="flex flex-col justify-between gap-6">
-          
-          {/* MAROON 1: AGENDA KULIAH MENDATANG */}
           <div className="p-5 rounded-3xl bg-rose-950/20 border border-rose-500/30 shadow-xl space-y-3 flex-1 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between border-b border-rose-900/40 pb-2.5 mb-2">
@@ -313,7 +300,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
             </div>
           </div>
 
-          {/* MAROON 2: TODO TUGAS TERDEKAT */}
           <div className="p-5 rounded-3xl bg-rose-950/20 border border-rose-500/30 shadow-xl space-y-3 flex-1 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between border-b border-rose-900/40 pb-2.5 mb-2">
@@ -349,10 +335,9 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
               </div>
             </div>
           </div>
-
         </div>
 
-        {/* KANAN (50%): KOTAK KUNING (JADWAL KULIAH HARI INI DENGAN RENTANG JAM) */}
+        {/* JADWAL KULIAH HARI INI */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -416,48 +401,61 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
 
       </div>
 
-      {/* BARIS 3: PERSENTASE PENGELUARAN REALTIME (TANPA INFINITE SPINNER) & MINI TOOLS */}
+      {/* BARIS 3: GRAFIK VISUAL PENGELUARAN & MINI TOOLS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* KIRI (PURPLE): RINCIAN PERSENTASE PENGELUARAN FIX */}
+        {/* GRAFIK PERSENTASE KEUANGAN VISUAL */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-purple-400" />
+              <BarChart3 className="w-5 h-5 text-purple-400" />
               <h3 className="text-xs font-extrabold uppercase tracking-wider text-purple-300">
-                PERSENTASE PENGELUARAN PER KATEGORI
+                GRAFIK DISTRIBUSI PENGELUARAN (BULAN INI)
               </h3>
             </div>
           </div>
 
-          <div className="space-y-3">
-            {totalPengeluaranBulanIni === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-6">
-                Belum ada data pengeluaran bulan ini.
-              </p>
-            ) : (
-              Object.entries(categoryTotals).map(([kat, val]) => {
-                const percent = Math.round((val / totalPengeluaranBulanIni) * 100);
-                return (
-                  <div key={kat} className="space-y-1">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-slate-300">{kat}</span>
-                      <span className="text-purple-400">{percent}% ({formatYuan(val)})</span>
+          {totalPengeluaranBulanIni === 0 ? (
+            <p className="text-xs text-slate-500 text-center py-10">
+              Belum ada data pengeluaran bulan ini.
+            </p>
+          ) : (
+            <div className="space-y-4 pt-1">
+              {/* DIAGRAM BATANG VERTIKAL / DIAGRAM KATEGORI */}
+              <div className="flex items-end justify-between gap-3 h-40 pt-6 pb-2 px-3 bg-slate-950/60 rounded-2xl border border-slate-800">
+                {Object.entries(categoryTotals).map(([kat, val]) => {
+                  const percent = Math.round((val / totalPengeluaranBulanIni) * 100);
+                  const barHeight = Math.max(15, percent); // Min 15% tinggi agar kelihatan
+
+                  return (
+                    <div key={kat} className="flex-1 flex flex-col items-center h-full justify-end group">
+                      <span className="text-[10px] font-black text-purple-300 mb-1 opacity-80 group-hover:opacity-100">
+                        {percent}%
+                      </span>
+                      <div className="w-full bg-slate-800 rounded-t-lg overflow-hidden flex items-end h-full">
+                        <div
+                          className="w-full bg-gradient-to-t from-purple-600 to-pink-500 rounded-t-lg transition-all duration-500"
+                          style={{ height: `${barHeight}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] font-extrabold text-slate-400 mt-2 truncate max-w-[50px]">
+                        {kat}
+                      </span>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })}
+              </div>
+
+              {/* STATS KEUANGAN RINGKAS */}
+              <div className="p-3 rounded-2xl bg-slate-800/40 border border-slate-700/50 flex justify-between items-center text-xs">
+                <span className="text-slate-400 font-bold">Total Pengeluaran:</span>
+                <span className="font-black text-rose-400">{formatYuan(totalPengeluaranBulanIni)} ({formatIDR(totalPengeluaranBulanIni)})</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* KANAN (ABU-ABU): MINI TOOLS DENGAN CATATAN CEPAT */}
+        {/* CATATAN CEPAT & MINI TOOLS */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-700/60 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
@@ -475,11 +473,11 @@ export default function DashboardTab({ transactions = [], kursYuan = 2671, setAc
           </div>
 
           <textarea
-            rows="3"
+            rows="5"
             placeholder="Ketik catatan cepat di sini..."
             value={quickNote}
             onChange={(e) => setQuickNote(e.target.value)}
-            className="w-full p-3 rounded-2xl bg-slate-800/60 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="w-full p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
           />
         </div>
 
