@@ -4,6 +4,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import KeuanganTab from '../components/KeuanganTab';
 import PaymentTab from '../components/PaymentTab';
 import TodoTugasTab from '../components/TodoTugasTab';
+import AgendaKuliahTab from '../components/AgendaKuliahTab';
 import ToolsTab from '../components/ToolsTab';
 
 export default function Home() {
@@ -21,24 +22,25 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Aplikasi Keuangan & Tugas Kuliah</title>
-        <meta name="description" content="Aplikasi Keuangan, Pembayaran Kuliah, dan Todo Tugas" />
+        <title>Aplikasi Keuangan & Agenda Kuliah</title>
+        <meta name="description" content="Aplikasi Keuangan, Pembayaran, Todo Tugas, dan Agenda Kuliah" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <div className="min-h-screen bg-[#07090e] text-slate-100 p-4 md:p-8 font-sans">
         <div className="max-w-6xl mx-auto space-y-8">
+          
           {/* HEADER DENGAN TOMBOL NAVIGASI TAB */}
-          <header className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800">
+          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800">
             <div>
               <h1 className="text-xl md:text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 uppercase">
-                Aplikasi Keuangan
+                APLIKASI KEUANGAN & KULIAH
               </h1>
             </div>
 
             {/* NAVIGASI HEADER */}
-            <nav className="flex items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/80 shadow-xl">
+            <nav className="flex flex-wrap items-center justify-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/80 shadow-xl">
               <button
                 onClick={() => setActiveTab('keuangan')}
                 className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
@@ -73,6 +75,17 @@ export default function Home() {
               </button>
 
               <button
+                onClick={() => setActiveTab('agenda')}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
+                  activeTab === 'agenda'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                Agenda Kuliah
+              </button>
+
+              <button
                 onClick={() => setActiveTab('tools')}
                 className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'tools'
@@ -85,7 +98,7 @@ export default function Home() {
             </nav>
           </header>
 
-          {/* RENDERING KONTEN BERDASARKAN TAB YANG AKTIF */}
+          {/* RENDERING KONTEN BERDASARKAN TAB AKTIF */}
           <main>
             {activeTab === 'keuangan' && (
               <KeuanganTab
@@ -101,6 +114,8 @@ export default function Home() {
             {activeTab === 'pembayaran' && <PaymentTab />}
 
             {activeTab === 'tugas' && <TodoTugasTab />}
+
+            {activeTab === 'agenda' && <AgendaKuliahTab />}
 
             {activeTab === 'tools' && <ToolsTab />}
           </main>
