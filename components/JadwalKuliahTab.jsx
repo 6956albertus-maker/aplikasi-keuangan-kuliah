@@ -63,30 +63,26 @@ export default function JadwalKuliahTab() {
   const [fixedSchedule, setFixedSchedule] = useState(INITIAL_FIXED_SCHEDULE);
   const [additionalSchedule, setAdditionalSchedule] = useState([]);
   
-  // State Form Input Jadwal Tambahan
+  // State Form Input
   const [showAddForm, setShowAddForm] = useState(false);
   const [inputHari, setInputHari] = useState('Senin');
   const [inputMatkul, setInputMatkul] = useState('');
   const [inputTempat, setInputTempat] = useState('');
   const [selectedJamList, setSelectedJamList] = useState([]);
 
-  // Load Status Toggle Smart Chip dari LocalStorage
   useEffect(() => {
     const savedChipStatus = localStorage.getItem('fixed_schedule_status');
     if (savedChipStatus) {
       try {
-        const parsed = JSON.parse(savedChipStatus);
-        setFixedSchedule(parsed);
+        setFixedSchedule(JSON.parse(savedChipStatus));
       } catch (e) {
         console.error('Failed to parse saved schedule status');
       }
     }
 
-    // Auto Reset On Setiap Minggu Baru (Pemeriksaan Pekan)
     const currentWeekYear = getWeekYearString(new Date());
     const lastSavedWeek = localStorage.getItem('last_saved_week');
     if (lastSavedWeek !== currentWeekYear) {
-      // Reset semua status menjadi ON
       setFixedSchedule(INITIAL_FIXED_SCHEDULE);
       localStorage.setItem('fixed_schedule_status', JSON.stringify(INITIAL_FIXED_SCHEDULE));
       localStorage.setItem('last_saved_week', currentWeekYear);
@@ -95,7 +91,6 @@ export default function JadwalKuliahTab() {
     fetchAdditionalSchedule();
   }, []);
 
-  // Helper Mendapatkan String Minggu untuk Reset Otomatis
   function getWeekYearString(date) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -105,13 +100,12 @@ export default function JadwalKuliahTab() {
     return `${d.getFullYear()}-W${weekNo}`;
   }
 
-  // Fetch Jadwal Tambahan dari Supabase
+  // FETCH DARI TABEL BARU "jadwal_kuliah"
   const fetchAdditionalSchedule = async () => {
     try {
       const { data, error } = await supabase
-        .from('agenda_kuliah')
-        .select('*')
-        .eq('tipe', 'jadwal_tambahan');
+        .from('jadwal_kuliah')
+        .select('*');
 
       if (error) throw error;
       if (data) setAdditionalSchedule(data);
@@ -120,7 +114,6 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  // Toggle On/Off Smart Chip Jadwal Tetap
   const toggleFixedSchedule = (day, id) => {
     const updated = {
       ...fixedSchedule,
@@ -132,13 +125,11 @@ export default function JadwalKuliahTab() {
     localStorage.setItem('fixed_schedule_status', JSON.stringify(updated));
   };
 
-  // Reset Manual Semua Smart Chip Menjadi ON
   const handleResetChips = () => {
     setFixedSchedule(INITIAL_FIXED_SCHEDULE);
     localStorage.setItem('fixed_schedule_status', JSON.stringify(INITIAL_FIXED_SCHEDULE));
   };
 
-  // Checkbox Handler Sesi Jam
   const handleJamCheckbox = (jamNum) => {
     if (selectedJamList.includes(jamNum)) {
       setSelectedJamList(selectedJamList.filter((j) => j !== jamNum));
@@ -147,7 +138,7 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  // Submit Jadwal Tambahan ke Supabase
+  // INSERT KE TABEL BARU "jadwal_kuliah"
   const handleAddAdditionalSchedule = async (e) => {
     e.preventDefault();
     if (!inputMatkul || !inputTempat || selectedJamList.length === 0) {
@@ -156,22 +147,20 @@ export default function JadwalKuliahTab() {
     }
 
     const payload = {
-      judul: inputMatkul,
-      keterangan: inputTempat,
-      tanggal: inputHari, // Menggunakan string hari (Senin, Selasa, dst)
-      kategori_jam: selectedJamList, // Array jam yang dipilih [1, 2, 3]
-      tipe: 'jadwal_tambahan',
-      seharian: false
+      hari: inputHari,
+      matkul: inputMatkul,
+      tempat: inputTempat,
+      kategori_jam: selectedJamList
     };
 
     const { data, error } = await supabase
-      .from('agenda_kuliah')
+      .from('jadwal_kuliah')
       .insert([payload])
       .select();
 
     if (error) {
       console.error('Gagal menambah jadwal tambahan:', error.message);
-      alert('Gagal menyimpan ke database.');
+      alert('Gagal menyimpan ke database: ' + error.message);
     } else if (data) {
       setAdditionalSchedule((prev) => [...prev, ...data]);
       setInputMatkul('');
@@ -181,13 +170,13 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  // Hapus Jadwal Tambahan
+  // DELETE DARI TABEL BARU "jadwal_kuliah"
   const handleDeleteAdditional = async (id) => {
     if (!window.confirm('Hapus jadwal tambahan ini?')) return;
     setAdditionalSchedule((prev) => prev.filter((item) => item.id !== id));
 
     const { error } = await supabase
-      .from('agenda_kuliah')
+      .from('jadwal_kuliah')
       .delete()
       .eq('id', id);
 
@@ -197,14 +186,12 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  // Gabungkan & Filter Jadwal Tetap Aktif dan Tambahan Sesuai Hari Terpilih
   const currentFixedList = (fixedSchedule[selectedDay] || []).filter((item) => item.active);
-  const currentAdditionalList = additionalSchedule.filter((item) => item.tanggal === selectedDay);
+  const currentAdditionalList = additionalSchedule.filter((item) => item.hari === selectedDay);
 
   return (
     <div className="space-y-6">
-
-      {/* HEADER RINGKASAN & AKSI RESET */}
+      {/* HEADER RINGKASAN */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wider text-purple-400 flex items-center gap-2">
@@ -224,11 +211,11 @@ export default function JadwalKuliahTab() {
         </button>
       </div>
 
-      {/* NAVIGASI PILIHAN HARI (SENIN - MINGGU) */}
+      {/* NAVIGASI HARI */}
       <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none">
         {DAYS.map((day) => {
           const hasActiveFixed = (fixedSchedule[day] || []).some((i) => i.active);
-          const hasAdditional = additionalSchedule.some((i) => i.tanggal === day);
+          const hasAdditional = additionalSchedule.some((i) => i.hari === day);
 
           return (
             <button
@@ -249,7 +236,7 @@ export default function JadwalKuliahTab() {
         })}
       </div>
 
-      {/* TIMELINE JADWAL 12 JAM UNTUK HARI YANG DIPILIH */}
+      {/* TIMELINE 12 SESI */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
@@ -258,7 +245,7 @@ export default function JadwalKuliahTab() {
           <span className="text-[11px] font-bold text-slate-500">1 Sesi = 45 Menit</span>
         </div>
 
-        {/* LIST SMART CHIP TOGGLE (ON/OFF) UNTUK JADWAL TETAP */}
+        {/* SMART CHIPS */}
         <div className="flex flex-wrap gap-2 pt-1 pb-3 border-b border-slate-800/80">
           <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 mr-2">
             Smart Chips:
@@ -284,12 +271,10 @@ export default function JadwalKuliahTab() {
           )}
         </div>
 
-        {/* GRID 12 SESI JAM BELAJAR */}
+        {/* GRID 12 SESI */}
         <div className="space-y-2.5 pt-2">
           {TIME_SLOTS.map((slot) => {
-            // Cek apakah ada jadwal tetap aktif di jam ini
             const fixedMatch = currentFixedList.find((item) => item.jam.includes(slot.jam));
-            // Cek apakah ada jadwal tambahan di jam ini
             const additionalMatch = currentAdditionalList.find((item) => {
               const jamArr = Array.isArray(item.kategori_jam) ? item.kategori_jam : [];
               return jamArr.includes(slot.jam);
@@ -317,7 +302,6 @@ export default function JadwalKuliahTab() {
                   </div>
                 </div>
 
-                {/* KONTEN MATA KULIAH */}
                 <div className="flex-1 sm:text-right">
                   {fixedMatch && (
                     <div>
@@ -331,10 +315,10 @@ export default function JadwalKuliahTab() {
                   {additionalMatch && (
                     <div className="mt-1 sm:mt-0">
                       <span className="text-xs font-black text-amber-300 block">
-                        [Tambahan] {additionalMatch.judul}
+                        [Tambahan] {additionalMatch.matkul}
                       </span>
                       <span className="text-[11px] text-slate-400 flex items-center sm:justify-end gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3 text-amber-400" /> {additionalMatch.keterangan}
+                        <MapPin className="w-3 h-3 text-amber-400" /> {additionalMatch.tempat}
                       </span>
                     </div>
                   )}
@@ -349,7 +333,7 @@ export default function JadwalKuliahTab() {
         </div>
       </div>
 
-      {/* MENU INPUT JADWAL TAMBAHAN */}
+      {/* INPUT JADWAL TAMBAHAN */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>
@@ -368,7 +352,6 @@ export default function JadwalKuliahTab() {
           </button>
         </div>
 
-        {/* FORM INPUT JADWAL TAMBAHAN */}
         {showAddForm && (
           <form onSubmit={handleAddAdditionalSchedule} className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700 space-y-4">
             <p className="text-xs font-bold text-slate-200">Form Tambah Jadwal</p>
@@ -418,7 +401,6 @@ export default function JadwalKuliahTab() {
               </div>
             </div>
 
-            {/* CHECKLIST DENGAN CHECKBOX JAM KEBERAPA SAJA */}
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 Pilih Jam Keberapa Saja (Checklist Multi-Pilih)
@@ -463,7 +445,7 @@ export default function JadwalKuliahTab() {
           </form>
         )}
 
-        {/* LIST DAFTAR JADWAL TAMBAHAN TERDAFTAR */}
+        {/* LIST DAFTAR JADWAL TAMBAHAN */}
         <div className="space-y-2.5">
           {additionalSchedule.length === 0 ? (
             <p className="text-xs text-slate-500 text-center py-4 border border-dashed border-slate-800 rounded-2xl">
@@ -476,9 +458,9 @@ export default function JadwalKuliahTab() {
                 className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/60 flex items-center justify-between gap-3"
               >
                 <div className="space-y-1">
-                  <p className="text-xs font-extrabold text-amber-300">{item.judul}</p>
+                  <p className="text-xs font-extrabold text-amber-300">{item.matkul}</p>
                   <p className="text-[11px] text-slate-400 flex items-center gap-2">
-                    <span className="font-bold text-white">{item.tanggal}</span> • {item.keterangan} • 
+                    <span className="font-bold text-white">{item.hari}</span> • {item.tempat} • 
                     <span className="text-purple-300">
                       Jam ke: {Array.isArray(item.kategori_jam) ? item.kategori_jam.join(', ') : '-'}
                     </span>
@@ -496,7 +478,6 @@ export default function JadwalKuliahTab() {
           )}
         </div>
       </div>
-
     </div>
   );
 }
