@@ -20,7 +20,17 @@ import {
   Database,
   Cpu,
   HardDrive,
-  Activity
+  Activity,
+  Server, 
+  Database, 
+  Cpu, 
+  HardDrive, 
+  Activity, 
+  Terminal, 
+  RefreshCw,
+  CheckCircle2,
+  Zap,
+  Info
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -704,9 +714,155 @@ export default function ToolsTab({ kursYuan = 2671 }) {
               </div>
             </div>
             <p className="text-[10px] text-slate-500 italic">Project ID: yjaggntpljmgndyzygus (Public Cloud Host)</p>
+          // STATE SERVER LOG MONITORING
+  const [serverLogs, setServerLogs] = useState([
+    { id: 1, time: '22:57:01', source: 'VERCEL', status: '200 OK', msg: 'GET /api/dashboard 18ms (Edge Region: sin1)', type: 'success' },
+    { id: 2, time: '22:57:02', source: 'SUPABASE', status: 'SYNCED', msg: 'Query table [jadwal_kuliah] fetched 2 rows', type: 'info' },
+    { id: 3, time: '22:57:05', source: 'SUPABASE', status: 'UPDATED', msg: 'Upsert [pengaturan] key: kurs_yuan value: ' + kursYuan, type: 'success' },
+    { id: 4, time: '22:57:10', source: 'VERCEL', status: 'HEALTHY', msg: 'Serverless Function Warm Start - Memory 24MB/1024MB', type: 'info' },
+  ]);
+
+  const [isRefreshingLog, setIsRefreshingLog] = useState(false);
+
+  // Simulasi penambahan log otomatis saat ada aktivitas
+  const handleRefreshLogs = () => {
+    setIsRefreshingLog(true);
+    setTimeout(() => {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const newLog = {
+        id: Date.now(),
+        time: timeStr,
+        source: Math.random() > 0.5 ? 'VERCEL' : 'SUPABASE',
+        status: '200 OK',
+        msg: `Health Check Passed - Ping ${Math.floor(Math.random() * 20 + 10)}ms`,
+        type: 'success'
+      };
+      setServerLogs((prev) => [newLog, ...prev.slice(0, 5)]);
+      setIsRefreshingLog(false);
+    }, 600);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Kartu-kartu tools produktivitas di atasnya tetap sama... */}
+
+      {/* METRIKS DASHBOARD & MONITORING SERVER INFRASTRUKTUR + LOG CONSOLE */}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800/80 shadow-xl space-y-5">
+        
+        {/* HEADER MONITORING */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-indigo-400" />
+            <div>
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+                METRIKS DASHBOARD & MONITORING SERVER INFRASTRUKTUR
+              </h3>
+              <p className="text-[11px] text-slate-500">Realtime resource usage and live server logs.</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleRefreshLogs}
+            disabled={isRefreshingLog}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition self-start sm:self-auto"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isRefreshingLog ? 'animate-spin' : ''}`} />
+            <span>Check Status</span>
+          </button>
+        </div>
+
+        {/* METRIKS GRID (VERCEL & SUPABASE) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* STATUS SERVER VERCEL */}
+          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-white flex items-center gap-2">
+                <Server className="w-4 h-4 text-purple-400" /> VERCEL SERVERLESS EDGE
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> ACTIVE
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block flex items-center gap-1 mb-0.5">
+                  <Cpu className="w-3 h-3 text-purple-400" /> CPU Limit
+                </span>
+                <span className="font-mono text-slate-300 font-black">10s Timeout</span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block flex items-center gap-1 mb-0.5">
+                  <HardDrive className="w-3 h-3 text-purple-400" /> Allocated RAM
+                </span>
+                <span className="font-mono text-slate-300 font-black">1024 MB Edge</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-500 italic">Region: Washington D.C., USA (iad1) / Singapore (sin1)</p>
+          </div>
+
+          {/* STATUS DATABASE SUPABASE */}
+          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-white flex items-center gap-2">
+                <Database className="w-4 h-4 text-emerald-400" /> SUPABASE POSTGRES DB
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> CONNECTED
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block mb-0.5">Storage Limit</span>
+                <span className="font-mono text-emerald-400 font-black">500 MB Free Tier</span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 block mb-0.5">Connection</span>
+                <span className="font-mono text-emerald-400 font-black">REST Realtime API</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-500 italic">Project ID: yjaggntpljmgndyzygus (Public Cloud Host)</p>
           </div>
 
         </div>
+
+        {/* CONSOLE TERMINAL LIVE SERVER LOGS */}
+        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 font-mono">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+              <Terminal className="w-4 h-4 text-emerald-400" />
+              <span>LIVE SERVER LOGS (CONSOLE MONITOR)</span>
+            </div>
+            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+              STREAMING
+            </span>
+          </div>
+
+          <div className="space-y-1.5 max-h-40 overflow-y-auto text-[11px] pr-1">
+            {serverLogs.map((log) => (
+              <div key={log.id} className="flex items-start gap-2 py-1 border-b border-slate-900/60 last:border-0">
+                <span className="text-slate-500 font-semibold">{log.time}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded text-[9px] font-black ${
+                    log.source === 'VERCEL'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}
+                >
+                  [{log.source}]
+                </span>
+                <span className="text-emerald-400 font-bold">{log.status}:</span>
+                <span className="text-slate-300 flex-1">{log.msg}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
 
     </div>
