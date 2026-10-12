@@ -9,29 +9,27 @@ import {
   Power, 
   RotateCcw,
   Check,
-  PlusCircle
+  PlusCircle,
+  Layers
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-// DAFTAR WAKTU REVISI (45 MINS/SESI + BREAK 5 MINS ANTAR SESI BLOK SAMA)
+// DAFTAR WAKTU TEPAT PER JAM PELAJARAN (12 SESI + BREAK 5 MINS)
 const TIME_SLOTS = [
   { jam: 1,  waktu: '08:00 - 08:45' },
-  { jam: 2,  waktu: '08:50 - 09:35' }, // Break 5 menit dari Jam 1
+  { jam: 2,  waktu: '08:50 - 09:35' },
   { jam: 3,  waktu: '09:50 - 10:35' },
-  { jam: 4,  waktu: '10:40 - 11:25' }, // Break 5 menit dari Jam 3
-  // Istirahat 1: 12:10 - 14:00
+  { jam: 4,  waktu: '10:40 - 11:25' },
   { jam: 5,  waktu: '14:00 - 14:45' },
-  { jam: 6,  waktu: '14:50 - 15:35' }, // Break 5 menit dari Jam 5
+  { jam: 6,  waktu: '14:50 - 15:35' },
   { jam: 7,  waktu: '15:50 - 16:35' },
-  { jam: 8,  waktu: '16:40 - 17:25' }, // Break 5 menit dari Jam 7
-  // Istirahat 2: 18:10 - 19:30
+  { jam: 8,  waktu: '16:40 - 17:25' },
   { jam: 9,  waktu: '19:30 - 20:15' },
-  { jam: 10, waktu: '20:20 - 21:05' }, // Break 5 menit dari Jam 9
+  { jam: 10, waktu: '20:20 - 21:05' },
   { jam: 11, waktu: '21:20 - 22:05' },
-  { jam: 12, waktu: '22:10 - 22:55' }, // Break 5 menit dari Jam 11
+  { jam: 12, waktu: '22:10 - 22:55' },
 ];
 
-// JADWAL TETAP REVISI TERBARU (HARI KAMIS DIPERBARUI)
 const INITIAL_FIXED_SCHEDULE = {
   Senin: [
     { id: 'fixed-s1', matkul: 'Chinese Comprehensive Course', tempat: 'Gedung 2 Ruangan 1-2', jam: [3, 4], active: true },
@@ -59,32 +57,67 @@ const INITIAL_FIXED_SCHEDULE = {
 
 const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
+// HELPER UNTUK MENGHITUNG MINGGU KULIAH BERJALAN
+const getCalculatedCollegeWeek = (semesterStartDateStr) => {
+  const startDate = new Date(semesterStartDateStr || '2026-09-01');
+  const today = new Date();
+  const diffTime = Math.max(0, today - startDate);
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.floor(diffDays / 7) + 1;
+};
+
 export default function JadwalKuliahTab() {
   const [selectedDay, setSelectedDay] = useState('Kamis');
+  const [currentWeek, setCurrentWeek] = useState(1);
+  
   const [fixedSchedule, setFixedSchedule] = useState(INITIAL_FIXED_SCHEDULE);
   const [additionalSchedule, setAdditionalSchedule] = useState([]);
   
   // State Form Input
   const [showAddForm, setShowAddForm] = useState(false);
   const [inputHari, setInputHari] = useState('Kamis');
+  const [inputMinggu, setInputMinggu] = useState(1);
   const [inputMatkul, setInputMatkul] = useState('');
   const [inputTempat, setInputTempat] = useState('');
   const [selectedJamList, setSelectedJamList] = useState([]);
 
   useEffect(() => {
-    // Selalu perbarui dengan struktur awal yang baru
-    const savedChipStatus = localStorage.getItem('fixed_schedule_status_v2');
-    if (savedChipStatus) {
+    // 1. Ambil Tanggal Mulai Semester dari Supabase/Pengaturan untuk Menentukan Minggu Ke-Berapa
+    const loadWeekAndSchedule = async () => {
+      let startDateStr = '2026-09-01';
       try {
-        setFixedSchedule(JSON.parse(savedChipStatus));
-      } catch (e) {
-        setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-      }
-    } else {
-      setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-      localStorage.setItem('fixed_schedule_status_v2', JSON.stringify(INITIAL_FIXED_SCHEDULE));
-    }
+        const { data } = await supabase
+          .from('pengaturan')
+          .select('value')
+          .eq('key', 'semester_start_str')
+          .single();
 
+        if (data && data.value) startDateStr = data.value;
+      } catch (e) {
+        console.error(e);
+      }
+
+      const calculatedWeek = getCalculatedCollegeWeek(startDateStr);
+      setCurrentWeek(calculatedWeek);
+      setInputMinggu(calculatedWeek);
+
+      // 2. Load Smart Chips Berdasarkan Kunci Minggu Saat Ini (Auto Reset Setiap Minggu Baru)
+      const weekStorageKey = `fixed_schedule_week_${calculatedWeek}`;
+      const savedChipStatus = localStorage.getItem(weekStorageKey);
+
+      if (savedChipStatus) {
+        try {
+          setFixedSchedule(JSON.parse(savedChipStatus));
+        } catch (e) {
+          setFixedSchedule(INITIAL_FIXED_SCHEDULE);
+        }
+      } else {
+        setFixedSchedule(INITIAL_FIXED_SCHEDULE);
+        localStorage.setItem(weekStorageKey, JSON.stringify(INITIAL_FIXED_SCHEDULE));
+      }
+    };
+
+    loadWeekAndSchedule();
     fetchAdditionalSchedule();
   }, []);
 
@@ -109,12 +142,12 @@ export default function JadwalKuliahTab() {
       )
     };
     setFixedSchedule(updated);
-    localStorage.setItem('fixed_schedule_status_v2', JSON.stringify(updated));
+    localStorage.setItem(`fixed_schedule_week_${currentWeek}`, JSON.stringify(updated));
   };
 
   const handleResetChips = () => {
     setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-    localStorage.setItem('fixed_schedule_status_v2', JSON.stringify(INITIAL_FIXED_SCHEDULE));
+    localStorage.setItem(`fixed_schedule_week_${currentWeek}`, JSON.stringify(INITIAL_FIXED_SCHEDULE));
   };
 
   const handleJamCheckbox = (jamNum) => {
@@ -136,7 +169,8 @@ export default function JadwalKuliahTab() {
       hari: inputHari,
       matkul: inputMatkul,
       tempat: inputTempat,
-      kategori_jam: selectedJamList
+      kategori_jam: selectedJamList,
+      minggu: Number(inputMinggu)
     };
 
     const { data, error } = await supabase
@@ -171,19 +205,28 @@ export default function JadwalKuliahTab() {
     }
   };
 
+  // FILTER JADWAL SESUAI MINGGU KULIAH BERJALAN DENGAN LOGIKA OTOMATIS
   const currentFixedList = (fixedSchedule[selectedDay] || []).filter((item) => item.active);
-  const currentAdditionalList = additionalSchedule.filter((item) => item.hari === selectedDay);
+  const currentAdditionalList = additionalSchedule.filter(
+    (item) => item.hari === selectedDay && (Number(item.minggu) === Number(currentWeek) || !item.minggu)
+  );
 
   return (
     <div className="space-y-6">
-      {/* HEADER RINGKASAN */}
+      {/* HEADER RINGKASAN & MINGGU KULIAH */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-sm font-black uppercase tracking-wider text-purple-400 flex items-center gap-2">
-            <BookOpen className="w-5 h-5" /> JADWAL KULIAH TETAP (S/D JULI 2027)
-          </h2>
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-purple-400" />
+            <h2 className="text-sm font-black uppercase tracking-wider text-purple-400">
+              JADWAL KULIAH TETAP & TAMBAHAN
+            </h2>
+            <span className="text-xs font-black px-3 py-1 rounded-full bg-purple-600/30 text-purple-300 border border-purple-500/40">
+              MINGGU KE-{currentWeek}
+            </span>
+          </div>
           <p className="text-xs text-slate-400 mt-1">
-            Toggle Smart Chip untuk meliburkan jadwal mingguan secara sementara. Reset otomatis setiap minggu baru.
+            Toggle Smart Chip ter-reset otomatis setiap berganti minggu. Jadwal tambahan otomatis terhapus/hilang saat minggu berlalu.
           </p>
         </div>
 
@@ -192,7 +235,7 @@ export default function JadwalKuliahTab() {
           className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-2 border border-slate-700 transition"
         >
           <RotateCcw className="w-4 h-4 text-purple-400" />
-          <span>Reset Chip On</span>
+          <span>Reset Chip On Minggu Ini</span>
         </button>
       </div>
 
@@ -200,7 +243,9 @@ export default function JadwalKuliahTab() {
       <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none">
         {DAYS.map((day) => {
           const hasActiveFixed = (fixedSchedule[day] || []).some((i) => i.active);
-          const hasAdditional = additionalSchedule.some((i) => i.hari === day);
+          const hasAdditional = additionalSchedule.some(
+            (i) => i.hari === day && (Number(i.minggu) === Number(currentWeek) || !i.minggu)
+          );
 
           return (
             <button
@@ -221,19 +266,19 @@ export default function JadwalKuliahTab() {
         })}
       </div>
 
-      {/* TIMELINE 12 SESI */}
+      {/* TIMELINE MINGGU KE-X */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-purple-400" /> TIMELINE {selectedDay.toUpperCase()} (12 SESI)
+            <CalendarDays className="w-4 h-4 text-purple-400" /> MINGGU KE-{currentWeek} ({selectedDay.toUpperCase()}) - 12 SESI
           </h3>
-          <span className="text-[11px] font-bold text-slate-500">1 Sesi = 45 Menit</span>
+          <span className="text-[11px] font-bold text-slate-500">1 Sesi = 45 Menit (+5 Min Break)</span>
         </div>
 
         {/* SMART CHIPS */}
         <div className="flex flex-wrap gap-2 pt-1 pb-3 border-b border-slate-800/80">
           <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 mr-2">
-            Smart Chips:
+            Smart Chips (Minggu {currentWeek}):
           </span>
           {(fixedSchedule[selectedDay] || []).length === 0 ? (
             <span className="text-xs text-slate-500 italic">Tidak ada jadwal tetap</span>
@@ -300,7 +345,7 @@ export default function JadwalKuliahTab() {
                   {additionalMatch && (
                     <div className="mt-1 sm:mt-0">
                       <span className="text-xs font-black text-amber-300 block">
-                        [Tambahan] {additionalMatch.matkul}
+                        [Tambahan Minggu {additionalMatch.minggu || currentWeek}] {additionalMatch.matkul}
                       </span>
                       <span className="text-[11px] text-slate-400 flex items-center sm:justify-end gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 text-amber-400" /> {additionalMatch.tempat}
@@ -318,14 +363,14 @@ export default function JadwalKuliahTab() {
         </div>
       </div>
 
-      {/* INPUT JADWAL TAMBAHAN */}
+      {/* INPUT JADWAL TAMBAHAN SPESIFIK MINGGU */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-              <PlusCircle className="w-4 h-4 text-purple-400" /> JADWAL TAMBAHAN / INSIDENTAL
+              <PlusCircle className="w-4 h-4 text-purple-400" /> JADWAL TAMBAHAN / INSIDENTAL (PER MINGGU)
             </h3>
-            <p className="text-[11px] text-slate-400">Tambah kelas pengganti atau jadwal belajar ekstra.</p>
+            <p className="text-[11px] text-slate-400">Pelajaran tambahan akan otomatis di-reset/hilang saat berpindah minggu.</p>
           </div>
 
           <button
@@ -339,9 +384,27 @@ export default function JadwalKuliahTab() {
 
         {showAddForm && (
           <form onSubmit={handleAddAdditionalSchedule} className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700 space-y-4">
-            <p className="text-xs font-bold text-slate-200">Form Tambah Jadwal</p>
+            <p className="text-xs font-bold text-slate-200">Form Tambah Jadwal Insidental</p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Minggu Ke-
+                </label>
+                <div className="flex items-center gap-1">
+                  <Layers className="w-3.5 h-3.5 text-purple-400" />
+                  <input
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={inputMinggu}
+                    onChange={(e) => setInputMinggu(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                   Hari
@@ -440,10 +503,19 @@ export default function JadwalKuliahTab() {
             additionalSchedule.map((item) => (
               <div
                 key={item.id}
-                className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/60 flex items-center justify-between gap-3"
+                className={`p-3.5 rounded-2xl bg-slate-800/40 border transition flex items-center justify-between gap-3 ${
+                  Number(item.minggu) === Number(currentWeek) || !item.minggu
+                    ? 'border-amber-500/40'
+                    : 'border-slate-800 opacity-40'
+                }`}
               >
                 <div className="space-y-1">
-                  <p className="text-xs font-extrabold text-amber-300">{item.matkul}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-amber-300">{item.matkul}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                      Minggu Ke-{item.minggu || currentWeek}
+                    </span>
+                  </div>
                   <p className="text-[11px] text-slate-400 flex items-center gap-2">
                     <span className="font-bold text-white">{item.hari}</span> • {item.tempat} • 
                     <span className="text-purple-300">
