@@ -18,11 +18,35 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-// PETA WAKTU SELESAI UNTUK MEMERIKSA APAKAH KELAS SUDAH BERAKHIR (DENGAN BREAK 5 MINS)
 const END_TIMES_MAP = {
   1: '08:45', 2: '09:35', 3: '10:35', 4: '11:25',
   5: '14:45', 6: '15:35', 7: '16:35', 8: '17:25',
   9: '20:15', 10: '21:05', 11: '22:05', 12: '22:55'
+};
+
+const INITIAL_FIXED_SCHEDULE = {
+  Senin: [
+    { id: 'fixed-s1', matkul: 'Chinese Comprehensive Course', tempat: 'Gedung 2 Ruangan 1-2', jam: [3, 4], active: true },
+    { id: 'fixed-s2', matkul: 'Chinese Listening Course', tempat: 'Gedung 2 Ruangan 111', jam: [5, 6], active: true },
+    { id: 'fixed-s3', matkul: 'Chinese Speaking Course', tempat: 'Gedung 2 Ruangan 209', jam: [7, 8], active: true },
+  ],
+  Selasa: [
+    { id: 'fixed-se1', matkul: 'Chinese Comprehensive Course', tempat: 'Gedung 2 Ruangan 303', jam: [3, 4], active: true },
+    { id: 'fixed-se2', matkul: 'Chinese Reading and Writing Course', tempat: 'Gedung 2 Ruangan 111', jam: [5, 6], active: true },
+  ],
+  Rabu: [
+    { id: 'fixed-r1', matkul: 'Chinese Culture Course', tempat: 'Gedung 2 Ruangan 2-1', jam: [1, 2], active: true },
+    { id: 'fixed-r2', matkul: 'Chinese Reading and Writing Course', tempat: 'Gedung 2 Ruangan 111', jam: [3, 4], active: true },
+  ],
+  Kamis: [
+    { id: 'fixed-k1', matkul: 'Chinese Speaking Course', tempat: 'Gedung 2 Ruangan 307', jam: [1, 2], active: true },
+    { id: 'fixed-k2', matkul: 'Chinese Listening Course', tempat: 'Gedung Teaching Ruangan 1-2', jam: [3, 4], active: true },
+  ],
+  Jumat: [
+    { id: 'fixed-j1', matkul: 'Chinese Culture Course', tempat: 'Gedung 2 Ruangan 203', jam: [3, 4], active: true },
+  ],
+  Sabtu: [],
+  Minggu: []
 };
 
 const getWaktuFromJamArray = (jamArr) => {
@@ -39,7 +63,6 @@ const getWaktuFromJamArray = (jamArr) => {
   return `${startMap[minJam] || ''} - ${END_TIMES_MAP[maxJam] || ''}`;
 };
 
-// HELPER PROSES URUTAN JADWAL SESUAI JAM TERAWAL (ASCENDING)
 const sortScheduleByJam = (scheduleList) => {
   if (!Array.isArray(scheduleList)) return [];
   return [...scheduleList].sort((a, b) => {
@@ -49,6 +72,14 @@ const sortScheduleByJam = (scheduleList) => {
   });
 };
 
+const getCalculatedCollegeWeek = (semesterStartDateStr) => {
+  const startDate = new Date(semesterStartDateStr || '2026-09-01');
+  const today = new Date();
+  const diffTime = Math.max(0, today - startDate);
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return Math.floor(diffDays / 7) + 1;
+};
+
 export default function DashboardTab({ transactions = [], kursYuan = 2694, setActiveTab }) {
   const [time, setTime] = useState(new Date());
 
@@ -56,19 +87,18 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
   const [todos, setTodos] = useState([]);
   const [displayedSchedule, setDisplayedSchedule] = useState([]);
   const [isScheduleTomorrow, setIsScheduleTomorrow] = useState(false);
+  const [currentCollegeWeek, setCurrentCollegeWeek] = useState(1);
 
   const [quickNote, setQuickNote] = useState('');
 
-  // TARGET ANGGARAN BULANAN (DI LUAR BIAYA KULIAH)
-  const TARGET_ANGGARAN_BULANAN = 1100; // ¥1.100 / Bulan
+  const TARGET_ANGGARAN_BULANAN = 1100;
 
-  // 1. REALTIME CLOCK
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // 2. FETCH SUPABASE DATA & DETERMINASI JADWAL
+  // SINKRONISASI JADWAL UTAMA SINKRON DENGAN JADWAL TAB (TETAP + TAMBAHAN + CHIPS)
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -94,6 +124,30 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
 
         if (todoData) setTodos(todoData);
 
+        // Fetch Start Date untuk Minggu Kuliah
+        let startDateStr = '2026-09-01';
+        const { data: setStart } = await supabase
+          .from('pengaturan')
+          .select('value')
+          .eq('key', 'semester_start_str')
+          .single();
+
+        if (setStart && setStart.value) startDateStr = setStart.value;
+
+        const currentWeekNum = getCalculatedCollegeWeek(startDateStr);
+        setCurrentCollegeWeek(currentWeekNum);
+
+        // Read Smart Chips
+        const savedChips = localStorage.getItem(`fixed_schedule_week_${currentWeekNum}`);
+        let activeFixedSchedule = INITIAL_FIXED_SCHEDULE;
+        if (savedChips) {
+          try { activeFixedSchedule = JSON.parse(savedChips); } catch (e) {}
+        }
+
+        // Fetch Additional Schedule
+        const { data: dbAdditional } = await supabase.from('jadwal_kuliah').select('*');
+        const additionalList = dbAdditional || [];
+
         // Determinasi Hari Ini & Besok
         const daysIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const now = new Date();
@@ -101,17 +155,35 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
         const todayDayName = daysIndo[currentDayIndex];
         const tomorrowDayName = daysIndo[(currentDayIndex + 1) % 7];
 
-        // Fetch Jadwal Hari Ini
-        const { data: todayJadwal } = await supabase
-          .from('jadwal_kuliah')
-          .select('*')
-          .eq('hari', todayDayName);
+        // Helper gabung jadwal tetap + tambahan
+        const getMergedScheduleForDay = (dayName) => {
+          const fixedForDay = (activeFixedSchedule[dayName] || [])
+            .filter((item) => item.active)
+            .map((item) => ({
+              id: item.id,
+              matkul: item.matkul,
+              tempat: item.tempat,
+              kategori_jam: item.jam
+            }));
+
+          const additionalForDay = additionalList
+            .filter((item) => item.hari === dayName && (Number(item.minggu) === Number(currentWeekNum) || !item.minggu))
+            .map((item) => ({
+              id: item.id,
+              matkul: item.matkul,
+              tempat: item.tempat,
+              kategori_jam: Array.isArray(item.kategori_jam) ? item.kategori_jam : []
+            }));
+
+          return sortScheduleByJam([...fixedForDay, ...additionalForDay]);
+        };
+
+        const todayCombinedSchedule = getMergedScheduleForDay(todayDayName);
 
         let isAllFinished = false;
-
-        if (todayJadwal && todayJadwal.length > 0) {
+        if (todayCombinedSchedule.length > 0) {
           let maxEndJam = 0;
-          todayJadwal.forEach((item) => {
+          todayCombinedSchedule.forEach((item) => {
             if (Array.isArray(item.kategori_jam) && item.kategori_jam.length > 0) {
               const localMax = Math.max(...item.kategori_jam);
               if (localMax > maxEndJam) maxEndJam = localMax;
@@ -132,15 +204,11 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
         }
 
         if (isAllFinished) {
-          const { data: tomorrowJadwal } = await supabase
-            .from('jadwal_kuliah')
-            .select('*')
-            .eq('hari', tomorrowDayName);
-
-          setDisplayedSchedule(sortScheduleByJam(tomorrowJadwal || []));
+          const tomorrowCombinedSchedule = getMergedScheduleForDay(tomorrowDayName);
+          setDisplayedSchedule(tomorrowCombinedSchedule);
           setIsScheduleTomorrow(true);
         } else {
-          setDisplayedSchedule(sortScheduleByJam(todayJadwal || []));
+          setDisplayedSchedule(todayCombinedSchedule);
           setIsScheduleTomorrow(false);
         }
 
@@ -152,12 +220,10 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
     fetchDashboardData();
   }, []);
 
-  // Helper Formatting
   const formatYuan = (val) => `¥${Number(val || 0).toLocaleString('de-DE')}`;
   const formatIDR = (valYuan) =>
     `Rp ${(Number(valYuan || 0) * kursYuan).toLocaleString('id-ID')}`;
 
-  // Calculation Keuangan
   const currentMonth = time.getMonth();
   const currentYear = time.getFullYear();
 
@@ -199,7 +265,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
           const kat = tx.kategori || 'Lain-lain';
           categoryTotals[kat] = (categoryTotals[kat] || 0) + nominal;
 
-          // HITUNG PENGELUARAN DILUAR BIAYA KULIAH
           if (kat.toLowerCase() !== 'biaya kuliah') {
             totalPengeluaranNonKuliah += nominal;
             if (dayNum >= 0 && dayNum < daysInMonth) {
@@ -211,7 +276,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
     }
   });
 
-  // PERSENTASE ANGGARAN TARGET BULANAN (TARGET ¥1.100)
   const targetPercent = Math.min(
     100,
     Math.round((totalPengeluaranNonKuliah / TARGET_ANGGARAN_BULANAN) * 100)
@@ -229,7 +293,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
   const seconds = String(time.getSeconds()).padStart(2, '0');
   const formattedTimeWithTZ = `${hours}:${minutes}:${seconds} +CST`;
 
-  // Kalkulasi Koordinat SVG Grafik
   const maxValGraph = Math.max(...dailyIncome, ...dailyExpenseNonKuliah, 100);
   const graphWidth = 500;
   const graphHeight = 120;
@@ -251,7 +314,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
       {/* BARIS 1: WAKTU REALTIME & REKAPAN KEUANGAN */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* JAM REALTIME WITH ZONA WAKTU +CST */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-indigo-500/30 shadow-xl flex flex-col justify-between relative overflow-hidden group">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <span className="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
@@ -277,7 +339,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
           </div>
         </div>
 
-        {/* REKAPAN KEUANGAN */}
         <div className="lg:col-span-2 p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
@@ -294,7 +355,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
             </button>
           </div>
 
-          {/* KARTU RINGKASAN KEUANGAN GRID */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
             <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
               <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1 flex items-center gap-1">
@@ -328,7 +388,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
               <p className="text-[9px] text-slate-500">{formatIDR(totalPengeluaranBulanIni)}</p>
             </div>
 
-            {/* KARTU BARU: PENGELUARAN NON-KULIAH */}
             <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30">
               <span className="text-[10px] font-extrabold text-purple-300 uppercase block mb-1 flex items-center gap-1">
                 <ShoppingBag className="w-3 h-3 text-purple-400" /> Excl. Kuliah
@@ -338,7 +397,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
             </div>
           </div>
 
-          {/* INDIKATOR TARGET ANGGARAN BULANAN (TARGET ¥1.100) */}
           <div className="p-3.5 rounded-2xl bg-purple-950/30 border border-purple-500/30 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-[11px] font-black text-purple-300 flex items-center gap-1.5">
@@ -387,10 +445,9 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
 
       </div>
 
-      {/* BARIS 2: AGENDA, TODO & JADWAL KULIAH */}
+      {/* BARIS 2: AGENDA, TODO & JADWAL KULIAH (SINKRON DENGAN CHIPS + MINGGU) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         
-        {/* AGENDA & TODO */}
         <div className="flex flex-col justify-between gap-6">
           <div className="p-5 rounded-3xl bg-rose-950/20 border border-rose-500/30 shadow-xl space-y-3 flex-1 flex flex-col justify-between">
             <div>
@@ -465,7 +522,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
           </div>
         </div>
 
-        {/* JADWAL KULIAH */}
+        {/* JADWAL KULIAH DASHBOARD */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
@@ -474,6 +531,9 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
                 <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-300">
                   {isScheduleTomorrow ? 'JADWAL KULIAH BESOK' : 'JADWAL KULIAH HARI INI'}
                 </h3>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  Minggu Ke-{currentCollegeWeek}
+                </span>
               </div>
               <button
                 onClick={() => setActiveTab('jadwal')}
@@ -538,7 +598,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
       {/* BARIS 3: GRAFIK GARIS TREN KEUANGAN & CATATAN CEPAT */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* GRAFIK GARIS TREN PEMASUKAN VS PENGELUARAN */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
@@ -606,7 +665,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
           </div>
         </div>
 
-        {/* CATATAN CEPAT & MINI TOOLS */}
         <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-700/60 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
