@@ -4,13 +4,18 @@ import {
   MapPin, 
   Plus, 
   Trash2, 
+  Edit3,
   BookOpen, 
   CalendarDays, 
   Power, 
   RotateCcw,
   Check,
   PlusCircle,
-  Layers
+  Layers,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  DoorClosed
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -69,20 +74,22 @@ const getCalculatedCollegeWeek = (semesterStartDateStr) => {
 export default function JadwalKuliahTab() {
   const [selectedDay, setSelectedDay] = useState('Kamis');
   const [currentWeek, setCurrentWeek] = useState(1);
+  const [activeWeek, setActiveWeek] = useState(1); // MINGGU YANG SEDANG DILIHAT/DIPILIH USER
   
   const [fixedSchedule, setFixedSchedule] = useState(INITIAL_FIXED_SCHEDULE);
   const [additionalSchedule, setAdditionalSchedule] = useState([]);
   
-  // State Form Input
+  // State Form Input / Edit
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState(null); // NULL = TAMBAH BARU, NOT NULL = EDIT
   const [inputHari, setInputHari] = useState('Kamis');
   const [inputMinggu, setInputMinggu] = useState(1);
   const [inputMatkul, setInputMatkul] = useState('');
-  const [inputTempat, setInputTempat] = useState('');
+  const [inputGedung, setInputGedung] = useState('');
+  const [inputRuangan, setInputRuangan] = useState('');
   const [selectedJamList, setSelectedJamList] = useState([]);
 
   useEffect(() => {
-    // 1. Ambil Tanggal Mulai Semester dari Supabase/Pengaturan untuk Menentukan Minggu Ke-Berapa
     const loadWeekAndSchedule = async () => {
       let startDateStr = '2026-09-01';
       try {
@@ -99,27 +106,39 @@ export default function JadwalKuliahTab() {
 
       const calculatedWeek = getCalculatedCollegeWeek(startDateStr);
       setCurrentWeek(calculatedWeek);
+      setActiveWeek(calculatedWeek);
       setInputMinggu(calculatedWeek);
 
-      // 2. Load Smart Chips Berdasarkan Kunci Minggu Saat Ini (Auto Reset Setiap Minggu Baru)
-      const weekStorageKey = `fixed_schedule_week_${calculatedWeek}`;
-      const savedChipStatus = localStorage.getItem(weekStorageKey);
-
-      if (savedChipStatus) {
-        try {
-          setFixedSchedule(JSON.parse(savedChipStatus));
-        } catch (e) {
-          setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-        }
-      } else {
-        setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-        localStorage.setItem(weekStorageKey, JSON.stringify(INITIAL_FIXED_SCHEDULE));
-      }
+      // Load status smart chips minggu aktif
+      loadChipsForWeek(calculatedWeek);
     };
 
     loadWeekAndSchedule();
     fetchAdditionalSchedule();
   }, []);
+
+  const loadChipsForWeek = (weekNum) => {
+    const weekStorageKey = `fixed_schedule_week_${weekNum}`;
+    const savedChipStatus = localStorage.getItem(weekStorageKey);
+
+    if (savedChipStatus) {
+      try {
+        setFixedSchedule(JSON.parse(savedChipStatus));
+      } catch (e) {
+        setFixedSchedule(INITIAL_FIXED_SCHEDULE);
+      }
+    } else {
+      setFixedSchedule(INITIAL_FIXED_SCHEDULE);
+      localStorage.setItem(weekStorageKey, JSON.stringify(INITIAL_FIXED_SCHEDULE));
+    }
+  };
+
+  const handleWeekChange = (newWeek) => {
+    const targetWeek = Math.max(1, Math.min(20, Number(newWeek)));
+    setActiveWeek(targetWeek);
+    setInputMinggu(targetWeek);
+    loadChipsForWeek(targetWeek);
+  };
 
   const fetchAdditionalSchedule = async () => {
     try {
@@ -142,12 +161,12 @@ export default function JadwalKuliahTab() {
       )
     };
     setFixedSchedule(updated);
-    localStorage.setItem(`fixed_schedule_week_${currentWeek}`, JSON.stringify(updated));
+    localStorage.setItem(`fixed_schedule_week_${activeWeek}`, JSON.stringify(updated));
   };
 
   const handleResetChips = () => {
     setFixedSchedule(INITIAL_FIXED_SCHEDULE);
-    localStorage.setItem(`fixed_schedule_week_${currentWeek}`, JSON.stringify(INITIAL_FIXED_SCHEDULE));
+    localStorage.setItem(`fixed_schedule_week_${activeWeek}`, JSON.stringify(INITIAL_FIXED_SCHEDULE));
   };
 
   const handleJamCheckbox = (jamNum) => {
@@ -158,35 +177,97 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  const handleAddAdditionalSchedule = async (e) => {
+  // HELPER MENGGABUNGKAN TEKS GEDUNG DAN RUANGAN
+  const formatTempatString = (gedung, ruangan) => {
+    const g = gedung ? (gedung.toLowerCase().includes('gedung') ? gedung : `Gedung ${gedung}`) : '';
+    const r = ruangan ? (ruangan.toLowerCase().includes('ruang') ? ruangan : `Ruangan ${ruangan}`) : '';
+    return [g, r].filter(Boolean).join(' ');
+  };
+
+  // BUKA FORM UNTUK EDIT
+  const handleOpenEdit = (item) => {
+    setEditingId(item.id);
+    setInputHari(item.hari || 'Kamis');
+    setInputMinggu(item.minggu || activeWeek);
+    setInputMatkul(item.matkul || '');
+
+    // Parse gedung & ruangan jika tersimpan bersama
+    let rawTempat = item.tempat || '';
+    let gVal = '';
+    let rVal = '';
+
+    if (rawTempat.includes('Ruangan')) {
+      const parts = rawTempat.split('Ruangan');
+      gVal = parts[0].replace('Gedung', '').trim();
+      rVal = parts[1].trim();
+    } else if (rawTempat.includes('Gedung')) {
+      gVal = rawTempat.replace('Gedung', '').trim();
+    } else {
+      gVal = rawTempat;
+    }
+
+    setInputGedung(gVal);
+    setInputRuangan(rVal);
+    setSelectedJamList(Array.isArray(item.kategori_jam) ? item.kategori_jam : []);
+    setShowAddForm(true);
+  };
+
+  const handleCancelForm = () => {
+    setShowAddForm(false);
+    setEditingId(null);
+    setInputMatkul('');
+    setInputGedung('');
+    setInputRuangan('');
+    setSelectedJamList([]);
+  };
+
+  // SIMPAN TAMBAH ATAU EDIT JADWAL TAMBAHAN
+  const handleSaveAdditionalSchedule = async (e) => {
     e.preventDefault();
-    if (!inputMatkul || !inputTempat || selectedJamList.length === 0) {
-      alert('Mohon isi Mata Kuliah, Tempat, dan pilih minimal 1 Jam Sesi!');
+    if (!inputMatkul || (!inputGedung && !inputRuangan) || selectedJamList.length === 0) {
+      alert('Mohon isi Mata Kuliah, Gedung/Ruangan, dan pilih minimal 1 Jam Sesi!');
       return;
     }
+
+    const compiledTempat = formatTempatString(inputGedung, inputRuangan);
 
     const payload = {
       hari: inputHari,
       matkul: inputMatkul,
-      tempat: inputTempat,
+      tempat: compiledTempat,
       kategori_jam: selectedJamList,
       minggu: Number(inputMinggu)
     };
 
-    const { data, error } = await supabase
-      .from('jadwal_kuliah')
-      .insert([payload])
-      .select();
+    if (editingId) {
+      // PROSES EDIT
+      const { data, error } = await supabase
+        .from('jadwal_kuliah')
+        .update(payload)
+        .eq('id', editingId)
+        .select();
 
-    if (error) {
-      console.error('Gagal menambah jadwal tambahan:', error.message);
-      alert('Gagal menyimpan ke database: ' + error.message);
-    } else if (data) {
-      setAdditionalSchedule((prev) => [...prev, ...data]);
-      setInputMatkul('');
-      setInputTempat('');
-      setSelectedJamList([]);
-      setShowAddForm(false);
+      if (error) {
+        alert('Gagal memperbarui jadwal: ' + error.message);
+      } else if (data) {
+        setAdditionalSchedule((prev) =>
+          prev.map((item) => (item.id === editingId ? data[0] : item))
+        );
+        handleCancelForm();
+      }
+    } else {
+      // PROSES TAMBAH BARU
+      const { data, error } = await supabase
+        .from('jadwal_kuliah')
+        .insert([payload])
+        .select();
+
+      if (error) {
+        alert('Gagal menyimpan jadwal: ' + error.message);
+      } else if (data) {
+        setAdditionalSchedule((prev) => [...prev, ...data]);
+        handleCancelForm();
+      }
     }
   };
 
@@ -205,38 +286,72 @@ export default function JadwalKuliahTab() {
     }
   };
 
-  // FILTER JADWAL SESUAI MINGGU KULIAH BERJALAN DENGAN LOGIKA OTOMATIS
+  // FILTER JADWAL SESUAI MINGGU YANG SEDANG DILIHAT (ACTIVE WEEK)
   const currentFixedList = (fixedSchedule[selectedDay] || []).filter((item) => item.active);
   const currentAdditionalList = additionalSchedule.filter(
-    (item) => item.hari === selectedDay && (Number(item.minggu) === Number(currentWeek) || !item.minggu)
+    (item) => item.hari === selectedDay && (Number(item.minggu) === Number(activeWeek) || !item.minggu)
   );
 
   return (
     <div className="space-y-6">
-      {/* HEADER RINGKASAN & MINGGU KULIAH */}
-      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      
+      {/* HEADER RINGKASAN & MENU SELEKTOR GANTI MINGGU */}
+      <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-purple-400" />
             <h2 className="text-sm font-black uppercase tracking-wider text-purple-400">
               JADWAL KULIAH TETAP & TAMBAHAN
             </h2>
-            <span className="text-xs font-black px-3 py-1 rounded-full bg-purple-600/30 text-purple-300 border border-purple-500/40">
-              MINGGU KE-{currentWeek}
-            </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Toggle Smart Chip ter-reset otomatis setiap berganti minggu. Jadwal tambahan otomatis terhapus/hilang saat minggu berlalu.
+            Toggle Smart Chip ter-reset otomatis per minggu. Jadwal tambahan otomatis tersaring berdasar minggu aktif.
           </p>
         </div>
 
-        <button
-          onClick={handleResetChips}
-          className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-2 border border-slate-700 transition"
-        >
-          <RotateCcw className="w-4 h-4 text-purple-400" />
-          <span>Reset Chip On Minggu Ini</span>
-        </button>
+        {/* CONTROLLER SELEKTOR GANTI MINGGU */}
+        <div className="flex items-center gap-3 self-start md:self-auto">
+          <div className="flex items-center bg-slate-800 p-1.5 rounded-2xl border border-purple-500/30">
+            <button
+              onClick={() => handleWeekChange(activeWeek - 1)}
+              className="p-1.5 rounded-xl hover:bg-slate-700 text-purple-300 transition"
+              title="Minggu Sebelumnya"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div className="px-3 text-center">
+              <span className="text-[9px] font-bold text-slate-400 uppercase block">TAMPILAN</span>
+              <select
+                value={activeWeek}
+                onChange={(e) => handleWeekChange(e.target.value)}
+                className="bg-transparent text-xs font-black text-purple-300 focus:outline-none cursor-pointer"
+              >
+                {Array.from({ length: 20 }, (_, i) => i + 1).map((w) => (
+                  <option key={w} value={w} className="bg-slate-900 text-white font-bold">
+                    Minggu Ke-{w} {w === currentWeek ? '(Saat Ini)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={() => handleWeekChange(activeWeek + 1)}
+              className="p-1.5 rounded-xl hover:bg-slate-700 text-purple-300 transition"
+              title="Minggu Berikutnya"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          <button
+            onClick={handleResetChips}
+            className="px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-2 border border-slate-700 transition"
+          >
+            <RotateCcw className="w-4 h-4 text-purple-400" />
+            <span className="hidden sm:inline">Reset Chip Minggu Ini</span>
+          </button>
+        </div>
       </div>
 
       {/* NAVIGASI HARI */}
@@ -244,7 +359,7 @@ export default function JadwalKuliahTab() {
         {DAYS.map((day) => {
           const hasActiveFixed = (fixedSchedule[day] || []).some((i) => i.active);
           const hasAdditional = additionalSchedule.some(
-            (i) => i.hari === day && (Number(i.minggu) === Number(currentWeek) || !i.minggu)
+            (i) => i.hari === day && (Number(i.minggu) === Number(activeWeek) || !i.minggu)
           );
 
           return (
@@ -270,7 +385,7 @@ export default function JadwalKuliahTab() {
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-purple-400" /> MINGGU KE-{currentWeek} ({selectedDay.toUpperCase()}) - 12 SESI
+            <CalendarDays className="w-4 h-4 text-purple-400" /> MINGGU KE-{activeWeek} ({selectedDay.toUpperCase()}) - 12 SESI
           </h3>
           <span className="text-[11px] font-bold text-slate-500">1 Sesi = 45 Menit (+5 Min Break)</span>
         </div>
@@ -278,7 +393,7 @@ export default function JadwalKuliahTab() {
         {/* SMART CHIPS */}
         <div className="flex flex-wrap gap-2 pt-1 pb-3 border-b border-slate-800/80">
           <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 mr-2">
-            Smart Chips (Minggu {currentWeek}):
+            Smart Chips (Minggu {activeWeek}):
           </span>
           {(fixedSchedule[selectedDay] || []).length === 0 ? (
             <span className="text-xs text-slate-500 italic">Tidak ada jadwal tetap</span>
@@ -345,7 +460,7 @@ export default function JadwalKuliahTab() {
                   {additionalMatch && (
                     <div className="mt-1 sm:mt-0">
                       <span className="text-xs font-black text-amber-300 block">
-                        [Tambahan Minggu {additionalMatch.minggu || currentWeek}] {additionalMatch.matkul}
+                        [Tambahan Minggu {additionalMatch.minggu || activeWeek}] {additionalMatch.matkul}
                       </span>
                       <span className="text-[11px] text-slate-400 flex items-center sm:justify-end gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 text-amber-400" /> {additionalMatch.tempat}
@@ -363,30 +478,43 @@ export default function JadwalKuliahTab() {
         </div>
       </div>
 
-      {/* INPUT JADWAL TAMBAHAN SPESIFIK MINGGU */}
+      {/* INPUT / EDIT JADWAL TAMBAHAN */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>
             <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-2">
               <PlusCircle className="w-4 h-4 text-purple-400" /> JADWAL TAMBAHAN / INSIDENTAL (PER MINGGU)
             </h3>
-            <p className="text-[11px] text-slate-400">Pelajaran tambahan akan otomatis di-reset/hilang saat berpindah minggu.</p>
+            <p className="text-[11px] text-slate-400">Tambahkan atau perbarui kelas pengganti/tambahan untuk minggu tertentu.</p>
           </div>
 
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => {
+              if (showAddForm) handleCancelForm();
+              else setShowAddForm(true);
+            }}
             className="px-3.5 py-2 rounded-xl bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
           >
             <Plus className="w-4 h-4" />
-            <span>Input Jadwal Tambahan</span>
+            <span>{showAddForm ? 'Tutup Form' : 'Input Jadwal Tambahan'}</span>
           </button>
         </div>
 
+        {/* FORM TAMBAH / EDIT */}
         {showAddForm && (
-          <form onSubmit={handleAddAdditionalSchedule} className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700 space-y-4">
-            <p className="text-xs font-bold text-slate-200">Form Tambah Jadwal Insidental</p>
+          <form onSubmit={handleSaveAdditionalSchedule} className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black text-purple-300">
+                {editingId ? 'Edit Jadwal Insidental' : 'Form Tambah Jadwal Insidental'}
+              </p>
+              {editingId && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  Mode Edit
+                </span>
+              )}
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                   Minggu Ke-
@@ -396,7 +524,7 @@ export default function JadwalKuliahTab() {
                   <input
                     type="number"
                     min="1"
-                    max="30"
+                    max="20"
                     value={inputMinggu}
                     onChange={(e) => setInputMinggu(e.target.value)}
                     className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-purple-500"
@@ -426,7 +554,7 @@ export default function JadwalKuliahTab() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: Kelas Pengganti HSK"
+                  placeholder="Misal: Chinese Listening"
                   value={inputMatkul}
                   onChange={(e) => setInputMatkul(e.target.value)}
                   className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -434,17 +562,31 @@ export default function JadwalKuliahTab() {
                 />
               </div>
 
+              {/* INPUT INPUT GEDUNG */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Tempat / Ruangan
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                  <Building2 className="w-3 h-3 text-purple-400" /> Gedung
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: Gedung Teaching Ruangan 1-2"
-                  value={inputTempat}
-                  onChange={(e) => setInputTempat(e.target.value)}
+                  placeholder="Misal: 2 atau Teaching"
+                  value={inputGedung}
+                  onChange={(e) => setInputGedung(e.target.value)}
                   className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  required
+                />
+              </div>
+
+              {/* INPUT INPUT RUANGAN */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                  <DoorClosed className="w-3 h-3 text-purple-400" /> Ruangan
+                </label>
+                <input
+                  type="text"
+                  placeholder="Misal: 111 atau 1-2"
+                  value={inputRuangan}
+                  onChange={(e) => setInputRuangan(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -478,7 +620,7 @@ export default function JadwalKuliahTab() {
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setShowAddForm(false)}
+                onClick={handleCancelForm}
                 className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-semibold hover:text-white"
               >
                 Batal
@@ -487,7 +629,7 @@ export default function JadwalKuliahTab() {
                 type="submit"
                 className="px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-500"
               >
-                Simpan Jadwal Tambahan
+                {editingId ? 'Perbarui Jadwal' : 'Simpan Jadwal Tambahan'}
               </button>
             </div>
           </form>
@@ -504,7 +646,7 @@ export default function JadwalKuliahTab() {
               <div
                 key={item.id}
                 className={`p-3.5 rounded-2xl bg-slate-800/40 border transition flex items-center justify-between gap-3 ${
-                  Number(item.minggu) === Number(currentWeek) || !item.minggu
+                  Number(item.minggu) === Number(activeWeek) || !item.minggu
                     ? 'border-amber-500/40'
                     : 'border-slate-800 opacity-40'
                 }`}
@@ -513,7 +655,7 @@ export default function JadwalKuliahTab() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-extrabold text-amber-300">{item.matkul}</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                      Minggu Ke-{item.minggu || currentWeek}
+                      Minggu Ke-{item.minggu || activeWeek}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400 flex items-center gap-2">
@@ -524,12 +666,25 @@ export default function JadwalKuliahTab() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteAdditional(item.id)}
-                  className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg transition"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* TOMBOL EDIT */}
+                  <button
+                    onClick={() => handleOpenEdit(item)}
+                    className="p-1.5 text-slate-400 hover:text-amber-400 rounded-lg transition"
+                    title="Edit Jadwal"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+
+                  {/* TOMBOL HAPUS */}
+                  <button
+                    onClick={() => handleDeleteAdditional(item.id)}
+                    className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg transition"
+                    title="Hapus Jadwal"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))
           )}
