@@ -24,12 +24,16 @@ import {
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
+// KATEGORI PENGELUARAN LENGKAP DENGAN JAJAN, TRANSPORTASI, DAN PULSA
 const KATEGORI_PENGELUARAN = [
   'Makan',
   'Minum',
-  'Biaya Kuliah',
+  'Jajan',
   'Belanja',
   'Laundry',
+  'Transportasi',
+  'Pulsa',
+  'Biaya Kuliah',
   'Lain-lain',
 ];
 
@@ -160,7 +164,6 @@ export default function KeuanganTab({
       10
     );
 
-    // Diberikan margin 20% di atas titik tertinggi agar tooltip tidak terpotong
     const maxVal = rawMax * 1.2;
 
     return { months, maxVal };
@@ -335,11 +338,10 @@ export default function KeuanganTab({
     }
   };
 
-  // UKURAN SVG DENGAN PADDING ATAS LEBIH BESAR
   const svgWidth = 800;
   const svgHeight = 260;
   const paddingX = 40;
-  const paddingY = 50; // Jarak atas diperbesar agar tooltip muat sempurna
+  const paddingY = 50;
 
   const pointsPemasukan = monthlyChartData.months.map((item, idx) => {
     const x = paddingX + (idx * (svgWidth - paddingX * 2)) / 11;
@@ -491,7 +493,7 @@ export default function KeuanganTab({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {KATEGORI_PENGELUARAN.map((cat) => {
             const val = summary.categoryTotals[cat] || 0;
             return (
@@ -514,7 +516,7 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 3. GRAFIK GARIS BULANAN (DENGAN RUANG DITAMBAHKAN AGAR TOOLTIP TIDAK TERPOTONG) */}
+      {/* 3. GRAFIK GARIS BULANAN */}
       <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
@@ -715,7 +717,7 @@ export default function KeuanganTab({
               <label className="text-[11px] font-bold text-slate-400">Keterangan</label>
               <input
                 type="text"
-                placeholder={isTukar ? "Contoh: Tukar Mixue Teman" : "Contoh: Isi Pulsa / Makan"}
+                placeholder={isTukar ? "Contoh: Tukar Mixue Teman" : "Contoh: Beli Jajan / Pulsa"}
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
