@@ -98,7 +98,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
     return () => clearInterval(timer);
   }, []);
 
-  // SINKRONISASI JADWAL UTAMA SINKRON DENGAN JADWAL TAB (TETAP + TAMBAHAN + CHIPS)
+  // SINKRONISASI JADWAL UTAMA SINKRON DENGAN JADWAL TAB
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -155,7 +155,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
         const todayDayName = daysIndo[currentDayIndex];
         const tomorrowDayName = daysIndo[(currentDayIndex + 1) % 7];
 
-        // Helper gabung jadwal tetap + tambahan
         const getMergedScheduleForDay = (dayName) => {
           const fixedForDay = (activeFixedSchedule[dayName] || [])
             .filter((item) => item.active)
@@ -227,8 +226,10 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
   const currentMonth = time.getMonth();
   const currentYear = time.getFullYear();
 
+  // PEMISAHAN SALDO AKUN BCA & BOC
   let totalTunai = 0;
-  let totalBank = 0;
+  let totalBCA = 0;
+  let totalBOC = 0;
   let totalPemasukanBulanIni = 0;
   let totalPengeluaranBulanIni = 0;
   let totalPengeluaranNonKuliah = 0;
@@ -241,13 +242,21 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
 
   transactions.forEach((tx) => {
     const nominal = Number(tx.nominal_yuan) || 0;
-    
+    const m = tx.metode ? tx.metode.toUpperCase() : 'CASH';
+
+    const isCash = m === 'CASH' || m === 'TUNAI';
+    const isBoc = m === 'BOC' || m.includes('BOC');
+    const isBca = m === 'BCA' || m.includes('BCA') || (!isCash && !isBoc);
+
+    // Saldo Akun Tetap Terupdate dari Semua Transaksi
     if (tx.tipe === 'pemasukan') {
-      if (tx.metode === 'Tunai') totalTunai += nominal;
-      if (tx.metode === 'Bank') totalBank += nominal;
+      if (isCash) totalTunai += nominal;
+      else if (isBoc) totalBOC += nominal;
+      else if (isBca) totalBCA += nominal;
     } else {
-      if (tx.metode === 'Tunai') totalTunai -= nominal;
-      if (tx.metode === 'Bank') totalBank -= nominal;
+      if (isCash) totalTunai -= nominal;
+      else if (isBoc) totalBOC -= nominal;
+      else if (isBca) totalBCA -= nominal;
     }
 
     if (tx.tanggal) {
@@ -255,20 +264,28 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
       if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
         const dayNum = d.getDate() - 1;
 
-        if (tx.tipe === 'pemasukan') {
-          totalPemasukanBulanIni += nominal;
-          if (dayNum >= 0 && dayNum < daysInMonth) {
-            dailyIncome[dayNum] += nominal;
-          }
-        } else {
-          totalPengeluaranBulanIni += nominal;
-          const kat = tx.kategori || 'Lain-lain';
-          categoryTotals[kat] = (categoryTotals[kat] || 0) + nominal;
+        // Cek Transaksi Tukar/Transfer
+        const isTukarTx =
+          tx.kategori === 'Transfer / Tukar' ||
+          (tx.keterangan && tx.keterangan.startsWith('[Tukar'));
 
-          if (kat.toLowerCase() !== 'biaya kuliah') {
-            totalPengeluaranNonKuliah += nominal;
+        // Transaksi Tukar Ditinggalkan dari Statistik Pemasukan/Pengeluaran
+        if (!isTukarTx) {
+          if (tx.tipe === 'pemasukan') {
+            totalPemasukanBulanIni += nominal;
             if (dayNum >= 0 && dayNum < daysInMonth) {
-              dailyExpenseNonKuliah[dayNum] += nominal;
+              dailyIncome[dayNum] += nominal;
+            }
+          } else {
+            totalPengeluaranBulanIni += nominal;
+            const kat = tx.kategori || 'Lain-lain';
+            categoryTotals[kat] = (categoryTotals[kat] || 0) + nominal;
+
+            if (kat.toLowerCase() !== 'biaya kuliah') {
+              totalPengeluaranNonKuliah += nominal;
+              if (dayNum >= 0 && dayNum < daysInMonth) {
+                dailyExpenseNonKuliah[dayNum] += nominal;
+              }
             }
           }
         }
@@ -355,21 +372,30 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
             </button>
           </div>
 
+          {/* DIPERBAIKI: PISAH BANK BCA & BANK BOC */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
             <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
               <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1 flex items-center gap-1">
-                <Banknote className="w-3 h-3 text-amber-400" /> Tunai
+                <Banknote className="w-3 h-3 text-purple-400" /> Tunai
               </span>
               <p className="text-xs font-black text-white">{formatYuan(totalTunai)}</p>
               <p className="text-[9px] text-slate-500">{formatIDR(totalTunai)}</p>
             </div>
 
             <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
-              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1 flex items-center gap-1">
-                <Building2 className="w-3 h-3 text-cyan-400" /> Bank
+              <span className="text-[10px] font-bold text-cyan-400 uppercase block mb-1 flex items-center gap-1">
+                <Building2 className="w-3 h-3 text-cyan-400" /> Bank BCA
               </span>
-              <p className="text-xs font-black text-white">{formatYuan(totalBank)}</p>
-              <p className="text-[9px] text-slate-500">{formatIDR(totalBank)}</p>
+              <p className="text-xs font-black text-white">{formatYuan(totalBCA)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalBCA)}</p>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
+              <span className="text-[10px] font-bold text-red-400 uppercase block mb-1 flex items-center gap-1">
+                <Building2 className="w-3 h-3 text-red-400" /> Bank BOC
+              </span>
+              <p className="text-xs font-black text-white">{formatYuan(totalBOC)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalBOC)}</p>
             </div>
 
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
@@ -378,14 +404,6 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
               </span>
               <p className="text-xs font-black text-emerald-400">+{formatYuan(totalPemasukanBulanIni)}</p>
               <p className="text-[9px] text-slate-500">{formatIDR(totalPemasukanBulanIni)}</p>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-              <span className="text-[10px] font-bold text-rose-400 uppercase block mb-1 flex items-center gap-1">
-                <TrendingDown className="w-3 h-3" /> Total Keluar
-              </span>
-              <p className="text-xs font-black text-rose-400">-{formatYuan(totalPengeluaranBulanIni)}</p>
-              <p className="text-[9px] text-slate-500">{formatIDR(totalPengeluaranBulanIni)}</p>
             </div>
 
             <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30">
@@ -445,7 +463,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
 
       </div>
 
-      {/* BARIS 2: AGENDA, TODO & JADWAL KULIAH (SINKRON DENGAN CHIPS + MINGGU) */}
+      {/* BARIS 2: AGENDA, TODO & JADWAL KULIAH */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         
         <div className="flex flex-col justify-between gap-6">
