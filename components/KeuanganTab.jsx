@@ -58,9 +58,10 @@ export default function KeuanganTab({
   const [keterangan, setKeterangan] = useState('');
   const [nominalYuan, setNominalYuan] = useState('');
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
-  const [metode, setMetode] = useState('Cash');
+  const [metode, setMetode] = useState('Cash'); // Opsi: 'Cash', 'BCA', 'BOC'
   const [kategori, setKategori] = useState('Makan');
   const [isTukar, setIsTukar] = useState(false);
+  const [metodeTukarAsal, setMetodeTukarAsal] = useState('BCA');
 
   const [editingTx, setEditingTx] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -79,10 +80,11 @@ export default function KeuanganTab({
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
 
-  // RINGKASAN KEUANGAN
+  // RINGKASAN KEUANGAN DENGAN PEMISAHAN BCA & BOC
   const summary = useMemo(() => {
     let totalTunai = 0;
-    let totalBank = 0;
+    let totalBCA = 0;
+    let totalBOC = 0;
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
 
@@ -93,14 +95,20 @@ export default function KeuanganTab({
 
     transactions.forEach((tx) => {
       const amount = Number(tx.nominal_yuan) || 0;
-      const isCash = tx.metode === 'Cash' || tx.metode === 'Tunai';
+      const m = tx.metode ? tx.metode.toUpperCase() : 'CASH';
+
+      const isCash = m === 'CASH' || m === 'TUNAI';
+      const isBoc = m === 'BOC' || m.includes('BOC');
+      const isBca = m === 'BCA' || m.includes('BCA') || (!isCash && !isBoc);
 
       if (tx.tipe === 'pemasukan') {
         if (isCash) totalTunai += amount;
-        else totalBank += amount;
+        else if (isBoc) totalBOC += amount;
+        else if (isBca) totalBCA += amount;
       } else {
         if (isCash) totalTunai -= amount;
-        else totalBank -= amount;
+        else if (isBoc) totalBOC -= amount;
+        else if (isBca) totalBCA -= amount;
       }
 
       if (tx.tanggal) {
@@ -126,7 +134,8 @@ export default function KeuanganTab({
 
     return {
       totalTunai,
-      totalBank,
+      totalBCA,
+      totalBOC,
       totalPemasukan,
       totalPengeluaran,
       categoryTotals,
@@ -213,7 +222,7 @@ export default function KeuanganTab({
     }
   };
 
-  // LOGIKA TUKAR DIPERBAIKI (TUJUAN BERTAMBAH & ASAL BERKURANG)
+  // LOGIKA FITUR TUKAR AKUN (CASH / BCA / BOC)
   const handleAddTransaction = (e) => {
     e.preventDefault();
     if (!keterangan || !nominalYuan) return;
@@ -222,8 +231,13 @@ export default function KeuanganTab({
 
     if (addTransaction) {
       if (tipe === 'pemasukan' && isTukar) {
-        const akunTujuan = metode; // 'Cash' / 'Tunai' atau 'Bank'
-        const akunAsal = (metode === 'Bank') ? 'Cash' : 'Bank';
+        const akunTujuan = metode; // 'Cash', 'BCA', atau 'BOC'
+        const akunAsal = metodeTukarAsal; // Akun tempat uang keluar
+
+        if (akunTujuan === akunAsal) {
+          alert('Akun tujuan dan akun asal transfer/tukar tidak boleh sama!');
+          return;
+        }
 
         // 1. Tambah Saldo ke Akun Tujuan (Pemasukan)
         addTransaction({
@@ -411,8 +425,8 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 1. KOTAK RINGKASAN UTAMA */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* 1. KOTAK RINGKASAN UTAMA (CASH, BCA, BOC, PEMASUKAN & PENGELUARAN) */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -432,25 +446,42 @@ export default function KeuanganTab({
 
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Total Bank
+            <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+              Bank BCA
             </span>
             <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
               <Building2 className="w-4 h-4" />
             </div>
           </div>
           <p className="text-base font-black text-white">
-            {formatYuan(summary.totalBank)}
+            {formatYuan(summary.totalBCA)}
           </p>
           <p className="text-[10px] text-slate-400">
-            {formatIDR(summary.totalBank)}
+            {formatIDR(summary.totalBCA)}
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-red-400">
+              Bank BOC
+            </span>
+            <div className="p-1.5 rounded-lg bg-red-500/10 text-red-400">
+              <Building2 className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-base font-black text-white">
+            {formatYuan(summary.totalBOC)}
+          </p>
+          <p className="text-[10px] text-slate-400">
+            {formatIDR(summary.totalBOC)}
           </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-              Total Pemasukan ({MONTH_NAMES[selectedMonth]})
+              Total Pemasukan ({SHORT_MONTH_NAMES[selectedMonth]})
             </span>
             <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
               <TrendingUp className="w-4 h-4" />
@@ -464,10 +495,10 @@ export default function KeuanganTab({
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
+        <div className="col-span-2 lg:col-span-1 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
-              Total Pengeluaran ({MONTH_NAMES[selectedMonth]})
+              Total Pengeluaran ({SHORT_MONTH_NAMES[selectedMonth]})
             </span>
             <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
               <TrendingDown className="w-4 h-4" />
@@ -672,7 +703,7 @@ export default function KeuanganTab({
         </div>
 
         <form onSubmit={handleAddTransaction} className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="grid grid-cols-2 gap-3 flex-1">
               <button
                 type="button"
@@ -702,16 +733,33 @@ export default function KeuanganTab({
             </div>
 
             {tipe === 'pemasukan' && (
-              <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-bold cursor-pointer hover:bg-purple-500/20 transition select-none">
-                <input
-                  type="checkbox"
-                  checked={isTukar}
-                  onChange={(e) => setIsTukar(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-800"
-                />
-                <Repeat className="w-3.5 h-3.5 text-purple-400" />
-                <span>Tukar (Pindah Saldo Cash & Bank)</span>
-              </label>
+              <div className="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 p-1.5 px-3 rounded-xl">
+                <label className="flex items-center gap-2 text-purple-300 text-xs font-bold cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isTukar}
+                    onChange={(e) => setIsTukar(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-800"
+                  />
+                  <Repeat className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Fitur Tukar Saldo</span>
+                </label>
+
+                {isTukar && (
+                  <div className="flex items-center gap-1.5 ml-2 border-l border-purple-500/30 pl-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Dari:</span>
+                    <select
+                      value={metodeTukarAsal}
+                      onChange={(e) => setMetodeTukarAsal(e.target.value)}
+                      className="bg-slate-800 text-xs text-purple-300 font-bold border border-purple-500/40 rounded-lg p-1 focus:outline-none"
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="BCA">BCA</option>
+                      <option value="BOC">BOC</option>
+                    </select>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -720,7 +768,7 @@ export default function KeuanganTab({
               <label className="text-[11px] font-bold text-slate-400">Keterangan</label>
               <input
                 type="text"
-                placeholder={isTukar ? "Contoh: Tukar Mixue Teman" : "Contoh: Beli Jajan / Pulsa"}
+                placeholder={isTukar ? "Contoh: Transfer BCA ke BOC" : "Contoh: Beli Jajan / Pulsa"}
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -783,13 +831,16 @@ export default function KeuanganTab({
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-semibold mr-1">Metode:</span>
+            {/* OPSI METODE SEKARANG ADA 3: CASH, BANK BCA, DAN BANK BOC */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-400 font-semibold mr-1">
+                {isTukar ? 'Masuk Ke:' : 'Metode:'}
+              </span>
               <button
                 type="button"
                 onClick={() => setMetode('Cash')}
                 className={
-                  metode === 'Cash'
+                  metode === 'Cash' || metode === 'Tunai'
                     ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-purple-600 border-purple-500 text-white'
                     : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-slate-800 border-slate-700 text-slate-400'
                 }
@@ -799,15 +850,27 @@ export default function KeuanganTab({
               </button>
               <button
                 type="button"
-                onClick={() => setMetode('Bank')}
+                onClick={() => setMetode('BCA')}
                 className={
-                  metode === 'Bank'
+                  metode === 'BCA'
                     ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-cyan-600 border-cyan-500 text-white'
                     : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-slate-800 border-slate-700 text-slate-400'
                 }
               >
                 <Building2 className="w-3.5 h-3.5" />
-                Bank
+                Bank BCA
+              </button>
+              <button
+                type="button"
+                onClick={() => setMetode('BOC')}
+                className={
+                  metode === 'BOC'
+                    ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-red-600 border-red-500 text-white'
+                    : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-slate-800 border-slate-700 text-slate-400'
+                }
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                Bank BOC
               </button>
             </div>
 
@@ -1161,30 +1224,39 @@ export default function KeuanganTab({
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400">Metode / Akun</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setEditingTx({ ...editingTx, metode: 'Cash' })}
                     className={
                       editingTx.metode === 'Cash' || editingTx.metode === 'Tunai'
-                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-purple-600 border-purple-500 text-white'
-                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-slate-800 border-slate-700 text-slate-400'
+                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-purple-600 border-purple-500 text-white'
+                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-slate-800 border-slate-700 text-slate-400'
                     }
                   >
-                    <Banknote className="w-4 h-4" />
-                    Tunai (Cash)
+                    Cash
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingTx({ ...editingTx, metode: 'Bank' })}
+                    onClick={() => setEditingTx({ ...editingTx, metode: 'BCA' })}
                     className={
-                      editingTx.metode === 'Bank'
-                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-cyan-600 border-cyan-500 text-white'
-                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition bg-slate-800 border-slate-700 text-slate-400'
+                      editingTx.metode === 'BCA'
+                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-cyan-600 border-cyan-500 text-white'
+                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-slate-800 border-slate-700 text-slate-400'
                     }
                   >
-                    <Building2 className="w-4 h-4" />
-                    Bank
+                    BCA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTx({ ...editingTx, metode: 'BOC' })}
+                    className={
+                      editingTx.metode === 'BOC'
+                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-red-600 border-red-500 text-white'
+                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-slate-800 border-slate-700 text-slate-400'
+                    }
+                  >
+                    BOC
                   </button>
                 </div>
               </div>
