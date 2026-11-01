@@ -71,7 +71,7 @@ export default function KeuanganTab({
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // Filter Kalender bawaan
+  // Filter Kalender bawaan & Filter Kategori
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
@@ -79,6 +79,10 @@ export default function KeuanganTab({
   const [rangeEnd, setRangeEnd] = useState(null);
   const [appliedStart, setAppliedStart] = useState(null);
   const [appliedEnd, setAppliedEnd] = useState(null);
+
+  // STATE FILTER KATEGORI (Draft & Terpilih)
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+  const [appliedCategoryFilter, setAppliedCategoryFilter] = useState('ALL');
 
   // RINGKASAN KEUANGAN DENGAN PEMISAHAN BCA & BOC
   const summary = useMemo(() => {
@@ -293,15 +297,27 @@ export default function KeuanganTab({
     }
   };
 
+  // DISPLAY TRANSAKSI SESUAI FILTER TANGGAL DAN KATEGORI
   const displayedTransactions = useMemo(() => {
-    const sorted = [...transactions].sort((a, b) => {
+    let list = [...transactions].sort((a, b) => {
       const dateA = new Date(a.tanggal || 0);
       const dateB = new Date(b.tanggal || 0);
       return dateB - dateA;
     });
 
+    // Filter berdasarkan Kategori jika dipilih
+    if (appliedCategoryFilter !== 'ALL') {
+      list = list.filter((tx) => {
+        if (appliedCategoryFilter === 'Pemasukan') {
+          return tx.tipe === 'pemasukan';
+        }
+        return tx.kategori === appliedCategoryFilter;
+      });
+    }
+
+    // Filter berdasarkan Rentang Tanggal jika diterapkan
     if (appliedStart || appliedEnd) {
-      return sorted.filter((tx) => {
+      return list.filter((tx) => {
         if (!tx.tanggal) return false;
         const txDate = tx.tanggal;
         const start = appliedStart || '1970-01-01';
@@ -314,18 +330,19 @@ export default function KeuanganTab({
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(today.getDate() - 7);
 
-    const lastWeekTxs = sorted.filter((tx) => {
+    const lastWeekTxs = list.filter((tx) => {
       if (!tx.tanggal) return false;
       return new Date(tx.tanggal) >= sevenDaysAgo;
     });
 
-    const defaultData = lastWeekTxs.length > 0 ? lastWeekTxs : sorted;
-    return defaultData.slice(0, 10);
-  }, [transactions, appliedStart, appliedEnd]);
+    const defaultData = lastWeekTxs.length > 0 ? lastWeekTxs : list;
+    return defaultData.slice(0, 15);
+  }, [transactions, appliedStart, appliedEnd, appliedCategoryFilter]);
 
   const handleApplyFilter = () => {
     setAppliedStart(rangeStart);
     setAppliedEnd(rangeEnd || rangeStart);
+    setAppliedCategoryFilter(selectedCategoryFilter);
     setIsFilterOpen(false);
   };
 
@@ -334,6 +351,8 @@ export default function KeuanganTab({
     setRangeEnd(null);
     setAppliedStart(null);
     setAppliedEnd(null);
+    setSelectedCategoryFilter('ALL');
+    setAppliedCategoryFilter('ALL');
     setIsFilterOpen(false);
   };
 
@@ -831,7 +850,6 @@ export default function KeuanganTab({
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-            {/* OPSI METODE SEKARANG ADA 3: CASH, BANK BCA, DAN BANK BOC */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-slate-400 font-semibold mr-1">
                 {isTukar ? 'Masuk Ke:' : 'Metode:'}
@@ -893,9 +911,13 @@ export default function KeuanganTab({
               Riwayat Transaksi Keuangan
             </h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              {appliedStart
-                ? `Rentang: ${appliedStart} s/d ${appliedEnd}`
-                : 'Menampilkan 10 transaksi / 1 minggu terakhir'}
+              {appliedStart || appliedCategoryFilter !== 'ALL'
+                ? `Filter Aktif: ${
+                    appliedCategoryFilter !== 'ALL'
+                      ? `[Kat: ${appliedCategoryFilter}] `
+                      : ''
+                  }${appliedStart ? `Rentang: ${appliedStart} s/d ${appliedEnd}` : ''}`
+                : 'Menampilkan transaksi terbaru'}
             </p>
           </div>
 
@@ -915,21 +937,45 @@ export default function KeuanganTab({
                 type="button"
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className={
-                  isFilterOpen || appliedStart
+                  isFilterOpen || appliedStart || appliedCategoryFilter !== 'ALL'
                     ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition bg-purple-600/20 border-purple-500 text-purple-300'
                     : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
                 }
               >
                 <Filter className="w-3.5 h-3.5" />
                 <span>Filter Transaksi</span>
-                {appliedStart && (
+                {(appliedStart || appliedCategoryFilter !== 'ALL') && (
                   <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
                 )}
               </button>
 
               {isFilterOpen && (
                 <div className="absolute right-0 top-12 z-40 w-80 p-4 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md space-y-4">
-                  <div className="flex items-center justify-between">
+                  
+                  {/* SELEKSI FILTER KATEGORI */}
+                  <div className="space-y-1.5 border-b border-slate-800 pb-3">
+                    <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Filter Berdasarkan Kategori:</span>
+                    </label>
+                    <select
+                      value={selectedCategoryFilter}
+                      onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                      className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                    >
+                      <option value="ALL">✨ Semua Kategori & Pemasukan</option>
+                      <option value="Pemasukan">📥 Khusus Pemasukan</option>
+                      <option disabled>──────────</option>
+                      {KATEGORI_PENGELUARAN.map((cat) => (
+                        <option key={cat} value={cat}>
+                          🛒 {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* NAVIGASI BULAN KALENDER */}
+                  <div className="flex items-center justify-between pt-1">
                     <button
                       type="button"
                       onClick={prevMonth}
@@ -949,6 +995,7 @@ export default function KeuanganTab({
                     </button>
                   </div>
 
+                  {/* GRID KALENDER */}
                   <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-500">
                     <span>Min</span>
                     <span>Sen</span>
@@ -1008,6 +1055,7 @@ export default function KeuanganTab({
                     </div>
                   </div>
 
+                  {/* TOMBOL KONFIRMASI / RESET */}
                   <div className="flex justify-end items-center gap-2 pt-2 border-t border-slate-800">
                     <button
                       type="button"
@@ -1021,15 +1069,10 @@ export default function KeuanganTab({
                     <button
                       type="button"
                       onClick={handleApplyFilter}
-                      disabled={!rangeStart}
-                      className={
-                        rangeStart
-                          ? 'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg bg-purple-600 hover:bg-purple-500 text-white'
-                          : 'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg bg-slate-800 text-slate-600 cursor-not-allowed'
-                      }
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg bg-purple-600 hover:bg-purple-500 text-white"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      Konfirmasi Filter
+                      Terapkan Filter
                     </button>
                   </div>
                 </div>
@@ -1038,11 +1081,12 @@ export default function KeuanganTab({
           </div>
         </div>
 
+        {/* LIST DAFTAR TRANSAKSI */}
         <div className="space-y-3">
           {displayedTransactions.length === 0 ? (
             <div className="p-8 text-center border border-dashed border-slate-800 rounded-2xl">
               <p className="text-xs text-slate-400 font-medium">
-                Tidak ada transaksi pada rentang tanggal ini. 🚀
+                Tidak ada transaksi yang sesuai dengan filter ini. 🚀
               </p>
             </div>
           ) : (
