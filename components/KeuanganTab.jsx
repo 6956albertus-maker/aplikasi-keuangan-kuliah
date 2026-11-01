@@ -71,7 +71,7 @@ export default function KeuanganTab({
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // Filter Kalender bawaan & Filter Kategori
+  // Filter Kalender bawaan
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
@@ -84,7 +84,11 @@ export default function KeuanganTab({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
   const [appliedCategoryFilter, setAppliedCategoryFilter] = useState('ALL');
 
-  // RINGKASAN KEUANGAN DENGAN PEMISAHAN BCA & BOC
+  // STATE FILTER METODE (Draft & Terpilih: ALL, Cash, BCA, BOC)
+  const [selectedMethodFilter, setSelectedMethodFilter] = useState('ALL');
+  const [appliedMethodFilter, setAppliedMethodFilter] = useState('ALL');
+
+  // RINGKASAN KEUANGAN - TRANSAKSI TUKAR TIDAK MASUK PEMASUKAN & PENGELUARAN
   const summary = useMemo(() => {
     let totalTunai = 0;
     let totalBCA = 0;
@@ -105,6 +109,7 @@ export default function KeuanganTab({
       const isBoc = m === 'BOC' || m.includes('BOC');
       const isBca = m === 'BCA' || m.includes('BCA') || (!isCash && !isBoc);
 
+      // Pembaruan Saldo Masing-masing Akun
       if (tx.tipe === 'pemasukan') {
         if (isCash) totalTunai += amount;
         else if (isBoc) totalBOC += amount;
@@ -115,21 +120,29 @@ export default function KeuanganTab({
         else if (isBca) totalBCA -= amount;
       }
 
+      // Perhitungan Statistik Pemasukan & Pengeluaran Bulanan
       if (tx.tanggal) {
         const txDate = new Date(tx.tanggal);
         const txM = txDate.getMonth();
         const txY = txDate.getFullYear();
 
         if (txM === selectedMonth && txY === selectedYear) {
-          if (tx.tipe === 'pemasukan') {
-            totalPemasukan += amount;
-          } else {
-            totalPengeluaran += amount;
-            const kat = tx.kategori || 'Lain-lain';
-            if (categoryTotals[kat] !== undefined) {
-              categoryTotals[kat] += amount;
+          const isTukarTx =
+            tx.kategori === 'Transfer / Tukar' ||
+            (tx.keterangan && tx.keterangan.startsWith('[Tukar'));
+
+          // HANYA TAMBAH JIKA BUKAN TRANSAKSI TUKAR / TRANSFER
+          if (!isTukarTx) {
+            if (tx.tipe === 'pemasukan') {
+              totalPemasukan += amount;
             } else {
-              categoryTotals[kat] = (categoryTotals[kat] || 0) + amount;
+              totalPengeluaran += amount;
+              const kat = tx.kategori || 'Lain-lain';
+              if (categoryTotals[kat] !== undefined) {
+                categoryTotals[kat] += amount;
+              } else {
+                categoryTotals[kat] = (categoryTotals[kat] || 0) + amount;
+              }
             }
           }
         }
@@ -146,7 +159,7 @@ export default function KeuanganTab({
     };
   }, [transactions, selectedMonth, selectedYear]);
 
-  // DATA GRAFIK PER BULAN
+  // DATA GRAFIK PER BULAN - TRANSAKSI TUKAR DIABAIKAN DARIPADA GRAFIK
   const monthlyChartData = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) => ({
       monthIndex: i,
@@ -162,7 +175,11 @@ export default function KeuanganTab({
       const y = date.getFullYear();
       const m = date.getMonth();
 
-      if (y === selectedYear) {
+      const isTukarTx =
+        tx.kategori === 'Transfer / Tukar' ||
+        (tx.keterangan && tx.keterangan.startsWith('[Tukar'));
+
+      if (y === selectedYear && !isTukarTx) {
         const val = Number(tx.nominal_yuan) || 0;
         if (tx.tipe === 'pemasukan') {
           months[m].pemasukan += val;
@@ -297,7 +314,7 @@ export default function KeuanganTab({
     }
   };
 
-  // DISPLAY TRANSAKSI SESUAI FILTER TANGGAL DAN KATEGORI
+  // DISPLAY TRANSAKSI SESUAI FILTER TANGGAL, KATEGORI, DAN METODE (CASH/BCA/BOC)
   const displayedTransactions = useMemo(() => {
     let list = [...transactions].sort((a, b) => {
       const dateA = new Date(a.tanggal || 0);
@@ -305,7 +322,7 @@ export default function KeuanganTab({
       return dateB - dateA;
     });
 
-    // Filter berdasarkan Kategori jika dipilih
+    // 1. Filter Berdasarkan Kategori
     if (appliedCategoryFilter !== 'ALL') {
       list = list.filter((tx) => {
         if (appliedCategoryFilter === 'Pemasukan') {
@@ -315,7 +332,24 @@ export default function KeuanganTab({
       });
     }
 
-    // Filter berdasarkan Rentang Tanggal jika diterapkan
+    // 2. Filter Berdasarkan Metode Pembayaran / Akun (Cash / BCA / BOC)
+    if (appliedMethodFilter !== 'ALL') {
+      list = list.filter((tx) => {
+        const m = tx.metode ? tx.metode.toUpperCase() : 'CASH';
+        if (appliedMethodFilter === 'Cash') {
+          return m === 'CASH' || m === 'TUNAI';
+        }
+        if (appliedMethodFilter === 'BCA') {
+          return m === 'BCA' || m.includes('BCA');
+        }
+        if (appliedMethodFilter === 'BOC') {
+          return m === 'BOC' || m.includes('BOC');
+        }
+        return true;
+      });
+    }
+
+    // 3. Filter Berdasarkan Rentang Tanggal Kalender
     if (appliedStart || appliedEnd) {
       return list.filter((tx) => {
         if (!tx.tanggal) return false;
@@ -337,12 +371,13 @@ export default function KeuanganTab({
 
     const defaultData = lastWeekTxs.length > 0 ? lastWeekTxs : list;
     return defaultData.slice(0, 15);
-  }, [transactions, appliedStart, appliedEnd, appliedCategoryFilter]);
+  }, [transactions, appliedStart, appliedEnd, appliedCategoryFilter, appliedMethodFilter]);
 
   const handleApplyFilter = () => {
     setAppliedStart(rangeStart);
     setAppliedEnd(rangeEnd || rangeStart);
     setAppliedCategoryFilter(selectedCategoryFilter);
+    setAppliedMethodFilter(selectedMethodFilter);
     setIsFilterOpen(false);
   };
 
@@ -353,6 +388,8 @@ export default function KeuanganTab({
     setAppliedEnd(null);
     setSelectedCategoryFilter('ALL');
     setAppliedCategoryFilter('ALL');
+    setSelectedMethodFilter('ALL');
+    setAppliedMethodFilter('ALL');
     setIsFilterOpen(false);
   };
 
@@ -404,6 +441,11 @@ export default function KeuanganTab({
   const pathPengeluaran = pointsPengeluaran
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
     .join(' ');
+
+  const isAnyFilterActive =
+    appliedStart ||
+    appliedCategoryFilter !== 'ALL' ||
+    appliedMethodFilter !== 'ALL';
 
   return (
     <div className="space-y-6">
@@ -911,11 +953,11 @@ export default function KeuanganTab({
               Riwayat Transaksi Keuangan
             </h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              {appliedStart || appliedCategoryFilter !== 'ALL'
+              {isAnyFilterActive
                 ? `Filter Aktif: ${
-                    appliedCategoryFilter !== 'ALL'
-                      ? `[Kat: ${appliedCategoryFilter}] `
-                      : ''
+                    appliedMethodFilter !== 'ALL' ? `[Metode: ${appliedMethodFilter}] ` : ''
+                  }${
+                    appliedCategoryFilter !== 'ALL' ? `[Kat: ${appliedCategoryFilter}] ` : ''
                   }${appliedStart ? `Rentang: ${appliedStart} s/d ${appliedEnd}` : ''}`
                 : 'Menampilkan transaksi terbaru'}
             </p>
@@ -937,14 +979,14 @@ export default function KeuanganTab({
                 type="button"
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className={
-                  isFilterOpen || appliedStart || appliedCategoryFilter !== 'ALL'
+                  isFilterOpen || isAnyFilterActive
                     ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition bg-purple-600/20 border-purple-500 text-purple-300'
                     : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'
                 }
               >
                 <Filter className="w-3.5 h-3.5" />
                 <span>Filter Transaksi</span>
-                {(appliedStart || appliedCategoryFilter !== 'ALL') && (
+                {isAnyFilterActive && (
                   <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
                 )}
               </button>
@@ -952,6 +994,24 @@ export default function KeuanganTab({
               {isFilterOpen && (
                 <div className="absolute right-0 top-12 z-40 w-80 p-4 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md space-y-4">
                   
+                  {/* SELEKSI FILTER METODE / AKUN */}
+                  <div className="space-y-1.5 border-b border-slate-800 pb-3">
+                    <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Filter Berdasarkan Metode / Akun:</span>
+                    </label>
+                    <select
+                      value={selectedMethodFilter}
+                      onChange={(e) => setSelectedMethodFilter(e.target.value)}
+                      className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                    >
+                      <option value="ALL">🌐 Semua Metode (Cash, BCA, BOC)</option>
+                      <option value="Cash">💵 Khusus Tunai (Cash)</option>
+                      <option value="BCA">🏛️ Khusus Bank BCA</option>
+                      <option value="BOC">🏦 Khusus Bank BOC</option>
+                    </select>
+                  </div>
+
                   {/* SELEKSI FILTER KATEGORI */}
                   <div className="space-y-1.5 border-b border-slate-800 pb-3">
                     <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
