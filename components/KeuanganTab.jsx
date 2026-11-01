@@ -213,6 +213,7 @@ export default function KeuanganTab({
     }
   };
 
+  // LOGIKA TUKAR DIPERBAIKI (TUJUAN BERTAMBAH & ASAL BERKURANG)
   const handleAddTransaction = (e) => {
     e.preventDefault();
     if (!keterangan || !nominalYuan) return;
@@ -221,25 +222,27 @@ export default function KeuanganTab({
 
     if (addTransaction) {
       if (tipe === 'pemasukan' && isTukar) {
-        const akunPilihan = metode;
-        const akunLain = metode === 'Bank' ? 'Cash' : 'Bank';
+        const akunTujuan = metode; // 'Cash' / 'Tunai' atau 'Bank'
+        const akunAsal = (metode === 'Bank') ? 'Cash' : 'Bank';
 
+        // 1. Tambah Saldo ke Akun Tujuan (Pemasukan)
         addTransaction({
           tipe: 'pemasukan',
-          keterangan: `[Tukar] ${keterangan}`,
+          keterangan: `[Tukar Masuk] ${keterangan}`,
           nominal_yuan: valYuan,
           tanggal,
-          metode: akunPilihan,
-          kategori: 'Pemasukan',
+          metode: akunTujuan,
+          kategori: 'Transfer / Tukar',
         });
 
+        // 2. Kurangi Saldo dari Akun Asal (Pengeluaran)
         addTransaction({
-          tipe: 'pemasukan',
-          keterangan: `[Tukar] ${keterangan}`,
+          tipe: 'pengeluaran',
+          keterangan: `[Tukar Keluar] ${keterangan}`,
           nominal_yuan: valYuan,
           tanggal,
-          metode: akunLain,
-          kategori: 'Pemasukan',
+          metode: akunAsal,
+          kategori: 'Transfer / Tukar',
         });
       } else {
         addTransaction({
@@ -707,7 +710,7 @@ export default function KeuanganTab({
                   className="w-4 h-4 rounded border-slate-700 text-purple-600 focus:ring-purple-500 bg-slate-800"
                 />
                 <Repeat className="w-3.5 h-3.5 text-purple-400" />
-                <span>Tukar (Tambah Cash & Bank)</span>
+                <span>Tukar (Pindah Saldo Cash & Bank)</span>
               </label>
             )}
           </div>
