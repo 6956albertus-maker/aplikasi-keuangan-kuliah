@@ -1,0 +1,26 @@
+{
+  "background_color": "#0f172a",
+  "description": "Dashboard Student Manager",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Student Manager",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "SManager",
+  "start_url": "/",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,&amp;lt;svg xmlns=&amp;#x27;http://www.w3.org/2000/svg&amp;%23x27; viewBox=&amp;%23x27;0 0 100 100&amp;%23x27;&amp;gt;&amp;lt;rect width=&amp;%23x27;100&amp;%23x27; height=&amp;%23x27;100&amp;%23x27; rx=&amp;%23x27;28&amp;%23x27; fill=&amp;%23x27;%230f172a&amp;%23x27;/&amp;gt;&amp;lt;path d=&amp;%23x27;M50 22L18 38L50 54L82 38L50 22Z&amp;%23x27; fill=&amp;%23x27;url(%23grad)&amp;%23x27;/&amp;gt;&amp;lt;path d=&amp;%23x27;M28 47.5V66C28 73 38 78 50 78C62 78 72 73 72 66V47.5L50 58.5L28 47.5Z&amp;%23x27; fill=&amp;%23x27;url(%23grad)&amp;%23x27;/&amp;gt;&amp;lt;path d=&amp;%23x27;M82 42V65&amp;%23x27; stroke=&amp;%23x27;%23f43f5e&amp;%23x27; stroke-width=&amp;%23x27;4&amp;%23x27; stroke-linecap=&amp;%23x27;round&amp;%23x27;/&amp;gt;&amp;lt;circle cx=&amp;%23x27;82&amp;%23x27; cy=&amp;%23x27;68&amp;%23x27; r=&amp;%23x27;3.5&amp;%23x27; fill=&amp;%23x27;%23f43f5e&amp;%23x27;/&amp;gt;&amp;lt;defs&amp;gt;&amp;lt;linearGradient id=&amp;%23x27;grad&amp;%23x27; x1=&amp;%23x27;0%25&amp;%23x27; y1=&amp;%23x27;0%25&amp;%23x27; x2=&amp;%23x27;100%25&amp;%23x27; y2=&amp;%23x27;100%25&amp;%23x27;&amp;gt;&amp;lt;stop offset=&amp;%23x27;0%25&amp;%23x27; stop-color=&amp;%23x27;%23c084fc&amp;%23x27;/&amp;gt;&amp;lt;stop offset=&amp;%23x27;50%25&amp;%23x27; stop-color=&amp;%23x27;%23f472b6&amp;%23x27;/&amp;gt;&amp;lt;stop offset=&amp;%23x27;100%25&amp;%23x27; stop-color=&amp;%23x27;%23fb7185&amp;%23x27;/&amp;gt;&amp;lt;/linearGradient&amp;gt;&amp;lt;/defs&amp;gt;&amp;lt;/svg&amp;gt;",
+      "type": "image/svg+xml",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ]
+}
