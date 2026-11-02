@@ -120,7 +120,7 @@ export default function Home() {
         <meta name="description" content="Dashboard Student Manager" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/svg+xml" href={faviconSvg} />
-        <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+        <link rel="manifest" href="/manifest.json" />
       </Head>
 
       <div className="min-h-screen bg-[#07090e] text-slate-100 p-4 md:p-8 font-sans">
