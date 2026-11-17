@@ -14,9 +14,11 @@ import {
   Sparkles,
   TrendingUp as LineChartIcon,
   Target,
-  ShoppingBag
+  ShoppingBag,
+  Smartphone
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { formatYuan, formatIDR } from '../lib/utils';
 
 const END_TIMES_MAP = {
   1: '08:45', 2: '09:35', 3: '10:35', 4: '11:25',
@@ -219,17 +221,14 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
     fetchDashboardData();
   }, []);
 
-  const formatYuan = (val) => `¥${Number(val || 0).toLocaleString('de-DE')}`;
-  const formatIDR = (valYuan) =>
-    `Rp ${(Number(valYuan || 0) * kursYuan).toLocaleString('id-ID')}`;
-
   const currentMonth = time.getMonth();
   const currentYear = time.getFullYear();
 
-  // PEMISAHAN SALDO AKUN BCA & BOC
+  // PEMISAHAN SALDO AKUN TUNAI, BCA, BOC & ALIPAY (SINKRON DENGAN KEUANGAN TAB)
   let totalTunai = 0;
   let totalBCA = 0;
   let totalBOC = 0;
+  let totalAlipay = 0;
   let totalPemasukanBulanIni = 0;
   let totalPengeluaranBulanIni = 0;
   let totalPengeluaranNonKuliah = 0;
@@ -246,16 +245,19 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
 
     const isCash = m === 'CASH' || m === 'TUNAI';
     const isBoc = m === 'BOC' || m.includes('BOC');
-    const isBca = m === 'BCA' || m.includes('BCA') || (!isCash && !isBoc);
+    const isAlipay = m === 'ALIPAY' || m.includes('ALIPAY');
+    const isBca = m === 'BCA' || m.includes('BCA') || (!isCash && !isBoc && !isAlipay);
 
     // Saldo Akun Tetap Terupdate dari Semua Transaksi
     if (tx.tipe === 'pemasukan') {
       if (isCash) totalTunai += nominal;
       else if (isBoc) totalBOC += nominal;
+      else if (isAlipay) totalAlipay += nominal;
       else if (isBca) totalBCA += nominal;
     } else {
       if (isCash) totalTunai -= nominal;
       else if (isBoc) totalBOC -= nominal;
+      else if (isAlipay) totalAlipay -= nominal;
       else if (isBca) totalBCA -= nominal;
     }
 
@@ -372,14 +374,14 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
             </button>
           </div>
 
-          {/* DIPERBAIKI: PISAH BANK BCA & BANK BOC */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          {/* SINKRONISASI AKUN: TUNAI, BANK BCA, BANK BOC, ALIPAY, PEMASUKAN & EXCL. KULIAH */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
               <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1 flex items-center gap-1">
                 <Banknote className="w-3 h-3 text-purple-400" /> Tunai
               </span>
               <p className="text-xs font-black text-white">{formatYuan(totalTunai)}</p>
-              <p className="text-[9px] text-slate-500">{formatIDR(totalTunai)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalTunai, kursYuan)}</p>
             </div>
 
             <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
@@ -387,7 +389,7 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
                 <Building2 className="w-3 h-3 text-cyan-400" /> Bank BCA
               </span>
               <p className="text-xs font-black text-white">{formatYuan(totalBCA)}</p>
-              <p className="text-[9px] text-slate-500">{formatIDR(totalBCA)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalBCA, kursYuan)}</p>
             </div>
 
             <div className="p-3 rounded-2xl bg-slate-800/50 border border-slate-700/50">
@@ -395,7 +397,15 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
                 <Building2 className="w-3 h-3 text-red-400" /> Bank BOC
               </span>
               <p className="text-xs font-black text-white">{formatYuan(totalBOC)}</p>
-              <p className="text-[9px] text-slate-500">{formatIDR(totalBOC)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalBOC, kursYuan)}</p>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-slate-800/50 border border-sky-500/30">
+              <span className="text-[10px] font-bold text-sky-400 uppercase block mb-1 flex items-center gap-1">
+                <Smartphone className="w-3 h-3 text-sky-400" /> Alipay
+              </span>
+              <p className="text-xs font-black text-white">{formatYuan(totalAlipay)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalAlipay, kursYuan)}</p>
             </div>
 
             <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
@@ -403,15 +413,15 @@ export default function DashboardTab({ transactions = [], kursYuan = 2694, setAc
                 <TrendingUp className="w-3 h-3" /> Pemasukan
               </span>
               <p className="text-xs font-black text-emerald-400">+{formatYuan(totalPemasukanBulanIni)}</p>
-              <p className="text-[9px] text-slate-500">{formatIDR(totalPemasukanBulanIni)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalPemasukanBulanIni, kursYuan)}</p>
             </div>
 
-            <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30">
+            <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30">
               <span className="text-[10px] font-extrabold text-purple-300 uppercase block mb-1 flex items-center gap-1">
                 <ShoppingBag className="w-3 h-3 text-purple-400" /> Excl. Kuliah
               </span>
               <p className="text-xs font-black text-purple-300">{formatYuan(totalPengeluaranNonKuliah)}</p>
-              <p className="text-[9px] text-slate-500">{formatIDR(totalPengeluaranNonKuliah)}</p>
+              <p className="text-[9px] text-slate-500">{formatIDR(totalPengeluaranNonKuliah, kursYuan)}</p>
             </div>
           </div>
 
