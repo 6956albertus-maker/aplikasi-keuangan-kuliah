@@ -20,7 +20,8 @@ import {
   Repeat,
   Calendar,
   Tag,
-  LineChart
+  LineChart,
+  Smartphone
 } from 'lucide-react';
 import { formatYuan, formatIDR } from '../lib/utils';
 
@@ -58,7 +59,7 @@ export default function KeuanganTab({
   const [keterangan, setKeterangan] = useState('');
   const [nominalYuan, setNominalYuan] = useState('');
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
-  const [metode, setMetode] = useState('Cash'); // Opsi: 'Cash', 'BCA', 'BOC'
+  const [metode, setMetode] = useState('Cash'); // Opsi: 'Cash', 'BCA', 'BOC', 'Alipay'
   const [kategori, setKategori] = useState('Makan');
   const [isTukar, setIsTukar] = useState(false);
   const [metodeTukarAsal, setMetodeTukarAsal] = useState('BCA');
@@ -84,7 +85,7 @@ export default function KeuanganTab({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
   const [appliedCategoryFilter, setAppliedCategoryFilter] = useState('ALL');
 
-  // STATE FILTER METODE (Draft & Terpilih: ALL, Cash, BCA, BOC)
+  // STATE FILTER METODE (Draft & Terpilih: ALL, Cash, BCA, BOC, Alipay)
   const [selectedMethodFilter, setSelectedMethodFilter] = useState('ALL');
   const [appliedMethodFilter, setAppliedMethodFilter] = useState('ALL');
 
@@ -93,6 +94,7 @@ export default function KeuanganTab({
     let totalTunai = 0;
     let totalBCA = 0;
     let totalBOC = 0;
+    let totalAlipay = 0;
     let totalPemasukan = 0;
     let totalPengeluaran = 0;
 
@@ -107,16 +109,19 @@ export default function KeuanganTab({
 
       const isCash = m === 'CASH' || m === 'TUNAI';
       const isBoc = m === 'BOC' || m.includes('BOC');
-      const isBca = m === 'BCA' || m.includes('BCA') || (!isCash && !isBoc);
+      const isAlipay = m === 'ALIPAY' || m.includes('ALIPAY');
+      const isBca = m === 'BCA' || m.includes('BCA') || (!isCash && !isBoc && !isAlipay);
 
       // Pembaruan Saldo Masing-masing Akun
       if (tx.tipe === 'pemasukan') {
         if (isCash) totalTunai += amount;
         else if (isBoc) totalBOC += amount;
+        else if (isAlipay) totalAlipay += amount;
         else if (isBca) totalBCA += amount;
       } else {
         if (isCash) totalTunai -= amount;
         else if (isBoc) totalBOC -= amount;
+        else if (isAlipay) totalAlipay -= amount;
         else if (isBca) totalBCA -= amount;
       }
 
@@ -153,6 +158,7 @@ export default function KeuanganTab({
       totalTunai,
       totalBCA,
       totalBOC,
+      totalAlipay,
       totalPemasukan,
       totalPengeluaran,
       categoryTotals,
@@ -243,7 +249,7 @@ export default function KeuanganTab({
     }
   };
 
-  // LOGIKA FITUR TUKAR AKUN (CASH / BCA / BOC)
+  // LOGIKA FITUR TUKAR AKUN (CASH / BCA / BOC / ALIPAY)
   const handleAddTransaction = (e) => {
     e.preventDefault();
     if (!keterangan || !nominalYuan) return;
@@ -252,7 +258,7 @@ export default function KeuanganTab({
 
     if (addTransaction) {
       if (tipe === 'pemasukan' && isTukar) {
-        const akunTujuan = metode; // 'Cash', 'BCA', atau 'BOC'
+        const akunTujuan = metode; // 'Cash', 'BCA', 'BOC', atau 'Alipay'
         const akunAsal = metodeTukarAsal; // Akun tempat uang keluar
 
         if (akunTujuan === akunAsal) {
@@ -314,7 +320,7 @@ export default function KeuanganTab({
     }
   };
 
-  // DISPLAY TRANSAKSI SESUAI FILTER TANGGAL, KATEGORI, DAN METODE (CASH/BCA/BOC)
+  // DISPLAY TRANSAKSI SESUAI FILTER TANGGAL, KATEGORI, DAN METODE (CASH/BCA/BOC/ALIPAY)
   const displayedTransactions = useMemo(() => {
     let list = [...transactions].sort((a, b) => {
       const dateA = new Date(a.tanggal || 0);
@@ -332,7 +338,7 @@ export default function KeuanganTab({
       });
     }
 
-    // 2. Filter Berdasarkan Metode Pembayaran / Akun (Cash / BCA / BOC)
+    // 2. Filter Berdasarkan Metode Pembayaran / Akun (Cash / BCA / BOC / Alipay)
     if (appliedMethodFilter !== 'ALL') {
       list = list.filter((tx) => {
         const m = tx.metode ? tx.metode.toUpperCase() : 'CASH';
@@ -344,6 +350,9 @@ export default function KeuanganTab({
         }
         if (appliedMethodFilter === 'BOC') {
           return m === 'BOC' || m.includes('BOC');
+        }
+        if (appliedMethodFilter === 'Alipay') {
+          return m === 'ALIPAY' || m.includes('ALIPAY');
         }
         return true;
       });
@@ -486,8 +495,8 @@ export default function KeuanganTab({
         </div>
       </div>
 
-      {/* 1. KOTAK RINGKASAN UTAMA (CASH, BCA, BOC, PEMASUKAN & PENGELUARAN) */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      {/* 1. KOTAK RINGKASAN UTAMA (CASH, BCA, BOC, ALIPAY, PEMASUKAN & PENGELUARAN) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -539,6 +548,23 @@ export default function KeuanganTab({
           </p>
         </div>
 
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-sky-500/30 shadow-lg space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400">
+              Alipay
+            </span>
+            <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400">
+              <Smartphone className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-base font-black text-white">
+            {formatYuan(summary.totalAlipay)}
+          </p>
+          <p className="text-[10px] text-slate-400">
+            {formatIDR(summary.totalAlipay)}
+          </p>
+        </div>
+
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
@@ -556,7 +582,7 @@ export default function KeuanganTab({
           </p>
         </div>
 
-        <div className="col-span-2 lg:col-span-1 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
+        <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
               Total Pengeluaran ({SHORT_MONTH_NAMES[selectedMonth]})
@@ -817,6 +843,7 @@ export default function KeuanganTab({
                       <option value="Cash">Cash</option>
                       <option value="BCA">BCA</option>
                       <option value="BOC">BOC</option>
+                      <option value="Alipay">Alipay</option>
                     </select>
                   </div>
                 )}
@@ -829,7 +856,7 @@ export default function KeuanganTab({
               <label className="text-[11px] font-bold text-slate-400">Keterangan</label>
               <input
                 type="text"
-                placeholder={isTukar ? "Contoh: Transfer BCA ke BOC" : "Contoh: Beli Jajan / Pulsa"}
+                placeholder={isTukar ? "Contoh: Topup Alipay dari BOC" : "Contoh: Beli Jajan / Pulsa"}
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -932,6 +959,18 @@ export default function KeuanganTab({
                 <Building2 className="w-3.5 h-3.5" />
                 Bank BOC
               </button>
+              <button
+                type="button"
+                onClick={() => setMetode('Alipay')}
+                className={
+                  metode === 'Alipay'
+                    ? 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-sky-500 border-sky-400 text-white'
+                    : 'px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition bg-slate-800 border-slate-700 text-slate-400'
+                }
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Alipay
+              </button>
             </div>
 
             <button
@@ -1005,10 +1044,11 @@ export default function KeuanganTab({
                       onChange={(e) => setSelectedMethodFilter(e.target.value)}
                       className="w-full p-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
                     >
-                      <option value="ALL">🌐 Semua Metode (Cash, BCA, BOC)</option>
+                      <option value="ALL">🌐 Semua Metode (Cash, BCA, BOC, Alipay)</option>
                       <option value="Cash">💵 Khusus Tunai (Cash)</option>
                       <option value="BCA">🏛️ Khusus Bank BCA</option>
                       <option value="BOC">🏦 Khusus Bank BOC</option>
+                      <option value="Alipay">📱 Khusus Alipay</option>
                     </select>
                   </div>
 
@@ -1152,6 +1192,16 @@ export default function KeuanganTab({
           ) : (
             displayedTransactions.map((tx) => {
               const isPemasukan = tx.tipe === 'pemasukan';
+              const txMethod = tx.metode || 'Cash';
+              const methodColor =
+                txMethod.toUpperCase() === 'ALIPAY'
+                  ? 'text-sky-400'
+                  : txMethod.toUpperCase() === 'BCA'
+                  ? 'text-cyan-400'
+                  : txMethod.toUpperCase() === 'BOC'
+                  ? 'text-red-400'
+                  : 'text-purple-400';
+
               return (
                 <div
                   key={tx.id}
@@ -1175,7 +1225,7 @@ export default function KeuanganTab({
                       <p className="font-bold text-xs text-white">{tx.keterangan}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">
                         {tx.tanggal || 'Hari ini'} •{' '}
-                        <span className="text-purple-400">{tx.metode || 'Cash'}</span> •{' '}
+                        <span className={`font-semibold ${methodColor}`}>{txMethod}</span> •{' '}
                         <span className="text-pink-400">
                           {isPemasukan ? 'Pemasukan' : tx.kategori || 'Makan'}
                         </span>
@@ -1328,7 +1378,7 @@ export default function KeuanganTab({
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400">Metode / Akun</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={() => setEditingTx({ ...editingTx, metode: 'Cash' })}
@@ -1361,6 +1411,17 @@ export default function KeuanganTab({
                     }
                   >
                     BOC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTx({ ...editingTx, metode: 'Alipay' })}
+                    className={
+                      editingTx.metode === 'Alipay'
+                        ? 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-sky-500 border-sky-400 text-white'
+                        : 'py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition bg-slate-800 border-slate-700 text-slate-400'
+                    }
+                  >
+                    Alipay
                   </button>
                 </div>
               </div>
